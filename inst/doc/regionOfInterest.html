@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+<meta name="date" content="2025-04-09" />
+
+<title>Regions of Interest</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Regions of Interest</h1>
+<h4 class="date">2025-04-09</h4>
+
+
+
+<div id="regions-of-interest" class="section level1">
+<h1>Regions of interest</h1>
+<div id="creating-a-spherical-roi" class="section level2">
+<h2>Creating a spherical ROI</h2>
+<p>In <strong>neuroim2</strong> there is basic support for creating
+regions of interest (ROI). To create a spherical ROI around a central
+point, we need an existing object of type <code>NeuroVol</code> or
+<code>NeuroSpace</code>.</p>
+<p>To create a spherical region of interest with a 5mm radius around a
+central voxel at i=20, j=20, k=20, we first read in an image.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a>      <span class="fu">library</span>(neuroim2)        </span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>      file_name <span class="ot">&lt;-</span> <span class="fu">system.file</span>(<span class="st">&quot;extdata&quot;</span>, <span class="st">&quot;global_mask2.nii.gz&quot;</span>, <span class="at">package=</span><span class="st">&quot;neuroim2&quot;</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>      vol <span class="ot">&lt;-</span> <span class="fu">read_vol</span>(file_name)</span></code></pre></div>
+<p>Next, we create a spherical ROI centered around voxel coordinates
+[20,20,20] with a 5mm radius, filling all values in the ROI with
+100.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>      sphere <span class="ot">&lt;-</span> <span class="fu">spherical_roi</span>(vol, <span class="fu">c</span>(<span class="dv">20</span>,<span class="dv">20</span>,<span class="dv">20</span>), <span class="at">radius=</span><span class="dv">5</span>, <span class="at">fill=</span><span class="dv">100</span>, <span class="at">use_cpp=</span><span class="cn">FALSE</span>)</span></code></pre></div>
+<pre><code>#&gt; 
+#&gt;  ROIVol Object 
+#&gt; 
+#&gt; Properties: 
+#&gt;   Dimensions: 11 x 3
+#&gt;   ROI Points: 11
+#&gt;   Value Range: [100.00, 100.00]</code></pre>
+</div>
+<div id="creating-a-spherical-roi-around-a-real-valued-coordinate" class="section level2">
+<h2>Creating a Spherical ROI around a real-valued coordinate</h2>
+<p>To create a spherical ROI centered around a real coordinate in
+millimeters, we need to first convert the real-valued coordinates to a
+voxel-based coordinate. Suppose our real-world coordinate is at -50,
+-28, 10 in coordinate space.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>    rpoint <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">34</span>,<span class="sc">-</span><span class="dv">28</span>,<span class="dv">10</span>)</span></code></pre></div>
+<p>Because the function <code>spherical_roi</code> takes a coordinate in
+<em>voxel units</em>, we need to convert the real-world coordinate
+(i.e. in millimeter units) to voxel coordinates.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>    vox <span class="ot">&lt;-</span> <span class="fu">coord_to_grid</span>(vol, rpoint)</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>    sphere <span class="ot">&lt;-</span> <span class="fu">spherical_roi</span>(vol, vox, <span class="at">radius=</span><span class="dv">10</span>, <span class="at">fill=</span><span class="dv">1</span>)</span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>    <span class="fu">dim</span>(<span class="fu">coords</span>(sphere))</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="co">#&gt; [1] 85  3</span></span></code></pre></div>
+<p>Now we convert back to real-world coordinates</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>    coords <span class="ot">&lt;-</span> <span class="fu">index_to_coord</span>(vol, <span class="fu">indices</span>(sphere))</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>    center_of_mass <span class="ot">&lt;-</span> <span class="fu">colMeans</span>(coords)</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>    center_of_mass</span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="co">#&gt; [1] -36.75 -22.75  14.80</span></span></code></pre></div>
+</div>
+<div id="converting-an-roi-to-a-sparseneurovol" class="section level2">
+<h2>Converting an ROI to a SparseNeuroVol</h2>
+<p>We may want to convert a region of interest to a NeuroVol instance.
+But we don’t want to store every value in a dense array. Here we can
+make use of the <code>SparseNeuroVol</code> class which only stores
+non-zero values my using a <code>Matrix::sparseVector</code> under the
+hood.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a></span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>    sphere <span class="ot">&lt;-</span> <span class="fu">spherical_roi</span>(vol, <span class="fu">c</span>(<span class="dv">50</span>,<span class="dv">10</span>,<span class="dv">10</span>), <span class="at">radius=</span><span class="dv">10</span>, <span class="at">fill=</span><span class="dv">1</span>)</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>    sphere</span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a><span class="co">#&gt;  ROIVol Object </span></span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a><span class="co">#&gt; Properties: </span></span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a><span class="co">#&gt;   Dimensions: 85 x 3</span></span>
+<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a><span class="co">#&gt;   ROI Points: 85</span></span>
+<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a><span class="co">#&gt;   Value Range: [1.00, 1.00]</span></span></code></pre></div>
+<p>Now we construct a <code>SparseNeuroVol</code> and fill it with the
+values stored in the ROI:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>    sparsevol <span class="ot">&lt;-</span> <span class="fu">SparseNeuroVol</span>(sphere, <span class="fu">space</span>(vol),<span class="at">indices=</span><span class="fu">indices</span>(sphere))</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>    <span class="fu">sum</span>(sparsevol) <span class="sc">==</span> <span class="fu">sum</span>(sphere)</span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>    <span class="fu">all</span>(<span class="fu">dim</span>(sparsevol) <span class="sc">==</span> <span class="fu">dim</span>(vol))</span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
+</div>
+<div id="carrying-out-simple-searchlight-roi-analyses" class="section level2">
+<h2>Carrying out simple “searchlight” ROI analyses</h2>
+<p>The so-called roving “searchlight” is often used to perform
+multivariate statistical analyses in a local neighborhood of each voxel
+of an image. Several functions in <code>neuroim2</code> can be used to
+carry out searchlight analyses. These functions produces
+<code>list</code>s of the <code>ROIVol</code> instances that encapsulate
+the local neighborhood around each voxel.</p>
+<p>Here, we compute the mean value in an exhaustive set of spherical
+searchlights in an image volume.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="fu">library</span>(purrr)</span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a></span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a><span class="do">## generate a list of searchlight ROIs</span></span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a>slist <span class="ot">&lt;-</span> <span class="fu">searchlight</span>(vol, <span class="at">eager=</span><span class="cn">TRUE</span>, <span class="at">radius=</span><span class="dv">8</span>)</span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a></span>
+<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a><span class="do">## compute the mean value in each searchlight ROI.</span></span>
+<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a>ret <span class="ot">&lt;-</span> slist <span class="sc">%&gt;%</span> purrr<span class="sc">::</span><span class="fu">map</span>(<span class="sc">~</span> <span class="fu">mean</span>(vol[<span class="fu">coords</span>(.)]))</span></code></pre></div>
+<p>We can also use a “randomized searchlight”, which samples voxels
+without replacement until all voxels have been included in at least one
+searchlight.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a>ret <span class="ot">&lt;-</span> vol <span class="sc">%&gt;%</span> <span class="fu">random_searchlight</span>(<span class="at">radius=</span><span class="dv">8</span>) <span class="sc">%&gt;%</span> purrr<span class="sc">::</span><span class="fu">map</span>(<span class="sc">~</span> <span class="fu">mean</span>(vol[<span class="fu">coords</span>(.)]))</span></code></pre></div>
+<p>Another related method involves using a “parcellation” or clustering
+to define successive regions of interest for an analysis. Here we show
+how to do this in a similar way as above. First we must define a
+‘clustering’ over the voxel space:</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a></span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a>grid <span class="ot">&lt;-</span> <span class="fu">index_to_coord</span>(vol, <span class="fu">which</span>(vol <span class="sc">&gt;</span> <span class="dv">0</span>))</span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a>kres <span class="ot">&lt;-</span> <span class="fu">kmeans</span>(grid, <span class="at">centers=</span><span class="dv">50</span>, <span class="at">iter.max=</span><span class="dv">500</span>)</span></code></pre></div>
+<p>Now we create a <code>ClusteredNeuroVol</code> and map the
+<code>mean</code> function over all clusters:</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a>kvol <span class="ot">&lt;-</span> <span class="fu">ClusteredNeuroVol</span>(vol, kres<span class="sc">$</span>cluster)</span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a>ret <span class="ot">&lt;-</span> vol <span class="sc">%&gt;%</span> <span class="fu">clustered_searchlight</span>(<span class="at">cvol=</span>kvol) <span class="sc">%&gt;%</span> purrr<span class="sc">::</span><span class="fu">map</span>(<span class="sc">~</span> <span class="fu">mean</span>(vol[<span class="fu">coords</span>(.)]))</span></code></pre></div>
+</div>
+<div id="working-with-image-patches" class="section level2">
+<h2>Working with image patches</h2>
+<p>Another type of ROI analysis, similar to the ‘searchlight’, involves
+working with sets of square or cuboid image “patches”. The
+<code>patch_set</code> function can be used to generate a set of
+equally-sized patches that span the image space (or some mask covering
+the space). The patches are guaranteed to be of equal size. This means
+that at edges, ‘patches’ will be padded out with the value at the image
+extremes.</p>
+<p>Here we create a patch set consistting of 3 by 3 by 1 square patches
+that span the image.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a></span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a>pset <span class="ot">&lt;-</span> <span class="fu">patch_set</span>(vol, <span class="at">dims=</span><span class="fu">c</span>(<span class="dv">3</span>,<span class="dv">3</span>,<span class="dv">1</span>))</span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a><span class="fu">length</span>(pset)</span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a><span class="co">#&gt; [1] 102400</span></span>
+<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a>ret <span class="ot">&lt;-</span> pset <span class="sc">%&gt;%</span> purrr<span class="sc">::</span><span class="fu">map</span>(<span class="sc">~</span> <span class="fu">mean</span>(.))</span></code></pre></div>
+<p>Now we limit patches so that the set of patch centers are within a
+mask.</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a></span>
+<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a>pset <span class="ot">&lt;-</span> <span class="fu">patch_set</span>(vol, <span class="at">dims=</span><span class="fu">c</span>(<span class="dv">3</span>,<span class="dv">3</span>,<span class="dv">1</span>), <span class="at">mask=</span><span class="fu">as.logical</span>(vol))</span>
+<span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a><span class="fu">length</span>(pset)</span>
+<span id="cb14-4"><a href="#cb14-4" tabindex="-1"></a><span class="co">#&gt; [1] 29532</span></span>
+<span id="cb14-5"><a href="#cb14-5" tabindex="-1"></a>ret <span class="ot">&lt;-</span> pset <span class="sc">%&gt;%</span> purrr<span class="sc">::</span><span class="fu">map</span>(<span class="sc">~</span> <span class="fu">mean</span>(.))</span></code></pre></div>
+</div>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
