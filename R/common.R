@@ -295,9 +295,10 @@ setMethod(f="scale_series", signature=signature(x="NeuroVec", center="missing", 
 #' @keywords internal
 #' @noRd
 .getRStorage <- function(data_type) {
-  if (any(toupper(data_type) == c("BINARY", "BYTE", "UBYTE", "SHORT", "INTEGER", "INT", "LONG"))) {
+  dtype_upper <- toupper(data_type)
+  if (any(dtype_upper == c("BINARY", "BYTE", "UBYTE", "SHORT", "INTEGER", "INT", "LONG"))) {
     "integer"
-  } else if (any(data_type == c("FLOAT", "DOUBLE"))) {
+  } else if (any(dtype_upper == c("FLOAT", "DOUBLE"))) {
     "double"
   } else {
 	  stop(paste("unrecognized data type", data_type))

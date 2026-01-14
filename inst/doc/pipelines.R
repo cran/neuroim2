@@ -1,5 +1,8 @@
+params <-
+list(family = "red")
+
 ## ----echo = FALSE, message = FALSE--------------------------------------------
-knitr::opts_chunk$set(collapse = T, comment = "#>")
+knitr::opts_chunk$set(collapse = T, comment = "#>", fig.alt = 'Plot output')
 library(purrr)
 library(assertthat)
 library(neuroim2)
@@ -22,16 +25,15 @@ options(mc.cores=1)
 mvals <- vol2 %>% split_clusters(comp$index) %>% map_dbl( ~ mean(.))
 
 ## -----------------------------------------------------------------------------
-sdvol <- vol %>% searchlight(radius=5, eager=TRUE) %>% map_dbl( ~ sd(.)) 
+sdvol <- vol %>% searchlight(radius=5, eager=TRUE) %>% map_dbl( ~ sd(values(.))) 
 sdvol <- NeuroVol(sdvol, space=space(vol), indices=which(vol!=0))
 plot(sdvol, cmap=rainbow(255))
 
 ## -----------------------------------------------------------------------------
 k <- 12
 knnfvol <- vol2 %>% searchlight(radius=6, eager=TRUE) %>% map_dbl(function(x) {
-  ind <- order((x[x@center_index] - values(x)^2))[1:k]
-  mean(x[ind])
-  mean(x)
+  # Just compute mean of all values in the searchlight
+  mean(values(x))
 }) %>% NeuroVol(space=space(vol), indices=which(vol!=0))
 plot(knnfvol, cmap=rainbow(255))
 

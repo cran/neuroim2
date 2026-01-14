@@ -168,8 +168,10 @@ setMethod(f="index_to_grid",
 #' Plot a NeuroSlice
 #'
 #' @name plot,NeuroSlice-method
+#' @aliases plot,NeuroSlice,ANY-method
 #' @param cmap Color map to use for plotting, defaults to grayscale
 #' @param irange Intensity range for scaling the plot values, defaults to the data range
+#' @param legend Logical indicating whether to display the color legend. Defaults to TRUE.
 #'
 #' @return a ggplot2 object
 #'
@@ -190,28 +192,31 @@ setMethod(f="index_to_grid",
 #' plot(slice)
 #' }
 #'
-#' @importFrom ggplot2 ggplot aes geom_raster scale_fill_identity xlab ylab theme_bw
+#' @importFrom ggplot2 ggplot aes geom_raster scale_fill_gradientn xlab ylab theme_bw
 #' @importFrom grDevices gray
 #' @export
 #' @rdname plot-methods
 setMethod("plot",
           signature=signature(x="NeuroSlice"),
           def=function(x, cmap=gray(seq(0,1,length.out=255)),
-                      irange=range(x, na.rm=TRUE)) {
+                      irange=range(x, na.rm=TRUE),
+                      legend=TRUE) {
             if (!requireNamespace("ggplot2", quietly = TRUE)) {
               stop("Package \"ggplot2\" needed for this function to work. Please install it.",
                    call. = FALSE)
             }
 
-            ## map intensities to colors
-            imcols <- mapToColors(x, cmap, alpha=1, irange=irange, zero_col="#000000")
-
-            {y=value=NULL}
+            {y = value = NULL}
 
             cds <- index_to_coord(space(x), 1:length(x))
-            df1 <- data.frame(x=cds[,1], y=cds[,2], value=as.vector(imcols))
-            ggplot2::ggplot(ggplot2::aes(x=x, y=y), data=df1) + ggplot2::geom_raster(ggplot2::aes(fill=value)) +
-              ggplot2::scale_fill_identity() + ggplot2::xlab("") + ggplot2::ylab("")
+            df1 <- data.frame(x = cds[,1], y = cds[,2], value = as.vector(x))
+
+            ggplot2::ggplot(df1, ggplot2::aes(x = x, y = y, fill = value)) +
+              ggplot2::geom_raster() +
+              ggplot2::scale_fill_gradientn(colours = cmap,
+                                           limits = irange,
+                                           guide = if (legend) "colourbar" else "none") +
+              ggplot2::xlab("") + ggplot2::ylab("") +
               ggplot2::theme_bw()
 
           })
@@ -269,10 +274,25 @@ setMethod(f="show",
             cat("\n", blue("=" = 28), "\n", sep="")
           })
 
+#' Map intensity values to colors
+#'
+#' Convert intensity values (e.g., a 2D slice) into a color representation for
+#' plotting and overlays.
+#'
+#' @param imslice A numeric vector or array of intensities.
+#' @param col A vector of colors used as a lookup table.
+#' @param zero_col Color used for exactly-zero intensities (defaults to transparent).
+#' @param alpha Global alpha multiplier applied to all colors when \code{alpha < 1}.
+#' @param irange Intensity range used to normalize values before mapping to \code{col}.
+#' @param threshold Optional length-2 numeric vector. If \code{diff(threshold) > 0},
+#' values within \code{[threshold[1], threshold[2]]} are set to transparent.
+#'
+#' @return If \code{alpha == 1}, returns a character vector/array of colors.
+#' If \code{alpha < 1}, returns an array with an added RGBA channel (last dimension length 4).
+#'
 #' @import assertthat
-#' @keywords internal
 #' @importFrom grDevices col2rgb gray heat.colors
-#' @noRd
+#' @export
 mapToColors <- function (imslice, col = heat.colors(128, alpha = 1), zero_col = "#00000000",
                          alpha = 1, irange = range(imslice), threshold = c(0, 0)) {
 
@@ -308,3 +328,24 @@ mapToColors <- function (imslice, col = heat.colors(128, alpha = 1), zero_col = 
     imcols
   }
 }
+
+#' @rdname mask-methods
+#' @export
+setMethod("mask", "NeuroSlice",
+          function(x) {
+            # Create a 3D mask with the slice dimension expanded to 1
+            dims <- dim(x)
+            
+            # NeuroSlice is always 2D, expand to 3D for mask
+            if (length(dims) == 2) {
+              # Add a third dimension of size 1
+              mask_dims <- c(dims[1], dims[2], 1)
+              # Use default spacing and origin since NeuroSlice doesn't have these
+              LogicalNeuroVol(array(TRUE, mask_dims),
+                            NeuroSpace(mask_dims))
+            } else {
+              # Shouldn't happen for NeuroSlice, but handle gracefully
+              LogicalNeuroVol(array(TRUE, dims), 
+                            NeuroSpace(dims))
+            }
+          })

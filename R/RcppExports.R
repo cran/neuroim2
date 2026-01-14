@@ -13,6 +13,26 @@ bilateral_filter_4d_cpp_par <- function(arr, mask_idx, spatial_window, temporal_
     .Call(`_neuroim2_bilateral_filter_4d_cpp_par`, arr, mask_idx, spatial_window, temporal_window, spatial_sigma, intensity_sigma, temporal_sigma, spacing)
 }
 
+build_cgb_graph_cpp <- function(arr, mask_idx, run_ends, window, spatial_sigma, spacing, corr_mode, corr_param, topk, leave_out_run, run_weights, add_self) {
+    .Call(`_neuroim2_build_cgb_graph_cpp`, arr, mask_idx, run_ends, window, spatial_sigma, spacing, corr_mode, corr_param, topk, leave_out_run, run_weights, add_self)
+}
+
+build_cgb_graph_nuis_cpp <- function(arr, mask_idx, run_ends, window, spatial_sigma, spacing, corr_mode, corr_param, topk, leave_out_run, run_weights, Q_list, sqrtw_list, add_self) {
+    .Call(`_neuroim2_build_cgb_graph_nuis_cpp`, arr, mask_idx, run_ends, window, spatial_sigma, spacing, corr_mode, corr_param, topk, leave_out_run, run_weights, Q_list, sqrtw_list, add_self)
+}
+
+apply_cgb_graph_cpp <- function(arr, row_ptr, col_ind, val, mask_idx, passes = 1L, lambda = 1.0) {
+    .Call(`_neuroim2_apply_cgb_graph_cpp`, arr, row_ptr, col_ind, val, mask_idx, passes, lambda)
+}
+
+downsample_3d_cpp <- function(arr, new_dims, old_dims) {
+    .Call(`_neuroim2_downsample_3d_cpp`, arr, new_dims, old_dims)
+}
+
+downsample_4d_cpp <- function(arr, new_dims, old_dims) {
+    .Call(`_neuroim2_downsample_4d_cpp`, arr, new_dims, old_dims)
+}
+
 fast_multilayer_laplacian_enhancement_masked <- function(img, mask, k = 2L, patch_size = 3L, search_radius = 2L, h = 0.7, mapping_params = NULL, use_normalization_free = TRUE) {
     .Call(`_neuroim2_fast_multilayer_laplacian_enhancement_masked`, img, mask, k, patch_size, search_radius, h, mapping_params, use_normalization_free)
 }

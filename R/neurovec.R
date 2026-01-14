@@ -90,6 +90,55 @@ NeuroVec <- function(data, space = NULL, mask = NULL, label = "") {
 
 }
 
+#' Create NeuroVec from list of NeuroVol objects
+#'
+#' @description
+#' Factory function to create a NeuroVec object from a list of NeuroVol objects.
+#' This is a convenience wrapper around the NeuroVec constructor that combines
+#' multiple 3D volumes into a single 4D NeuroVec.
+#'
+#' @param vols A list of \code{\linkS4class{NeuroVol}} objects. All volumes must have
+#'   identical spatial dimensions.
+#' @param mask An optional logical array or \code{\linkS4class{LogicalNeuroVol}} object
+#'   defining the subset of voxels to include. If provided, a SparseNeuroVec will be created.
+#'
+#' @return A \code{\linkS4class{NeuroVec}} object (either DenseNeuroVec or SparseNeuroVec
+#'   depending on whether a mask is provided).
+#'
+#' @examples
+#' # Create a simple NeuroVec from list of volumes
+#' spc <- NeuroSpace(c(10, 10, 10))
+#' vol1 <- NeuroVol(rnorm(10*10*10), spc)
+#' vol2 <- NeuroVol(rnorm(10*10*10), spc)
+#' vec <- vec_from_vols(list(vol1, vol2))
+#' print(dim(vec))  # Should be c(10, 10, 10, 2)
+#'
+#' @export
+#' @seealso \code{\link{NeuroVec}}, \code{\link{NeuroVol}}
+vec_from_vols <- function(vols, mask = NULL) {
+  if (!is.list(vols)) {
+    stop("Input must be a list of NeuroVol objects")
+  }
+  
+  if (length(vols) == 0) {
+    stop("List of volumes cannot be empty")
+  }
+  
+  # Check that all elements are NeuroVol objects
+  if (!all(sapply(vols, function(x) inherits(x, "NeuroVol")))) {
+    stop("All elements in the list must be NeuroVol objects")
+  }
+  
+  # Check that all volumes have the same dimensions
+  dims <- lapply(vols, dim)
+  if (!all(sapply(dims, function(d) identical(d, dims[[1]])))) {
+    stop("All volumes must have the same dimensions")
+  }
+  
+  # Call the NeuroVec constructor with the list
+  NeuroVec(vols, mask = mask)
+}
+
 
 
 #' DenseNeuroVec
@@ -162,7 +211,7 @@ DenseNeuroVec <- function(data, space, label="none") {
     }
 
 		dim(data) <- dim(space)
-	} else if (is.vector(data) || length(dim(data) == 1)) {
+	} else if (is.vector(data) || length(dim(data)) == 1) {
 	  data <- array(data, dim(space))
 	}
 
@@ -200,42 +249,49 @@ DenseNeuroVec <- function(data, space, label="none") {
 #' @export
 setMethod(f="load_data", signature=c("NeuroVecSource"),
           def=function(x) {
-            #browser()
             meta <- x@meta_info
-
             stopifnot(length(meta@dims) == 4)
 
-            nels <- prod(meta@dims[1:4])
-            ind <- x@indices
+            ind <- as.integer(x@indices)
+            nels <- prod(meta@dims[1:3])
 
-            ## use RNifti, fails to work with other formats, though...
-            arr <- RNifti::readNifti(meta@data_file)
+            is_gzip <- identical(meta@descriptor@data_encoding, "gzip") || endsWith(meta@data_file, ".gz")
+            mmap_ok <- !is_gzip && identical(.Platform$endian, meta@endian)
 
-            if (length(dim(arr)) == 5 && dim(arr)[4] == 1) {
-              ## if 4th dimension is of length 1, drop it
-              arr <- drop(arr)
-            }
-
-
-            ## bit of a hack to deal with scale factors
-            if (.hasSlot(meta, "slope")) {
-
-              if (meta@slope != 0) {
-                arr <- arr * meta@slope
-              }
-            }
-
-            bspace <- NeuroSpace(c(meta@dims[1:3], length(ind)),meta@spacing, meta@origin,
-                                 meta@spatial_axes, trans(meta))
-
-            if (length(dim(arr)) == 3) {
-              dim(arr) <- c(dim(arr),1)
-              DenseNeuroVec(unclass(arr), bspace, label=meta@data_file)
-            } else if (length(dim(arr)) == 4) {
-              DenseNeuroVec(arr[,,,ind,drop=FALSE], bspace, label=meta@data_file)
+            dat <- if (mmap_ok) {
+              # Returns [time x voxels] for requested volumes
+              read_mapped_vols(meta, ind)
             } else {
-              stop("NeuroVecSource::load_data: array dimension must be equal to 3 or 4.")
+              # Stream volumes sequentially (works for gzipped inputs too).
+              reader <- data_reader(meta, offset = 0)
+              on.exit(close(reader), add = TRUE)
+
+              pos <- split(seq_along(ind), ind)
+              out <- matrix(0, nrow = length(ind), ncol = nels)
+              max_vol <- max(ind)
+
+              for (t in seq_len(max_vol)) {
+                vol_dat <- read_elements(reader, nels)
+                rows <- pos[[as.character(t)]]
+                if (!is.null(rows)) {
+                  out[rows, ] <- .apply_data_scaling(vol_dat, meta, index = t)
+                }
+              }
+              out
             }
+
+            # Apply scaling for mmap path (streaming path already scaled)
+            if (mmap_ok) {
+              dat <- .apply_data_scaling_matrix(dat, meta, indices = ind)
+            }
+
+            bspace <- NeuroSpace(c(meta@dims[1:3], length(ind)),
+                                 meta@spacing,
+                                 meta@origin,
+                                 meta@spatial_axes,
+                                 trans(meta))
+
+            DenseNeuroVec(dat, bspace, label = meta@data_file)
           })
 
 
@@ -350,11 +406,11 @@ read_vol_list <- function(file_names, mask=NULL) {
 
 	vols <- lapply(sourceList, load_data)
 	if (is.null(mask)) {
-		mat <- do.call(cbind, vols)
+		mat <- do.call(cbind, lapply(vols, function(v) as.vector(v@.Data)))
 		dspace <- add_dim(space(vols[[1]]), length(vols))
-		DenseNeuroVec(mat, dspace, label=map_chr(meta_info, function(m) m@label))
+		DenseNeuroVec(mat, dspace, label="")
 	} else {
-		mat <- do.call(cbind, vols)
+		mat <- do.call(cbind, lapply(vols, function(v) as.vector(v@.Data)))
 		dspace <- add_dim(space(vols[[1]]), length(vols))
 		if (is.vector(mask)) {
 			## mask supplied as index vector, convert to logical
@@ -594,12 +650,12 @@ setMethod(f="series", signature(x="NeuroVec", i="integer"),
               idx <- map(i, ~ . + offsets) %>% flatten_dbl()
               vals <- x[idx]
               ret <- matrix(vals, dim(x)[4], length(i))
-              if (drop) drop(ret) else ret
+              if (isTRUE(drop)) base::drop(ret) else ret
             } else {
               ## could be solved with expand.grid, no?
               assert_that(length(i) == 1 && length(j) == 1 && length(k) ==1)
               ret <- x[i,j,k,]
-              if (drop) drop(ret) else ret
+              if (isTRUE(drop)) base::drop(ret) else ret
             }
           })
 
@@ -614,11 +670,11 @@ setMethod(f="series", signature=signature(x="DenseNeuroVec", i="integer"),
             if (missing(j) && missing(k)) {
               g <- indexToGridCpp(i, dim(x)[1:3])
               ret <- callGeneric(x,g)
-              if (drop) drop(ret) else ret
+              if (isTRUE(drop)) base::drop(ret) else ret
             } else {
               assert_that(length(i) == 1 && length(j) == 1 && length(k) ==1)
               ret <- x[i,j,k,]
-              if (drop) drop(ret) else ret
+              if (isTRUE(drop)) base::drop(ret) else ret
             }
           })
 
@@ -642,7 +698,7 @@ setMethod("series", signature(x="NeuroVec", i="numeric"),
 #' @param k third dimension index
 #' @export
 setMethod("series_roi", signature(x="NeuroVec", i="numeric"),
-          def=function(x, i, j, k) {
+          def=function(x, i, j, k, drop=TRUE) {
             mat <- if (missing(j) && missing(k)) {
               vdim <- dim(x)[1:3]
               vox <- arrayInd(i, vdim)
@@ -652,7 +708,7 @@ setMethod("series_roi", signature(x="NeuroVec", i="numeric"),
             } else {
               assert_that(length(i) == 1 && length(j) == 1 && length(k) ==1)
               ret <- x[i,j,k,]
-              if (drop) drop(ret) else ret
+              if (isTRUE(drop)) base::drop(ret) else ret
 
             }
 
@@ -813,6 +869,29 @@ setMethod(f="write_vec",signature=signature(x="NeuroVec", file_name="character",
 			write_nifti_vector(x, file_name, data_type)
 
 		})
+
+
+#' @export
+#' @rdname as_mmap
+setMethod("as_mmap", signature(x = "NeuroVec"),
+          function(x, file = NULL, data_type = "FLOAT", overwrite = FALSE, ...) {
+            if (inherits(x, "MappedNeuroVec")) {
+              return(x)
+            }
+
+            if (is.null(file)) {
+              file <- tempfile(fileext = ".nii")
+            } else if (file.exists(file) && !overwrite) {
+              stop("as_mmap: file already exists; set overwrite = TRUE or choose a different path.")
+            }
+
+            if (endsWith(file, ".gz")) {
+              stop("as_mmap: use an uncompressed .nii file for memory mapping.")
+            }
+
+            write_vec(x, file, data_type = data_type)
+            MappedNeuroVec(file)
+          })
 
 
 
@@ -1037,52 +1116,7 @@ read_vec  <- function(file_name, indices=NULL, mask=NULL, mode=c("normal", "mmap
 
 
 
-#' @export
-#' @rdname as.matrix-methods
-setMethod(f="as.matrix", signature=signature(x = "NeuroVec"), def=function(x) {
-  dm <- dim(x)
-  d123 <- prod(dm[1:3])
-  d4 <- dm[4]
-  vals <- as.vector(x@.Data)
-  dim(vals) <- c(d123, d4)
-  vals
-})
-
-#' @rdname series-methods
-#' @param i first dimension index
-#' @param j second dimension index
-#' @param k third dimension index
-#' @export
-setMethod("series_roi", signature(x="NeuroVec", i="numeric"),
-          def=function(x, i, j, k) {
-            mat <- if (missing(j) && missing(k)) {
-              vdim <- dim(x)[1:3]
-              vox <- arrayInd(i, vdim)
-              callGeneric(x, vox)
-            } else if (missing(i) || missing(j) || missing(k)) {
-              stop("series_roi: must provide either 1D 'i' or 3D ('i', 'j', 'k') vector indices")
-            } else {
-              assert_that(length(i) == 1 && length(j) == 1 && length(k) ==1)
-              ret <- x[i,j,k,]
-              if (drop) drop(ret) else ret
-            }
-          })
-
-#' @rdname series-methods
-#' @export
-setMethod("series_roi", signature(x="NeuroVec", i="matrix"),
-          def=function(x,i) {
-            mat <- series(x, i)
-            ROIVec(space(x), coords=i, data=mat)
-          })
-
-#' @rdname series-methods
-#' @export
-setMethod("series_roi", signature(x="NeuroVec", i="LogicalNeuroVol"),
-          def=function(x,i) {
-            mat <- as.matrix(series(x, i))
-            ROIVec(space(x), coords=index_to_grid(i, which(i == TRUE)), data=as.matrix(mat))
-          })
+ 
 
 #' @export
 #' @rdname split_clusters-methods
@@ -1280,61 +1314,6 @@ setMethod(f="[[", signature=signature(x="NeuroVec", i="numeric"),
           })
 
 
-#' @rdname drop-methods
-#' @export
-setMethod("drop", signature(x="NeuroVec"),
-          def=function(x) {
-            if (dim(x)[4] == 1) {
-              idx <- seq(1, prod(dim(x)[1:3]))
-              vals <- x[idx]
-              sp <- drop_dim(space(x))
-              DenseNeuroVol(array(vals, dim(sp)), sp)
-            }
-          })
-
-
-#' @title Convert DenseNeuroVec to sparse representation using mask
-#' @description This method converts a DenseNeuroVec object to a sparse representation using a given LogicalNeuroVol mask.
-#' @param x A DenseNeuroVec object to convert to a sparse representation.
-#' @param mask A LogicalNeuroVol object representing the mask to apply during conversion.
-#' @return A SparseNeuroVec object resulting from the conversion.
-#' @export
-#' @rdname as.sparse-methods
-setMethod(f="as.sparse", signature=signature(x="DenseNeuroVec", mask="LogicalNeuroVol"),
-          def=function(x, mask) {
-            assert_that(all(dim(x)[1:3] == dim(mask)))
-            assert_that(all(spacing(x) == spacing(mask)))
-
-            vdim <- dim(x)[1:3]
-            dat <- as.matrix(x)[mask == TRUE,]
-            bvec <- SparseNeuroVec(dat, space(x), mask)
-
-          })
-
-
-#' @title Convert DenseNeuroVec to sparse representation using a numeric mask
-#' @description This method converts a DenseNeuroVec object to a sparse representation using a given numeric mask.
-#' @param x A DenseNeuroVec object to convert to a sparse representation.
-#' @param mask A numeric vector representing the mask to apply during conversion.
-#' @return A SparseNeuroVec object resulting from the conversion.
-#' @export
-#' @rdname as.sparse-methods
-setMethod(f="as.sparse", signature=signature(x="DenseNeuroVec", mask="numeric"),
-		def=function(x, mask) {
-			vdim <- dim(x)[1:3]
-			m <- array(0, vdim)
-			m[mask] <- TRUE
-
-			logivol <- LogicalNeuroVol(m, drop_dim(space(x)))
-
-			dat <- as(x, "matrix")[mask,]
-
-			bvec <- SparseNeuroVec(dat, space(x), logivol)
-
-		})
-
-
-
 #' @export
 #' @rdname write_vec-methods
 setMethod(f="write_vec",signature=signature(x="ROIVec", file_name="character", format="missing", data_type="missing"),
@@ -1417,3 +1396,14 @@ setMethod("as.matrix", "DenseNeuroVec",
   }
 )
 
+#' @rdname mask-methods
+#' @export
+setMethod("mask", "DenseNeuroVec",
+          function(x) {
+            # Extract 3D spatial dimensions for the mask
+            spatial_dims <- dim(x)[1:3]
+            LogicalNeuroVol(array(TRUE, spatial_dims), 
+                           NeuroSpace(spatial_dims, 
+                                     spacing(x)[1:3],
+                                     origin(x)[1:3]))
+          })

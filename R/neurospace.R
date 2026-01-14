@@ -176,6 +176,11 @@ setMethod(f="show",
               # Format each element using formatC to a fixed number of decimal places
               formatted_numbers <- apply(mat, c(1,2), function(x) formatC(x, format="f", digits=digits))
 
+              # Ensure formatted_numbers is always a matrix
+              if (!is.matrix(formatted_numbers)) {
+                formatted_numbers <- matrix(formatted_numbers, nrow = nrow(mat), ncol = ncol(mat))
+              }
+
               # For each column, determine the maximum width
               max_widths <- apply(formatted_numbers, 2, function(col) max(nchar(col)))
 
@@ -213,17 +218,26 @@ setMethod(f="show",
 
             # Anatomical Orientation
             cat("\n", bold(yellow(">> Anatomical Orientation")), "\n")
-            if (length(object@dim) >= 3) {
+            
+            # Check the class of axes object and handle appropriately
+            if (inherits(object@axes, "AxisSet3D") || inherits(object@axes, "AxisSet4D") || inherits(object@axes, "AxisSet5D")) {
               orientations <- c(
                 paste0("X: ", green(object@axes@i@axis)),
                 paste0("Y: ", green(object@axes@j@axis)),
                 paste0("Z: ", green(object@axes@k@axis))
               )
-            } else {
+            } else if (inherits(object@axes, "AxisSet2D")) {
               orientations <- c(
                 paste0("X: ", green(object@axes@i@axis)),
                 paste0("Y: ", green(object@axes@j@axis))
               )
+            } else if (inherits(object@axes, "AxisSet1D")) {
+              orientations <- c(
+                paste0("X: ", green(object@axes@i@axis))
+              )
+            } else {
+              # For base AxisSet or other cases, just show dimension count
+              orientations <- paste0("Dimensions: ", object@axes@ndim)
             }
             cat(paste0("  ", paste(orientations, collapse="  |  ")), "\n")
 
@@ -299,19 +313,25 @@ setMethod(f="drop_dim", signature=signature(x="NeuroSpace", dimnum="numeric"),
             assert_that(length(D) >= 2,
                        msg = "Cannot drop dimension from space with less than 2 dimensions")
 
-            Dind <- seq(1,length(D))[-dimnum]
+            Dind <- seq_len(length(D))[-dimnum]
             if (ndim(x) > 3) {
               NeuroSpace(D[Dind], origin=origin(x)[Dind], spacing=spacing(x)[Dind],
                          axes=axes(x), trans=trans(x))
             } else {
 
+              # For typical 2D/3D spaces, keep the rows/cols
+              # corresponding to the retained spatial axes plus
+              # the homogeneous coordinate, ensuring a square matrix.
               tx <- x@trans
-              keep_col <- Dind
-              keep_row <- which(apply(tx[,Dind], 1, function(x) !all(x==0)))
-              tx <- rbind(cbind(tx[keep_row,keep_col], origin(x)[keep_row]), c(rep(0, length(Dind)), 1))
+              k  <- ndim(x)
+              keep <- c(Dind, k + 1L)
+              tx2 <- tx[keep, keep, drop=FALSE]
 
-              NeuroSpace(D[-dimnum], origin=origin(x)[-dimnum], spacing=spacing(x)[-dimnum],
-                         axes=drop_dim(axes(x), dimnum), trans=tx)
+              NeuroSpace(D[Dind],
+                         origin  = origin(x)[Dind],
+                         spacing = spacing(x)[Dind],
+                         axes    = drop_dim(axes(x), dimnum),
+                         trans   = tx2)
             }
 
           })

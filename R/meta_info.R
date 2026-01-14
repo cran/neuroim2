@@ -61,22 +61,28 @@ setMethod("data_reader", "NIFTIMetaInfo",
 
     total_offset <- x@data_offset + offset
 
+    cleanup <- FALSE
+    con <- NULL
     if (x@descriptor@data_encoding == "gzip") {
       con <- tryCatch({
         gzfile(x@data_file, "rb")
       }, error = function(e) {
         stop("Failed to open gzipped file: ", x@data_file, "\n", e$message)
       })
+      cleanup <- TRUE
+      on.exit(if (cleanup) close(con), add = TRUE)
     } else {
       con <- x@data_file
     }
 
-    BinaryReader(con,
-                total_offset,
-                .getRStorage(x@data_type),
-                x@bytes_per_element,
-                x@endian,
-                .isSigned(x@data_type))
+    reader <- BinaryReader(con,
+                           total_offset,
+                           .getRStorage(x@data_type),
+                           x@bytes_per_element,
+                           x@endian,
+                           .isSigned(x@data_type))
+    cleanup <- FALSE
+    reader
   })
 
 #' Create Data Reader for AFNI Format
@@ -92,22 +98,28 @@ setMethod("data_reader", "AFNIMetaInfo",
 
     total_offset <- x@data_offset + offset
 
+    cleanup <- FALSE
+    con <- NULL
     if (x@descriptor@data_encoding == "gzip") {
       con <- tryCatch({
         gzfile(x@data_file, "rb")
       }, error = function(e) {
         stop("Failed to open gzipped file: ", x@data_file, "\n", e$message)
       })
+      cleanup <- TRUE
+      on.exit(if (cleanup) close(con), add = TRUE)
     } else {
       con <- x@data_file
     }
 
-    BinaryReader(con,
-                total_offset,
-                .getRStorage(x@data_type),
-                x@bytes_per_element,
-                x@endian,
-                .isSigned(x@data_type))
+    reader <- BinaryReader(con,
+                           total_offset,
+                           .getRStorage(x@data_type),
+                           x@bytes_per_element,
+                           x@endian,
+                           .isSigned(x@data_type))
+    cleanup <- FALSE
+    reader
   })
 
 #' Get transformation matrix
@@ -454,7 +466,9 @@ AFNIMetaInfo <- function(descriptor, afni_header) {
 #' @param file_name the name of the file to read
 #' @return an instance of class \code{\linkS4class{FileMetaInfo}}
 #' @examples
-#' header <- read_header(system.file("extdata", "global_mask_v4.nii", package="neuroim2"))
+#' hdr <- read_header(system.file("extdata", "global_mask_v4.nii", package = "neuroim2"))
+#' dim(hdr)                  # image dimensions
+#' hdr@header$pixdim[5]      # TR in seconds
 #' @export read_header
 read_header <- function(file_name) {
   desc <- find_descriptor(file_name)

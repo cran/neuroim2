@@ -16,5 +16,7 @@ an instance of class \code{\linkS4class{FileMetaInfo}}
 read header information of an image file
 }
 \examples{
-header <- read_header(system.file("extdata", "global_mask_v4.nii", package="neuroim2"))
+hdr <- read_header(system.file("extdata", "global_mask_v4.nii", package = "neuroim2"))
+dim(hdr)                  # image dimensions
+hdr@header$pixdim[5]      # TR in seconds
 }

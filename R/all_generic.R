@@ -11,6 +11,18 @@ setGeneric("plot", function(x, y, ...) standardGeneric("plot"))
 #' @export
 setGeneric("drop", function(x) standardGeneric("drop"))
 
+#' Generic as.array Method
+#'
+#' Coerces an object to a base array using S4 dispatch when available.
+#'
+#' @param x An object to be coerced to an array.
+#' @param ... Additional arguments passed to methods.
+#' @return An \code{array} representation of the input \code{x}.
+#'
+#' @export
+setGeneric("as.array", function(x, ...) standardGeneric("as.array"),
+           useAsDefault = base::as.array)
+
 #' Generic as.matrix Method
 #'
 #' Coerces an object to a matrix.
@@ -62,6 +74,19 @@ setGeneric("scale", function(x, ...) standardGeneric("scale"))
 #' @export
 #' @rdname resample-methods
 setGeneric("resample", function(source, target, ...) standardGeneric("resample"))
+
+#' Downsample an Image
+#'
+#' This function downsamples a neuroimaging object, reducing its spatial resolution while preserving the temporal dimension.
+#'
+#' @param x An object representing the image to be downsampled (typically a DenseNeuroVec for 4D data).
+#' @param ... Additional arguments passed to specific downsample methods.
+#'
+#' @return An object of the same class as \code{x}, downsampled according to the specified parameters.
+#'
+#' @export
+#' @rdname downsample-methods
+setGeneric("downsample", function(x, ...) standardGeneric("downsample"))
 
 
 #' print an object
@@ -252,7 +277,8 @@ setGeneric(name="vectors", def=function(x, subset, ...) standardGeneric("vectors
 #' blocks <- split_blocks(vec, block_indices)
 #'
 #' @rdname split_blocks-methods
-split_blocks <- function(x, indices, ...) standardGeneric("split_blocks")
+setGeneric(name="split_blocks",
+           def=function(x, indices, ...) standardGeneric("split_blocks"))
 
 #' Partition an image into a set of disjoint clusters
 #'
@@ -807,6 +833,28 @@ setGeneric(name="write_vol",  def=function(x, file_name, format, data_type) stan
 #' }
 #' @rdname write_vec-methods
 setGeneric(name="write_vec",  def=function(x, file_name, format, data_type, ...) standardGeneric("write_vec"))
+
+
+#' Convert a NeuroVec to a memory-mapped representation
+#'
+#' @description
+#' Generic for converting neuroimaging vectors to a memory-mapped
+#' \code{\linkS4class{MappedNeuroVec}} on disk (when possible).
+#'
+#' @param x A \code{\linkS4class{NeuroVec}}-like object.
+#' @param file Optional output file name for the backing image. If \code{NULL},
+#'   a temporary \code{.nii} file is created.
+#' @param data_type Character string specifying the output data type for the
+#'   NIfTI file. Should be one of: "BINARY", "UBYTE", "SHORT", "INT", "FLOAT",
+#'   "DOUBLE". Default is "FLOAT".
+#' @param overwrite Logical; if \code{TRUE}, overwrite an existing file at the
+#'   specified path. Default is \code{FALSE}.
+#' @param ... Additional arguments passed to methods.
+#'
+#' @return A \code{\linkS4class{MappedNeuroVec}} (or \code{x} itself if already
+#'   memory-mapped).
+#' @export
+setGeneric("as_mmap", function(x, file = NULL, ...) standardGeneric("as_mmap"))
 
 
 
@@ -1570,3 +1618,41 @@ setGeneric(name="read_meta_info", def=function(x, file_name) standardGeneric("re
 #' max(values(embedded_kern_scaled)) == 2 * max(values(embedded_kern))
 #'
 setGeneric("embed_kernel", def=function(x, sp, center_voxel, ...) standardGeneric("embed_kernel"))
+
+#' Extract Mask from Neuroimaging Object
+#' 
+#' @description
+#' Generic function to extract or generate a mask from neuroimaging objects.
+#' For sparse objects with a \code{@mask} slot, returns the stored mask.
+#' For dense objects, returns a filled mask (all TRUE values) indicating
+#' all voxels contain valid data.
+#' 
+#' @param x A neuroimaging object (NeuroVol, NeuroVec, or derived classes)
+#' @return A \code{\linkS4class{LogicalNeuroVol}} object representing the mask
+#' 
+#' @details
+#' The behavior depends on the class of the input object:
+#' \itemize{
+#'   \item For sparse objects (SparseNeuroVec, ClusteredNeuroVol, etc.): 
+#'         Returns the stored \code{@mask} slot
+#'   \item For dense objects (DenseNeuroVol, DenseNeuroVec, etc.): 
+#'         Returns a LogicalNeuroVol with all TRUE values
+#'   \item For ROI objects: Not implemented (use \code{coords()} instead)
+#' }
+#' 
+#' @export
+#' @rdname mask-methods
+#' @examples
+#' # Create a dense volume
+#' vol <- NeuroVol(array(rnorm(64^3), c(64,64,64)), NeuroSpace(c(64,64,64)))
+#' m <- mask(vol)  # Returns all TRUE mask
+#' 
+#' # Create a sparse vector with explicit mask
+#' mask_array <- array(runif(64^3) > 0.5, c(64,64,64))
+#' mask_vol <- LogicalNeuroVol(mask_array, NeuroSpace(c(64,64,64)))
+#' # Data must be a matrix (time x masked voxels)
+#' sparse_data <- matrix(rnorm(sum(mask_array) * 10), nrow = 10, ncol = sum(mask_array))
+#' svec <- SparseNeuroVec(sparse_data, NeuroSpace(c(64,64,64,10)), mask_vol)
+#' m2 <- mask(svec)  # Returns the stored mask
+#' 
+setGeneric("mask", def=function(x) standardGeneric("mask"))

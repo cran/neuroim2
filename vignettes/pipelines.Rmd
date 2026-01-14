@@ -1,15 +1,26 @@
 ---
-title: "Pipelines"
-date: "`r Sys.Date()`"
+title: 'Pipelines: Split, Map, and Reduce'
+date: '`r Sys.Date()`'
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Pipelines}
+  %\VignetteIndexEntry{Pipelines: Split, Map, and Reduce}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
+params:
+  family: red
+css: albers.css
+resource_files:
+- albers.css
+- albers.js
+includes:
+  in_header: |-
+    <script src="albers.js"></script>
+    <script>document.addEventListener('DOMContentLoaded',()=>document.body.classList.add('palette-red'));</script>
+
 ---
 
 ```{r, echo = FALSE, message = FALSE}
-knitr::opts_chunk$set(collapse = T, comment = "#>")
+knitr::opts_chunk$set(collapse = T, comment = "#>", fig.alt = 'Plot output')
 library(purrr)
 library(assertthat)
 library(neuroim2)
@@ -48,7 +59,7 @@ mvals <- vol2 %>% split_clusters(comp$index) %>% map_dbl( ~ mean(.))
 Suppose we want to compute the local standard deviation within a 4mm radius of each voxel. We can use the `searchlight` function to construct a list of spherical ROIs centered on every voxel in the input set.
 
 ```{r}
-sdvol <- vol %>% searchlight(radius=5, eager=TRUE) %>% map_dbl( ~ sd(.)) 
+sdvol <- vol %>% searchlight(radius=5, eager=TRUE) %>% map_dbl( ~ sd(values(.))) 
 sdvol <- NeuroVol(sdvol, space=space(vol), indices=which(vol!=0))
 plot(sdvol, cmap=rainbow(255))
 ```
@@ -58,9 +69,8 @@ Another thing we might to is compute the k nearest neighbors in each searchlight
 ```{r}
 k <- 12
 knnfvol <- vol2 %>% searchlight(radius=6, eager=TRUE) %>% map_dbl(function(x) {
-  ind <- order((x[x@center_index] - values(x)^2))[1:k]
-  mean(x[ind])
-  mean(x)
+  # Just compute mean of all values in the searchlight
+  mean(values(x))
 }) %>% NeuroVol(space=space(vol), indices=which(vol!=0))
 plot(knnfvol, cmap=rainbow(255))
 ```

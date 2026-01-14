@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Smoothing and filtering with neuroim2</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Smoothing and filtering with neuroim2</h1>
+
+
+
+<p>This vignette gives a practical overview of the main spatial and
+spatio‑temporal smoothing tools in neuroim2:</p>
+<ul>
+<li>3D spatial filters on <code>NeuroVol</code>:
+<ul>
+<li><code>gaussian_blur()</code> — isotropic Gaussian smoothing</li>
+<li><code>guided_filter()</code> — edge‑preserving smoothing</li>
+<li><code>bilateral_filter()</code> — intensity‑aware spatial
+smoothing</li>
+<li><code>laplace_enhance()</code> — multi‑scale detail enhancement</li>
+</ul></li>
+<li>4D filters on <code>NeuroVec</code>:
+<ul>
+<li><code>bilateral_filter_4d()</code> — joint spatial + temporal
+bilateral filter</li>
+<li><code>cgb_filter()</code> — correlation‑guided bilateral smoothing
+based on a graph</li>
+</ul></li>
+</ul>
+<p>We’ll work with the demo volume used elsewhere in the package. All
+code assumes this setup:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>demo_path <span class="ot">&lt;-</span> <span class="fu">system.file</span>(<span class="st">&quot;extdata&quot;</span>, <span class="st">&quot;global_mask_v4.nii&quot;</span>, <span class="at">package =</span> <span class="st">&quot;neuroim2&quot;</span>)</span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a>vol3d <span class="ot">&lt;-</span> <span class="fu">read_vol</span>(demo_path)          <span class="co"># 3D volume</span></span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a>vec4d <span class="ot">&lt;-</span> <span class="fu">read_vec</span>(demo_path)          <span class="co"># 4D NeuroVec (same file)</span></span>
+<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a>sp3  <span class="ot">&lt;-</span> <span class="fu">space</span>(vol3d)</span>
+<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a>dims <span class="ot">&lt;-</span> <span class="fu">dim</span>(vol3d)</span></code></pre></div>
+<div id="gaussian-smoothing-with-gaussian_blur" class="section level2">
+<h2>1. Gaussian smoothing with <code>gaussian_blur()</code></h2>
+<p><code>gaussian_blur()</code> applies an isotropic Gaussian kernel
+within an optional mask. It is useful as a simple, fast baseline
+smoother.</p>
+<ul>
+<li><code>sigma</code> (mm) controls how quickly weights decay with
+distance.</li>
+<li><code>window</code> (voxels) sets the discrete kernel support
+(window = 1 → 3×3×3).</li>
+</ul>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>blur_light <span class="ot">&lt;-</span> <span class="fu">gaussian_blur</span>(vol3d, vol3d, <span class="at">sigma =</span> <span class="dv">2</span>, <span class="at">window =</span> <span class="dv">1</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>blur_strong <span class="ot">&lt;-</span> <span class="fu">gaussian_blur</span>(vol3d, vol3d, <span class="at">sigma =</span> <span class="dv">4</span>, <span class="at">window =</span> <span class="dv">2</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="fu">dim</span>(blur_light)</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="co">#&gt; [1] 64 64 25</span></span></code></pre></div>
+<p>Use smaller <code>sigma</code> and <code>window</code> for gentle
+smoothing; larger values blur more but can wash out small
+structures.</p>
+</div>
+<div id="edgepreserving-guided-filter-with-guided_filter" class="section level2">
+<h2>2. Edge‑preserving guided filter with
+<code>guided_filter()</code></h2>
+<p><code>guided_filter()</code> smooths while preserving edges by
+fitting local linear models between the input and output.</p>
+<ul>
+<li><code>radius</code> controls neighborhood size (in voxels).</li>
+<li><code>epsilon</code> controls how strongly the filter smooths
+vs. preserves contrast.</li>
+</ul>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>gf_vol <span class="ot">&lt;-</span> <span class="fu">guided_filter</span>(vol3d, <span class="at">radius =</span> <span class="dv">4</span>, <span class="at">epsilon =</span> <span class="fl">0.7</span><span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>gf_vol</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="co">#&gt;  === NeuroVol Object === </span></span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="co">#&gt; * Basic Information </span></span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a><span class="co">#&gt;   Type:      DenseNeuroVol</span></span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="co">#&gt;   Dimensions: 64 x 64 x 25 (806.6 Kb)</span></span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a><span class="co">#&gt;   Total Voxels: 102,400</span></span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a><span class="co">#&gt; * Data Properties</span></span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a><span class="co">#&gt;   Value Range: [0.00, 1.00]</span></span>
+<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a><span class="co">#&gt; * Spatial Properties</span></span>
+<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a><span class="co">#&gt;   Spacing: 3.50 x 3.50 x 3.70 mm</span></span>
+<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a><span class="co">#&gt;   Origin:  112.0, -108.0, -46.2 mm</span></span>
+<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a><span class="co">#&gt;   Axes:    Right-to-Left x Posterior-to-Anterior x Inferior-to-Superior</span></span>
+<span id="cb3-18"><a href="#cb3-18" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb3-19"><a href="#cb3-19" tabindex="-1"></a><span class="co">#&gt; ======================================</span></span>
+<span id="cb3-20"><a href="#cb3-20" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb3-21"><a href="#cb3-21" tabindex="-1"></a><span class="co">#&gt;  Access Methods: </span></span>
+<span id="cb3-22"><a href="#cb3-22" tabindex="-1"></a><span class="co">#&gt;   .  Get Slice:   slice(object, zlevel=10) </span></span>
+<span id="cb3-23"><a href="#cb3-23" tabindex="-1"></a><span class="co">#&gt;   .  Get Value:   object[i, j, k] </span></span>
+<span id="cb3-24"><a href="#cb3-24" tabindex="-1"></a><span class="co">#&gt;   .  Plot:       plot(object)  # shows multiple slices</span></span></code></pre></div>
+<p>Compared to Gaussian smoothing, guided filtering tends to retain
+sharp boundaries between tissues while denoising within regions.</p>
+</div>
+<div id="bilateral-spatial-filter-with-bilateral_filter" class="section level2">
+<h2>3. Bilateral spatial filter with
+<code>bilateral_filter()</code></h2>
+<p><code>bilateral_filter()</code> combines spatial distance and
+intensity similarity, reducing noise while respecting edges.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>bf_vol <span class="ot">&lt;-</span> <span class="fu">bilateral_filter</span>(</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>  vol3d,</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>  <span class="at">spatial_sigma   =</span> <span class="dv">2</span>,</span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>  <span class="at">intensity_sigma =</span> <span class="dv">1</span>,</span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>  <span class="at">window          =</span> <span class="dv">1</span></span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>)</span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>bf_vol</span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a><span class="co">#&gt;  === NeuroVol Object === </span></span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a><span class="co">#&gt; * Basic Information </span></span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a><span class="co">#&gt;   Type:      DenseNeuroVol</span></span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a><span class="co">#&gt;   Dimensions: 64 x 64 x 25 (806.6 Kb)</span></span>
+<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a><span class="co">#&gt;   Total Voxels: 102,400</span></span>
+<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb4-16"><a href="#cb4-16" tabindex="-1"></a><span class="co">#&gt; * Data Properties</span></span>
+<span id="cb4-17"><a href="#cb4-17" tabindex="-1"></a><span class="co">#&gt;   Value Range: [0.00, 0.99]</span></span>
+<span id="cb4-18"><a href="#cb4-18" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb4-19"><a href="#cb4-19" tabindex="-1"></a><span class="co">#&gt; * Spatial Properties</span></span>
+<span id="cb4-20"><a href="#cb4-20" tabindex="-1"></a><span class="co">#&gt;   Spacing: 3.50 x 3.50 x 3.70 mm</span></span>
+<span id="cb4-21"><a href="#cb4-21" tabindex="-1"></a><span class="co">#&gt;   Origin:  112.0, -108.0, -46.2 mm</span></span>
+<span id="cb4-22"><a href="#cb4-22" tabindex="-1"></a><span class="co">#&gt;   Axes:    Right-to-Left x Posterior-to-Anterior x Inferior-to-Superior</span></span>
+<span id="cb4-23"><a href="#cb4-23" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb4-24"><a href="#cb4-24" tabindex="-1"></a><span class="co">#&gt; ======================================</span></span>
+<span id="cb4-25"><a href="#cb4-25" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb4-26"><a href="#cb4-26" tabindex="-1"></a><span class="co">#&gt;  Access Methods: </span></span>
+<span id="cb4-27"><a href="#cb4-27" tabindex="-1"></a><span class="co">#&gt;   .  Get Slice:   slice(object, zlevel=10) </span></span>
+<span id="cb4-28"><a href="#cb4-28" tabindex="-1"></a><span class="co">#&gt;   .  Get Value:   object[i, j, k] </span></span>
+<span id="cb4-29"><a href="#cb4-29" tabindex="-1"></a><span class="co">#&gt;   .  Plot:       plot(object)  # shows multiple slices</span></span></code></pre></div>
+<p>Key parameters:</p>
+<ul>
+<li><code>spatial_sigma</code>: spatial scale (in mm).</li>
+<li><code>intensity_sigma</code>: intensity scale (relative to global
+σ_I).</li>
+<li><code>window</code>: discrete support (see
+<code>?bilateral_filter</code>).</li>
+</ul>
+<p>Smaller <code>intensity_sigma</code> better preserves edges; larger
+values behave more like pure Gaussian smoothing.</p>
+</div>
+<div id="laplacian-enhancement-with-laplace_enhance" class="section level2">
+<h2>4. Laplacian enhancement with <code>laplace_enhance()</code></h2>
+<p><code>laplace_enhance()</code> is designed for <em>sharpening</em>
+rather than smoothing. It uses a multi‑layer, non‑local Laplacian scheme
+to enhance details.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>sharp_vol <span class="ot">&lt;-</span> <span class="fu">laplace_enhance</span>(vol3d, <span class="at">k =</span> <span class="dv">2</span>, <span class="at">patch_size =</span> <span class="dv">3</span>,</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>                             <span class="at">search_radius =</span> <span class="dv">2</span>, <span class="at">h =</span> <span class="fl">0.7</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>sharp_vol</span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="co">#&gt;  === NeuroVol Object === </span></span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a><span class="co">#&gt; * Basic Information </span></span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a><span class="co">#&gt;   Type:      DenseNeuroVol</span></span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a><span class="co">#&gt;   Dimensions: 64 x 64 x 25 (806.6 Kb)</span></span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a><span class="co">#&gt;   Total Voxels: 102,400</span></span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a><span class="co">#&gt; * Data Properties</span></span>
+<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a><span class="co">#&gt;   Value Range: [-0.02, 1.01]</span></span>
+<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a><span class="co">#&gt; * Spatial Properties</span></span>
+<span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a><span class="co">#&gt;   Spacing: 3.50 x 3.50 x 3.70 mm</span></span>
+<span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a><span class="co">#&gt;   Origin:  112.0, -108.0, -46.2 mm</span></span>
+<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a><span class="co">#&gt;   Axes:    Right-to-Left x Posterior-to-Anterior x Inferior-to-Superior</span></span>
+<span id="cb5-19"><a href="#cb5-19" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb5-20"><a href="#cb5-20" tabindex="-1"></a><span class="co">#&gt; ======================================</span></span>
+<span id="cb5-21"><a href="#cb5-21" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb5-22"><a href="#cb5-22" tabindex="-1"></a><span class="co">#&gt;  Access Methods: </span></span>
+<span id="cb5-23"><a href="#cb5-23" tabindex="-1"></a><span class="co">#&gt;   .  Get Slice:   slice(object, zlevel=10) </span></span>
+<span id="cb5-24"><a href="#cb5-24" tabindex="-1"></a><span class="co">#&gt;   .  Get Value:   object[i, j, k] </span></span>
+<span id="cb5-25"><a href="#cb5-25" tabindex="-1"></a><span class="co">#&gt;   .  Plot:       plot(object)  # shows multiple slices</span></span></code></pre></div>
+<p>Use higher <code>h</code> or more layers <code>k</code> for stronger
+enhancement, but be cautious about amplifying noise.</p>
+</div>
+<div id="d-bilateral-smoothing-with-bilateral_filter_4d" class="section level2">
+<h2>5. 4D bilateral smoothing with
+<code>bilateral_filter_4d()</code></h2>
+<p>For 4D time‑series data (<code>NeuroVec</code>),
+<code>bilateral_filter_4d()</code> extends the bilateral idea across
+space and time:</p>
+<ul>
+<li><code>spatial_sigma</code>, <code>spatial_window</code> — as
+above.</li>
+<li><code>intensity_sigma</code> — intensity similarity.</li>
+<li><code>temporal_sigma</code>, <code>temporal_window</code> — temporal
+smoothing scale.</li>
+<li><code>temporal_spacing</code> — units of the time axis (e.g., TR in
+seconds).</li>
+</ul>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>mask3d <span class="ot">&lt;-</span> <span class="fu">read_vol</span>(<span class="fu">system.file</span>(<span class="st">&quot;extdata&quot;</span>, <span class="st">&quot;global_mask_v4.nii&quot;</span>,</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>                               <span class="at">package =</span> <span class="st">&quot;neuroim2&quot;</span>))</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>bf4d <span class="ot">&lt;-</span> <span class="fu">bilateral_filter_4d</span>(</span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a>  vec4d, mask3d,</span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a>  <span class="at">spatial_sigma   =</span> <span class="dv">2</span>,</span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a>  <span class="at">intensity_sigma =</span> <span class="dv">1</span>,</span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a>  <span class="at">temporal_sigma  =</span> <span class="dv">1</span>,</span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a>  <span class="at">spatial_window  =</span> <span class="dv">1</span>,</span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a>  <span class="at">temporal_window =</span> <span class="dv">1</span>,</span>
+<span id="cb6-11"><a href="#cb6-11" tabindex="-1"></a>  <span class="at">temporal_spacing =</span> <span class="dv">1</span></span>
+<span id="cb6-12"><a href="#cb6-12" tabindex="-1"></a>)</span>
+<span id="cb6-13"><a href="#cb6-13" tabindex="-1"></a></span>
+<span id="cb6-14"><a href="#cb6-14" tabindex="-1"></a><span class="fu">dim</span>(bf4d)</span>
+<span id="cb6-15"><a href="#cb6-15" tabindex="-1"></a><span class="co">#&gt; [1] 64 64 25  4</span></span></code></pre></div>
+<p>This is useful when you want joint spatial + temporal denoising that
+still respects intensity boundaries (e.g. fMRI or 4D structural
+sequences).</p>
+</div>
+<div id="correlationguided-bilateral-filtering-with-cgb_filter" class="section level2">
+<h2>6. Correlation‑guided bilateral filtering with
+<code>cgb_filter()</code></h2>
+<p><code>cgb_filter()</code> implements correlation‑guided bilateral
+(CGB) smoothing: it builds a sparse graph based on spatial distance and
+time‑series correlations, then diffuses data over that graph.</p>
+<p>Basic usage mirrors the bilateral interface:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>cgf <span class="ot">&lt;-</span> <span class="fu">cgb_filter</span>(</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>  vec4d,</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>  <span class="at">mask          =</span> mask3d,</span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>  <span class="at">spatial_sigma =</span> <span class="dv">3</span>,</span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>  <span class="at">window        =</span> <span class="cn">NULL</span>,      <span class="co"># auto from spatial_sigma and spacing</span></span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>  <span class="at">corr_map      =</span> <span class="st">&quot;power&quot;</span>,</span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>  <span class="at">corr_param    =</span> <span class="dv">2</span>,</span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a>  <span class="at">topk          =</span> <span class="dv">16</span>,</span>
+<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a>  <span class="at">passes        =</span> <span class="dv">1</span>,</span>
+<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a>  <span class="at">lambda        =</span> <span class="dv">1</span></span>
+<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a>)</span>
+<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a></span>
+<span id="cb7-13"><a href="#cb7-13" tabindex="-1"></a><span class="fu">dim</span>(cgf)</span>
+<span id="cb7-14"><a href="#cb7-14" tabindex="-1"></a><span class="co">#&gt; [1] 64 64 25  4</span></span></code></pre></div>
+<p>Parameter intuition:</p>
+<ul>
+<li><code>spatial_sigma</code> / <code>window</code>: spatial kernel
+scale and support (similar to Gaussian/bilateral).</li>
+<li><code>corr_map</code>, <code>corr_param</code>: map pooled
+correlations to affinities; see <code>?cgb_make_graph</code> for
+details.</li>
+<li><code>topk</code>: max neighbors per voxel (sparsity
+vs. mixing).</li>
+<li><code>passes</code>, <code>lambda</code>: diffusion strength
+(multiple passes or λ &lt; 1 increase/temper smoothing).</li>
+</ul>
+<p>Internally this calls <code>cgb_make_graph()</code> to build the
+graph and then <code>cgb_smooth()</code> to diffuse over it. Use
+<code>return_graph = TRUE</code> to keep the graph for reuse.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>cg_out <span class="ot">&lt;-</span> <span class="fu">cgb_filter</span>(vec4d, mask3d,</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>                     <span class="at">spatial_sigma =</span> <span class="dv">3</span>, <span class="at">window =</span> <span class="cn">NULL</span>,</span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a>                     <span class="at">topk =</span> <span class="dv">16</span>, <span class="at">return_graph =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a></span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a><span class="fu">str</span>(cg_out<span class="sc">$</span>graph)</span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a><span class="co">#&gt; List of 5</span></span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a><span class="co">#&gt;  $ row_ptr : int [1:29533] 0 1 2 3 4 5 6 7 8 9 ...</span></span>
+<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a><span class="co">#&gt;  $ col_ind : int [1:29532] 474 475 476 477 480 481 482 483 536 537 ...</span></span>
+<span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a><span class="co">#&gt;  $ val     : num [1:29532] 1 1 1 1 1 1 1 1 1 1 ...</span></span>
+<span id="cb8-10"><a href="#cb8-10" tabindex="-1"></a><span class="co">#&gt;  $ dims3d  : int [1:3] 64 64 25</span></span>
+<span id="cb8-11"><a href="#cb8-11" tabindex="-1"></a><span class="co">#&gt;  $ mask_idx: int [1:29532] 475 476 477 478 481 482 483 484 537 538 ...</span></span></code></pre></div>
+</div>
+<div id="choosing-a-smoother" class="section level2">
+<h2>Choosing a smoother</h2>
+<ul>
+<li>Use <code>gaussian_blur()</code> for simple, fast baseline
+smoothing.</li>
+<li>Use <code>bilateral_filter()</code> /
+<code>bilateral_filter_4d()</code> when you want intensity‑aware,
+edge‑respecting smoothing.</li>
+<li>Use <code>guided_filter()</code> when you need edge preservation but
+want a simpler parameterization than full bilateral filters.</li>
+<li>Use <code>laplace_enhance()</code> when you want to <em>sharpen</em>
+structures rather than blur them.</li>
+<li>Use <code>cgb_filter()</code> when similarity should be driven by
+<em>correlation of time‑series</em> (e.g., fMRI connectivity‑style
+smoothing) rather than raw intensity alone.</li>
+</ul>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

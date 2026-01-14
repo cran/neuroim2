@@ -2,13 +2,16 @@
 % Please edit documentation in R/neuroslice.R, R/neurovol.R
 \name{plot,NeuroSlice-method}
 \alias{plot,NeuroSlice-method}
+\alias{plot,NeuroSlice,ANY-method}
 \alias{plot,NeuroVol-method}
+\alias{plot,NeuroVol,ANY-method}
 \title{Plot a NeuroSlice}
 \usage{
 \S4method{plot}{NeuroSlice}(
   x,
   cmap = gray(seq(0, 1, length.out = 255)),
-  irange = range(x, na.rm = TRUE)
+  irange = range(x, na.rm = TRUE),
+  legend = TRUE
 )
 
 \S4method{plot}{NeuroVol}(
@@ -19,7 +22,8 @@
   thresh = c(0, 0),
   alpha = 1,
   bgvol = NULL,
-  bgcmap = gray(seq(0, 1, length.out = 255))
+  bgcmap = gray(seq(0, 1, length.out = 255)),
+  legend = TRUE
 )
 }
 \arguments{
@@ -28,6 +32,8 @@
 \item{cmap}{a color map consisting of a vector of colors in hex format (e.g. \code{gray(n=255)})}
 
 \item{irange}{the intensity range indicating the low and high values of the color scale.}
+
+\item{legend}{Logical indicating whether to display the color legend. Defaults to TRUE.}
 
 \item{zlevels}{the series of slice indices to display.}
 

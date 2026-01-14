@@ -123,6 +123,10 @@ SparseNeuroVol <- function(data, space, indices=NULL, label="") {
     stop(paste("length of 'data' must equal length of 'indices'"))
   }
 
+  if (any(indices < 1 | indices > prod(dim(space)))) {
+    stop("indices must be within 1..prod(dim(space))")
+  }
+
   # Create sparseVector with explicit class
   sv <- Matrix::sparseVector(x=data, i=indices, length=prod(dim(space)))
 
@@ -209,8 +213,39 @@ setAs(from="DenseNeuroVol", to="array", def=function(from) from@.Data)
 #' @keywords internal
 #' @name SparseNeuroVol,array
 setAs(from="SparseNeuroVol", to="array", def=function(from) {
-  vals <- as.numeric(from@data)
-  array(vals, dim(from))
+  arr <- array(0, dim(from))
+  idx <- from@data@i
+  if (length(idx) > 0) {
+    arr[idx] <- from@data@x
+  }
+  arr
+})
+
+#' Convert SparseNeuroVol to a base array
+#'
+#' Provides an `as.array` S4 method so sparse volumes can be coerced with the
+#' same syntax used for dense objects.
+#'
+#' @param x A `SparseNeuroVol` instance.
+#' @param ... Additional arguments (currently ignored).
+#' @return A dense array with voxel values at their spatial locations and zeros
+#'   elsewhere.
+#' @export
+setMethod("as.array", signature(x = "SparseNeuroVol"), function(x, ...) {
+  as(x, "array")
+})
+
+#' Convert SparseNeuroVol to a base vector
+#'
+#' Supplies an `as.vector` S4 method that flattens sparse volumes to a dense
+#' vector, keeping the same voxel ordering as `as.array`.
+#'
+#' @param x A `SparseNeuroVol` instance.
+#' @param mode Optional coercion mode (see [base::as.vector]).
+#' @return A vector of length `prod(dim(x))`.
+#' @export
+setMethod("as.vector", signature(x = "SparseNeuroVol"), function(x, mode = "any") {
+  as.vector(as.array(x), mode = mode)
 })
 
 
@@ -407,19 +442,14 @@ setMethod(f="load_data", signature=c(x="NeuroVolSource"),
 			### for brain buckets, this offset needs to be precomputed ....
 			offset <- (nels * (x@index-1)) * meta@bytes_per_element
 
-			reader <- data_reader(meta, offset)
-			dat <- read_elements(reader, nels)
+				reader <- data_reader(meta, offset)
+				dat <- read_elements(reader, nels)
 
-			## bit of a hack to deal with scale factors
-      if (.hasSlot(meta, "slope")) {
+				# Apply per-volume scaling (slope/intercept) when present
+				dat <- .apply_data_scaling(dat, meta, index = x@index)
 
-        if (meta@slope != 0) {
-          dat <- dat*meta@slope
-        }
-      }
-
-			close(reader)
-			arr <- array(dat, meta@dims[1:3])
+				close(reader)
+				arr <- array(dat, meta@dims[1:3])
 
 			bspace <- NeuroSpace(meta@dims[1:3], meta@spacing, meta@origin, meta@spatial_axes, trans(meta))
 			DenseNeuroVol(arr, bspace, x)
@@ -502,13 +532,36 @@ setMethod(f="[", signature=signature(x = "NeuroVol", i = "ROICoords", j = "missi
           }
 )
 
+#' @export
+#' @rdname extract-methods
+setMethod(f="[", signature=signature(x = "NeuroVol", i = "ROIVol", j = "missing"),
+          def=function (x, i, j, k, ..., drop=TRUE) {
+            coords <- coords(i)
+            idx <- grid_to_index(x, coords)
+            linear_access(x, idx)
+          })
+
+# ensure DenseNeuroVol dispatches ROIVol subsetting
+#' @rdname extract-methods
+#' @export
+setMethod(f="[", signature=signature(x = "DenseNeuroVol", i = "ROIVol", j = "missing"),
+          def=function (x, i, j, k, ..., drop=TRUE) {
+            coords <- coords(i)
+            idx <- grid_to_index(x, coords)
+            linear_access(x, idx)
+          })
+
 
 
 #' @rdname concat-methods
 #' @export
 setMethod(f="concat", signature=signature(x="DenseNeuroVol", y="missing"),
           def=function(x,y,...) {
-            x
+            # Convert single 3D volume to 4D NeuroVec with 1 time point
+            # This ensures consistent behavior - concat always returns 4D
+            mat <- as.matrix(x)
+            new_space <- add_dim(space(x), 1)
+            DenseNeuroVec(mat, new_space)
           })
 
 
@@ -528,8 +581,15 @@ setMethod(f="map_values", signature=signature(x="NeuroVol", lookup="list"),
             if (is.null(names(lookup))) {
               names(lookup) <- seq_along(lookup)
             }
-            out <- match(x,as.numeric(names(lookup)))
-            DenseNeuroVol(unlist(lookup[out]), space(x))
+            keys <- suppressWarnings(as.numeric(names(lookup)))
+            if (any(is.na(keys))) {
+              stop("map_values: list names must be numeric keys")
+            }
+            out <- match(as.numeric(x), keys)
+            vals <- unlist(lookup, use.names = FALSE)
+            outv <- vals[out]
+            outv[is.na(outv)] <- 0
+            NeuroVol(array(outv, dim(x)), space(x))
           })
 
 #' @export
@@ -796,27 +856,39 @@ setMethod(f="mapf", signature=signature(x="NeuroVol", m="Kernel"),
           def=function(x, m, mask=NULL) {
             ovol <- array(0, dim(x))
             hwidth <- map_dbl(m@width, function(d) ceiling(d/2 -1)) + 1
-            xdim <- dim(x)[1]
-            ydim <- dim(x)[2]
-            zdim <- dim(x)[3]
+            dims <- dim(x)
 
             if (!is.null(mask)) {
               if (!all.equal(dim(mask), dim(ovol))) {
-                stop(paste("mask must have same dimensions as input volume"))
+                stop("mask must have same dimensions as input volume")
               }
-
               grid <- index_to_grid(mask, which(mask != 0))
             } else {
-              grid <- as.matrix(expand.grid(i=hwidth[1]:(xdim - hwidth[1]),
-                                            j=hwidth[2]:(ydim - hwidth[2]),
-                                            k=hwidth[3]:(zdim - hwidth[3])))
+              grid <- as.matrix(expand.grid(i=hwidth[1]:(dims[1] - hwidth[1]),
+                                            j=hwidth[2]:(dims[2] - hwidth[2]),
+                                            k=hwidth[3]:(dims[3] - hwidth[3])))
             }
 
-            res <- apply(grid, 1, function(vox) {
-              loc <- t(t(m@voxels) +vox)
-              ivals <- x[loc]
-              sum(ivals * m@weights)
-            })
+            # precompute kernel voxel offsets
+            kern_vox <- m@voxels
+            kv_i <- kern_vox[,1]
+            kv_j <- kern_vox[,2]
+            kv_k <- kern_vox[,3]
+            wts <- m@weights
+
+            # vectorised convolution over selected centers
+            centers_i <- grid[,1]
+            centers_j <- grid[,2]
+            centers_k <- grid[,3]
+
+            # allocate output vector
+            res <- numeric(nrow(grid))
+            for (idx in seq_len(nrow(grid))) {
+              ii <- centers_i[idx] + kv_i
+              jj <- centers_j[idx] + kv_j
+              kk <- centers_k[idx] + kv_k
+              res[idx] <- sum(x[cbind(ii, jj, kk)] * wts)
+            }
 
             ovol[grid] <- res
             NeuroVol(ovol, space(x))
@@ -1034,6 +1106,29 @@ setMethod(f="as.sparse", signature=signature(x="DenseNeuroVol", mask="numeric"),
           })
 
 
+#' Coerce SparseNeuroVol to DenseNeuroVol
+#'
+#' Convert a sparse volumetric image to a dense representation with the same
+#' spatial geometry. Non-zero values stored in the sparse vector are placed at
+#' their corresponding linear indices in the dense array; all other voxels are 0.
+#'
+#' @rdname as.dense-methods
+#' @param x A SparseNeuroVol to densify
+#' @return A DenseNeuroVol with identical spatial dimensions and values expanded
+#'   from the sparse representation.
+#' @export
+setMethod(f = "as.dense", signature = signature(x = "SparseNeuroVol"),
+          def = function(x) {
+            d <- dim(x)
+            arr <- array(0, d)
+            idx <- x@data@i
+            if (length(idx) > 0) {
+              arr[idx] <- x@data@x
+            }
+            DenseNeuroVol(arr, space(x))
+          })
+
+
 
 
 #' @rdname linear_access-methods
@@ -1068,6 +1163,8 @@ setMethod(f="[", signature=signature(x = "SparseNeuroVol", i = "numeric", j = "n
 
 #' plot a NeuroVol
 #'
+#' @name plot,NeuroVol-method
+#' @aliases plot,NeuroVol,ANY-method
 #' @rdname plot-methods
 #' @param x the object to display
 #' @param cmap a color map consisting of a vector of colors in hex format (e.g. \code{gray(n=255)})
@@ -1077,9 +1174,9 @@ setMethod(f="[", signature=signature(x = "SparseNeuroVol", i = "numeric", j = "n
 #' @param alpha the level of alpha transparency
 #' @param bgvol a background volume that serves as an image underlay (currently ignored).
 #' @param bgcmap a color map for backround layer consisting of a vector of colors in hex format (e.g. \code{gray(n=255)})
+#' @param legend Logical indicating whether to display the color legend. Defaults to TRUE.
 #' @export
 #' @importFrom graphics plot
-#' @import colorplane
 #' @examples
 #'
 #' dat <- matrix(rnorm(100*100), 100, 100)
@@ -1093,9 +1190,10 @@ setMethod("plot", signature=signature(x="NeuroVol"),
                        zlevels=unique(round(seq(1, dim(x)[3], length.out=6))),
                        irange=range(x, na.rm=TRUE),
                        thresh=c(0,0),
-                       alpha=1,
-                       bgvol=NULL,
-                       bgcmap=gray(seq(0,1,length.out=255))) {
+                      alpha=1,
+                      bgvol=NULL,
+                      bgcmap=gray(seq(0,1,length.out=255)),
+                      legend=TRUE) {
 
             if (!requireNamespace("ggplot2", quietly = TRUE)) {
               stop("Package \"ggplot2\" needed for this function to work. Please install it.",
@@ -1109,32 +1207,26 @@ setMethod("plot", signature=signature(x="NeuroVol"),
 
             # Create a data frame of all the slices specified in zlevels
             df1 <- do.call(rbind, purrr::map(zlevels, function(i) {
-              if (!is.null(bgvol)) {
-                bgslice <- slice(bgvol, zlevel=i, along=3)
-                bgplane <- colorplane::IntensityColorPlane(as.numeric(bgslice), cols=bgcmap)
-                bgcols <- colorplane::map_colors(bgplane)
-              }
+              imslice <- slice(x, zlevel = i, along = 3)
+              vals <- as.numeric(imslice)
 
-              imslice <- slice(x, zlevel=i, along=3)
-              implane <- colorplane::IntensityColorPlane(as.numeric(imslice), cols=cmap, alpha=alpha)
-              fgcols <- colorplane::map_colors(implane, threshold=thresh, irange=irange)
-
-              if (!is.null(bgvol)) {
-                fgcols <- colorplane::as_hexcol(colorplane::blend_colors(bgcols, fgcols, alpha=alpha))
-              } else {
-                fgcols <- colorplane::as_hexcol(fgcols)
+              if (diff(thresh) > 0) {
+                vals[vals >= thresh[1] & vals <= thresh[2]] <- NA
               }
 
               cds <- index_to_coord(space(imslice), 1:length(imslice))
-              data.frame(x=cds[,1], y=cds[,2], z=i, value=as.vector(fgcols))
+              data.frame(x = cds[,1], y = cds[,2], z = i, value = vals)
             }))
 
             {y = value = NULL} # to appease R CMD check
 
-            p <- ggplot2::ggplot(df1, ggplot2::aes(x=x, y=y)) +
+            p <- ggplot2::ggplot(df1, ggplot2::aes(x = x, y = y, fill = value)) +
               ggplot2::coord_fixed() +
-              ggplot2::geom_raster(ggplot2::aes(fill=value)) +
-              ggplot2::scale_fill_identity() +
+              ggplot2::geom_raster(alpha = alpha) +
+              ggplot2::scale_fill_gradientn(colours = cmap,
+                                           limits = irange,
+                                           guide = if (legend) "colourbar" else "none",
+                                           na.value = "transparent") +
               ggplot2::facet_wrap(~ z, labeller = ggplot2::labeller(z = function(z) paste("Slice:", z))) +
               ggplot2::ggtitle("Brain Slices") +
               ggplot2::theme_void() +
@@ -1148,4 +1240,28 @@ setMethod("plot", signature=signature(x="NeuroVol"),
             p
           })
 
+#' @rdname mask-methods
+#' @export
+setMethod("mask", "DenseNeuroVol",
+          function(x) {
+            LogicalNeuroVol(array(TRUE, dim(x)), space(x))
+          })
 
+#' @rdname mask-methods
+#' @export
+setMethod("mask", "LogicalNeuroVol",
+          function(x) {
+            # When a LogicalNeuroVol is used as data (not as a mask),
+            # return a filled mask indicating all voxels are valid
+            LogicalNeuroVol(array(TRUE, dim(x)), space(x))
+          })
+#' @export
+setAs(from="DenseNeuroVol", to="matrix", function(from) {
+  arr <- from@.Data
+  if (length(dim(arr)) != 3) {
+    stop("DenseNeuroVol data must be 3D")
+  }
+  d123 <- prod(dim(arr)[1:3])
+  mat <- matrix(arr, nrow = d123, ncol = 1)
+  mat
+})
