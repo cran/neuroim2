@@ -106,8 +106,8 @@ test_that("can split a NeuroVec into a set of subvectors", {
   blstruc <- rep(1:4, length.out=20)
 
   blks <- split_blocks(bv1, blstruc)
-  assert_that(length(blks) == length(unique(blstruc)))
-  assert_that(dim(blks[[1]])[4] == sum(blstruc == 1))
+  expect_equal(length(blks), length(unique(blstruc)))
+  expect_equal(dim(blks[[1]])[4], sum(blstruc == 1))
 
   ## nested map
   ## first divide into blocks, then convert to vectors, then foreach block/vector compute mean
@@ -165,6 +165,25 @@ test_that("can extract multiple series from a NeuroVec", {
 	r1 <- apply(mat, 1, function(i) { series(bv1, i[1], i[2], i[3]) })
 	r2 <- series(bv1, mat)
 	expect_equal(r1, r2)
+})
+
+test_that("DenseNeuroVec matrix series rejects invalid coordinates", {
+  bv1 <- gen_dat()
+
+  expect_error(
+    series(bv1, matrix(c(13, 1, 1), ncol = 3)),
+    "Index out of bounds|out-of-bounds"
+  )
+
+  expect_error(
+    series(bv1, matrix(c(1.5, 1, 1), ncol = 3)),
+    "whole-number|integer"
+  )
+
+  expect_error(
+    series(bv1, matrix(c(NA_real_, 1, 1), ncol = 3)),
+    "finite numeric"
+  )
 })
 
 test_that("can extract an ROIVec from a NeuroVec", {
@@ -376,6 +395,33 @@ test_that("can write and read back an image vector as a filebacked neurovec", {
 
 })
 
+test_that("write_vec round-trip preserves affine transform", {
+  # Build a non-trivial affine (15-degree rotation about z + translation)
+  theta <- 15 * pi / 180
+  rot <- matrix(c(cos(theta), sin(theta), 0,
+                  -sin(theta), cos(theta), 0,
+                  0,           0,          1), 3, 3, byrow = TRUE)
+  sp_dim <- c(2, 2, 2)          # voxel sizes
+  origin <- c(-90.5, -126.25, -72.0)
+  tmat <- diag(4)
+  tmat[1:3, 1:3] <- rot %*% diag(sp_dim)
+  tmat[1:3, 4]   <- origin
+
+  spc <- NeuroSpace(c(10, 10, 10, 5), spacing = sp_dim,
+                    origin = origin, trans = tmat)
+  dat <- array(rnorm(10 * 10 * 10 * 5), c(10, 10, 10, 5))
+  vec <- DenseNeuroVec(dat, spc)
+
+  fname <- paste0(tempfile(), ".nii")
+  write_vec(vec, fname)
+  vec2 <- read_vec(fname)
+
+  # sform should survive the round-trip within float32 tolerance
+  expect_equal(trans(vec2), trans(vec), tolerance = 1e-5)
+  expect_equal(origin(vec2), origin(vec), tolerance = 1e-5)
+  expect_equal(spacing(vec2), spacing(vec), tolerance = 1e-5)
+})
+
 test_that("can extract ROI from NeuroVec", {
   mask <- read_vol(gmask)
   maskvec <- concat(mask,mask,mask,mask)
@@ -443,5 +489,4 @@ test_that("NeuroVec constructor works correctly", {
 #   expect_equalNumeric(trans(bv2), trans(bv), tol=.0001)
 #
 # }
-
 

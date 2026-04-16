@@ -1,22 +1,18 @@
 params <-
-list(family = "red")
+list(family = "red", preset = "homage")
 
 ## ----echo = FALSE, message = FALSE--------------------------------------------
-knitr::opts_chunk$set(collapse = T, comment = "#>")
-library(assertthat)
-library(purrr)
-library(neuroim2)
+knitr::opts_chunk$set(collapse = T, comment = "#>", message = FALSE, warning = FALSE)
+suppressPackageStartupMessages({
+  library(purrr)
+  library(neuroim2)
+})
 options(mc.cores=1)
 
 ## -----------------------------------------------------------------------------
-# Load the package
-library(neuroim2)
-
-# Read a brain volume
 file_name <- system.file("extdata", "global_mask2.nii.gz", package="neuroim2")
 vol <- read_vol(file_name)
 
-# Create a simple spherical ROI
 roi <- spherical_roi(vol, c(20, 20, 20), radius = 5)
 cat("ROI contains", length(roi), "voxels\n")
 
@@ -137,23 +133,6 @@ cat("Memory usage - ROI:", format(roi_size, units = "auto"), "\n")
 cat("Memory usage - Sparse:", format(sparse_size, units = "auto"), "\n")
 
 ## -----------------------------------------------------------------------------
-# Load a 4D dataset (using mask file as example - normally this would be fMRI data)
-vec4d <- read_vec(system.file("extdata", "global_mask_v4.nii", package = "neuroim2"))
-cat("4D data dimensions:", dim(vec4d), "\n")
-
-# Create an ROI
-roi <- spherical_roi(vol, c(12, 12, 12), radius = 6)
-
-# Extract time-series from the ROI
-roi_series <- series_roi(vec4d, roi)
-cat("ROI time-series dimensions:", dim(roi_series), "\n")
-
-# Get mean time-series across ROI (average across voxels)
-mat_roi <- values(roi_series)      # T x N matrix
-mean_series <- rowMeans(mat_roi)   # length equals time dimension
-cat("Mean time-series length:", length(mean_series), "\n")
-
-## -----------------------------------------------------------------------------
 # Create a 4D NeuroSpace
 vspace <- NeuroSpace(dim = c(10, 10, 10, 20), spacing = c(1, 1, 1))
 
@@ -174,46 +153,6 @@ cat("ROIVec created with", nrow(roi_coords), "voxels and",
 # Access as matrix of values (T x N)
 roi_matrix <- values(roi_vec)
 cat("Matrix dimensions (T x N):", dim(roi_matrix), "\n")
-
-## -----------------------------------------------------------------------------
-library(purrr)
-
-# Generate exhaustive searchlight covering all voxels
-slist <- searchlight(vol, eager = TRUE, radius = 8)
-cat("Number of searchlights:", length(slist), "\n")
-
-# Compute mean value in each searchlight
-searchlight_means <- slist %>% 
-  purrr::map_dbl(~ mean(vol[coords(.)]))
-
-cat("Computed means for", length(searchlight_means), "searchlights\n")
-cat("Mean range:", range(searchlight_means, na.rm = TRUE), "\n")
-
-## -----------------------------------------------------------------------------
-# Randomized searchlight - each voxel appears in at least one searchlight
-set.seed(42)  # For reproducibility
-random_lights <- vol %>% 
-  random_searchlight(radius = 8) %>% 
-  purrr::map_dbl(~ mean(vol[coords(.)]))
-
-cat("Random searchlight count:", length(random_lights), "\n")
-
-## -----------------------------------------------------------------------------
-# Create a clustering over the voxel space
-grid <- index_to_coord(vol, which(vol > 0))
-set.seed(123)
-kres <- kmeans(grid, centers = 50, iter.max = 500)
-
-# Create ClusteredNeuroVol
-kvol <- ClusteredNeuroVol(vol, kres$cluster)
-cat("Created", length(unique(kres$cluster)), "clusters\n")
-
-# Run clustered searchlight
-cluster_means <- vol %>% 
-  clustered_searchlight(cvol = kvol) %>% 
-  purrr::map_dbl(~ mean(vol[coords(.)]))
-
-cat("Cluster mean range:", range(cluster_means, na.rm = TRUE), "\n")
 
 ## -----------------------------------------------------------------------------
 # Create 3x3x1 patches covering the volume

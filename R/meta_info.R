@@ -33,6 +33,7 @@ NULL
 #'
 #' # Read first 100 voxels
 #' data <- read_elements(reader, 100)
+#' close(reader)
 #'
 #'
 #' @seealso
@@ -56,8 +57,9 @@ setMethod("dim", "FileMetaInfo", function(x) x@dims)
 #' @rdname data_reader-methods
 setMethod("data_reader", "NIFTIMetaInfo",
   function(x, offset = 0) {
-    assert_that(is.numeric(offset) && length(offset) == 1,
-                msg = "'offset' must be a single numeric value")
+    if (!is.numeric(offset) || length(offset) != 1) {
+      cli::cli_abort("{.arg offset} must be a single numeric value.")
+    }
 
     total_offset <- x@data_offset + offset
 
@@ -93,8 +95,9 @@ setMethod("data_reader", "NIFTIMetaInfo",
 #' @rdname data_reader-methods
 setMethod("data_reader", "AFNIMetaInfo",
   function(x, offset = 0) {
-    assert_that(is.numeric(offset) && length(offset) == 1,
-                msg = "'offset' must be a single numeric value")
+    if (!is.numeric(offset) || length(offset) != 1) {
+      cli::cli_abort("{.arg offset} must be a single numeric value.")
+    }
 
     total_offset <- x@data_offset + offset
 
@@ -137,12 +140,24 @@ setMethod("trans", "MetaInfo",
 
 #' Get NIFTI Transformation Matrix
 #'
+#' Prefers the sform (direct affine) over the qform (quaternion-derived)
+#' when \code{sform_code > 0}, matching the convention used by FSL,
+#' FreeSurfer, and ANTs. Falls back to qform otherwise.
+#'
 #' @param x NIFTIMetaInfo object
 #' @return 4x4 transformation matrix
 #' @keywords internal
 #' @noRd
 setMethod("trans", "NIFTIMetaInfo",
-  function(x) x@header$qform)
+  function(x) {
+    hdr <- x@header
+    if (!is.null(hdr$sform_code) && hdr$sform_code > 0 &&
+        is.matrix(hdr$sform) && nrow(hdr$sform) == 4 && ncol(hdr$sform) == 4) {
+      hdr$sform
+    } else {
+      hdr$qform
+    }
+  })
 
 #' Extract NIFTI Dimensions
 #'
@@ -152,11 +167,13 @@ setMethod("trans", "NIFTIMetaInfo",
 #' @noRd
 niftiDim <- function(nifti_header) {
   dimarray <- nifti_header$dimensions
-  assert_that(is.numeric(dimarray),
-              msg = "Invalid dimension array in NIFTI header")
+  if (!is.numeric(dimarray)) {
+    cli::cli_abort("Invalid dimension array in NIFTI header: must be numeric.")
+  }
   lastidx <- min(which(dimarray == 1)) - 1
-  assert_that(lastidx >= 1,
-              msg = "Invalid dimension specification in NIFTI header")
+  if (lastidx < 1) {
+    cli::cli_abort("Invalid dimension specification in NIFTI header.")
+  }
   dimarray[2:lastidx]
 }
 
@@ -212,7 +229,6 @@ niftiDim <- function(nifti_header) {
 #' \code{\linkS4class{NIFTIMetaInfo}}, \code{\linkS4class{AFNIMetaInfo}}
 #'
 #' @importFrom methods new
-#' @importFrom assertthat assert_that
 #'
 #' @export
 MetaInfo <- function(Dim, spacing, origin = rep(0, length(spacing)),
@@ -220,19 +236,23 @@ MetaInfo <- function(Dim, spacing, origin = rep(0, length(spacing)),
                     spatial_axes = OrientationList3D$AXIAL_LPI,
                     additional_axes = NullAxis) {
 
-  assert_that(is.numeric(Dim) && all(Dim > 0) && all(Dim == floor(Dim)),
-              msg = "'Dim' must be a vector of positive integers")
+  if (!is.numeric(Dim) || !all(Dim > 0) || !all(Dim == floor(Dim))) {
+    cli::cli_abort("{.arg Dim} must be a vector of positive integers.")
+  }
 
-  assert_that(is.numeric(spacing) && all(spacing > 0),
-              msg = "'spacing' must be a vector of positive numbers")
+  if (!is.numeric(spacing) || !all(spacing > 0)) {
+    cli::cli_abort("{.arg spacing} must be a vector of positive numbers.")
+  }
 
-  assert_that(is.numeric(origin) && all(is.finite(origin)),
-              msg = "'origin' must be a vector of finite numbers")
+  if (!is.numeric(origin) || !all(is.finite(origin))) {
+    cli::cli_abort("{.arg origin} must be a vector of finite numbers.")
+  }
 
   # Validate data type
   valid_types <- c("BYTE", "SHORT", "INT", "FLOAT", "DOUBLE")
-  assert_that(data_type %in% valid_types,
-              msg = paste("'data_type' must be one of:", paste(valid_types, collapse = ", ")))
+  if (!data_type %in% valid_types) {
+    cli::cli_abort("{.arg data_type} must be one of {.val {valid_types}}, not {.val {data_type}}.")
+  }
 
   # Create object
   new("MetaInfo",
@@ -315,10 +335,30 @@ NIFTIMetaInfo <- function(descriptor, nifti_header) {
     stop("Invalid dimensions in NIFTI header")
   }
 
-  # Validate transformation
-  if (!is.matrix(nifti_header$qform) || nrow(nifti_header$qform) != 4 ||
-      ncol(nifti_header$qform) != 4) {
-    stop("Invalid qform matrix in NIFTI header")
+  # Validate transformation — need at least one valid transform
+  use_sform <- !is.null(nifti_header$sform_code) &&
+    nifti_header$sform_code > 0 &&
+    is.matrix(nifti_header$sform) &&
+    nrow(nifti_header$sform) == 4 && ncol(nifti_header$sform) == 4
+
+  if (!use_sform) {
+    if (!is.matrix(nifti_header$qform) || nrow(nifti_header$qform) != 4 ||
+        ncol(nifti_header$qform) != 4) {
+      stop("Invalid qform matrix in NIFTI header")
+    }
+  }
+
+  # Prefer sform (direct affine) over qform (quaternion-derived) when available,
+
+  # matching the convention used by FSL, FreeSurfer, and ANTs.
+  if (use_sform) {
+    ref_xform <- nifti_header$sform
+    ref_origin <- nifti_header$sform[1:3, 4]
+    ref_spacing <- sqrt(colSums(nifti_header$sform[1:3, 1:3, drop = FALSE]^2))
+  } else {
+    ref_xform <- nifti_header$qform
+    ref_origin <- nifti_header$qoffset
+    ref_spacing <- nifti_header$pixdim[2:4]
   }
 
   # Create object with validation
@@ -332,10 +372,10 @@ NIFTIMetaInfo <- function(descriptor, nifti_header) {
         data_type = nifti_header$data_storage,
         bytes_per_element = as.integer(.getDataSize(nifti_header$data_storage)),
         dims = dims,
-        spatial_axes = .nearestAnatomy(nifti_header$qform),
+        spatial_axes = .nearestAnatomy(ref_xform),
         additional_axes = NullAxis,
-        spacing = nifti_header$pixdim[2:4],
-        origin = nifti_header$qoffset,
+        spacing = ref_spacing,
+        origin = ref_origin,
         label = strip_extension(descriptor, basename(nifti_header$file_name)),
         intercept = nifti_header$scl_intercept,
         slope = nifti_header$scl_slope,
@@ -479,7 +519,7 @@ read_header <- function(file_name) {
   read_meta_info(desc, file_name)
 }
 
-#' @export
+# Coerce MetaInfo to NIFTIMetaInfo.
 setAs(from="MetaInfo", to="NIFTIMetaInfo", def=function(from) {
   if (inherits(from, "NIFTIMetaInfo")) {
     from

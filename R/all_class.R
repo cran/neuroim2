@@ -957,6 +957,7 @@ setClass("IndexLookupVol",
 #' \describe{
 #'   \item{space}{A \code{\linkS4class{NeuroSpace}} object defining the spatial properties of the image.}
 #'   \item{label}{A character string providing a label for the NeuroVec object.}
+#'   \item{volume_labels}{An optional character vector of per-volume labels with length 0 or \code{dim(x)[4]}.}
 #' }
 #'
 #' @section Methods:
@@ -993,9 +994,39 @@ setClass("IndexLookupVol",
 #' @export
 #' @rdname NeuroVec-class
 setClass("NeuroVec",
-         slots = c(label = "character"),
-         prototype = list(label = ""),
+         slots = c(
+           label = "character",
+           volume_labels = "character"
+         ),
+         prototype = list(
+           label = "",
+           volume_labels = character()
+         ),
          contains = c("NeuroObj"))
+
+#' @keywords internal
+#' @noRd
+setValidity("NeuroVec", function(object) {
+  labs <- object@volume_labels
+  if (!is.character(labs)) {
+    return("volume_labels must be a character vector")
+  }
+
+  if (length(labs) == 0L) {
+    return(TRUE)
+  }
+
+  d <- try(dim(object), silent = TRUE)
+  if (inherits(d, "try-error") || length(d) < 4L) {
+    return(TRUE)
+  }
+
+  if (length(labs) != d[4]) {
+    return(sprintf("volume_labels must have length 0 or match dim(x)[4] (%d)", d[4]))
+  }
+
+  TRUE
+})
 
 #' DenseNeuroVec Class
 #'
@@ -1350,12 +1381,18 @@ setClass("NeuroVecSeq",
          contains=c("NeuroVec", "ArrayLike4D"),
 
          validity = function(object) {
-           assert_that(all(purrr::map_lgl(object@vecs, ~ inherits(., "NeuroVec"))))
+           if (!all(purrr::map_lgl(object@vecs, ~ inherits(., "NeuroVec")))) {
+             return("All elements of @vecs must be NeuroVec objects.")
+           }
            dimlist <- purrr::map(object@vecs, ~ dim(.)[1:3])
            splist <- purrr::map(object@vecs, ~ spacing(.))
-           assert_that(all(purrr::map_lgl(dimlist, ~ all(dimlist[[1]] == .))))
-           assert_that(all(purrr::map_lgl(splist, ~ all(splist[[1]] == .))))
-
+           if (!all(purrr::map_lgl(dimlist, ~ all(dimlist[[1]] == .)))) {
+             return("All NeuroVec objects must have the same spatial dimensions.")
+           }
+           if (!all(purrr::map_lgl(splist, ~ all(splist[[1]] == .)))) {
+             return("All NeuroVec objects must have the same spacing.")
+           }
+           TRUE
          })
 
 
@@ -1669,4 +1706,3 @@ setClass("ClusteredNeuroVec",
            if (!ok) return("Invalid ts/cl_map dimensions.")
            TRUE
          })
-

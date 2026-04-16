@@ -1,7 +1,8 @@
 params <-
-list(family = "red")
+list(family = "red", preset = "homage")
 
 ## ----setup, include=FALSE-----------------------------------------------------
+if (requireNamespace("ggplot2", quietly = TRUE) && requireNamespace("albersdown", quietly = TRUE)) ggplot2::theme_set(albersdown::theme_albers(family = params$family, preset = params$preset))
 if (requireNamespace("ggplot2", quietly = TRUE)) ggplot2::theme_set(neuroim2::theme_neuro(base_family = params$family))
 knitr::opts_chunk$set(
   collapse = TRUE,
@@ -55,13 +56,13 @@ ts <- series(cv, 5, 5, 5)
 length(ts)  # 20 time points
 
 ## ----searchlight--------------------------------------------------------------
-# K-nearest neighbor searchlight (10 nearest clusters)
-windows_knn <- cluster_searchlight_series(cv, k = 10)
+# K-nearest neighbor searchlight (3 nearest clusters)
+windows_knn <- cluster_searchlight_series(cv, k = 3)
 length(windows_knn)  # One window per cluster
 
 # Look at first window
 win1 <- windows_knn[[1]]
-dim(values(win1))  # 10 neighbors x 20 time points
+dim(values(win1))  # 20 time points x 3 neighbors
 
 # Radius-based searchlight (e.g., 15mm radius)
 windows_radius <- cluster_searchlight_series(cv, radius = 15)

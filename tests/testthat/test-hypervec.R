@@ -73,7 +73,7 @@ test_that("NeuroHyperVec constructor throws errors with invalid inputs", {
   invalid_mask <- array(TRUE, dim = c(5, 5))  # Wrong dimensions
   expect_error(
     NeuroHyperVec(data = data_array, space = space, mask = invalid_mask),
-    "'mask' must be a 3D logical array"
+    "Cannot coerce mask"
   )
 })
 

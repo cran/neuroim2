@@ -5,6 +5,60 @@
 
 ## Helper Functions for enforcing seekability
 
+.mmap_cache <- new.env(parent = emptyenv())
+
+#' @keywords internal
+#' @noRd
+.mmap_cache_key <- function(meta) {
+  paste(
+    normalizePath(meta@data_file, winslash = "/", mustWork = FALSE),
+    meta@data_type,
+    sep = "|"
+  )
+}
+
+#' @keywords internal
+#' @noRd
+.mmap_cache_size <- function() {
+  length(ls(.mmap_cache, all.names = TRUE))
+}
+
+#' @keywords internal
+#' @noRd
+.clear_mmap_cache <- function() {
+  keys <- ls(.mmap_cache, all.names = TRUE)
+  for (key in keys) {
+    handle <- get(key, envir = .mmap_cache, inherits = FALSE)
+    if (inherits(handle, "mmap")) {
+      try(mmap::munmap(handle), silent = TRUE)
+    }
+  }
+  if (length(keys) > 0) {
+    rm(list = keys, envir = .mmap_cache)
+  }
+  invisible(NULL)
+}
+
+#' @keywords internal
+#' @noRd
+.get_mmap_handle <- function(meta) {
+  if (.Platform$endian != meta@endian) {
+    stop(".read_mmap: swapped endian data not supported.")
+  }
+
+  key <- .mmap_cache_key(meta)
+  if (!exists(key, envir = .mmap_cache, inherits = FALSE)) {
+    handle <- mmap::mmap(
+      meta@data_file,
+      mode = .getMMapMode(meta@data_type),
+      prot = mmap::mmapFlags("PROT_READ")
+    )
+    assign(key, handle, envir = .mmap_cache)
+  }
+
+  get(key, envir = .mmap_cache, inherits = FALSE)
+}
+
 #' Ensure that the input connection for BinaryReader is seekable
 #'
 #' @param con A connection object used for reading.
@@ -60,16 +114,10 @@ ensure_writer_seekable <- function(con, byte_offset) {
 #' @keywords internal
 #' @noRd
 .read_mmap <- function(meta, idx) {
-  if (.Platform$endian != meta@endian) {
-    stop(".read_mmap: swapped endian data not supported.")
-  }
-
-  ret <- mmap::mmap(meta@data_file, mode=.getMMapMode(meta@data_type), prot=mmap::mmapFlags("PROT_READ"))
+  ret <- .get_mmap_handle(meta)
   offset <- meta@data_offset/.getDataSize(meta@data_type)
   idx_off <- idx + offset
-  vals <- ret[idx_off]
-  mmap::munmap(ret)
-  vals
+  ret[idx_off]
 }
 
 #' Read Mapped Series from 4D Image
@@ -86,11 +134,12 @@ read_mapped_series <- function(meta, idx) {
     stop(paste("Cannot create series_reader with gzipped file", meta@data_file))
   }
 
-  assert_that(length(meta@dims) == 4, msg="'file_name' argument must refer to a 4-dimensional image")
+  if (length(meta@dims) != 4) {
+    cli::cli_abort("File must refer to a 4-dimensional image, not {length(meta@dims)}D.")
+  }
   nels <- prod(meta@dims[1:3])
 
-  dtype <- .getRStorage(meta@data_type)
-  idx_set <- map(seq(1, meta@dims[4]), ~ idx + (nels*(.-1))) %>% flatten_dbl()
+  idx_set <- as.vector(outer(idx, (seq_len(meta@dims[4]) - 1L) * nels, "+"))
   ret <- .read_mmap(meta, idx_set)
   t(matrix(ret, length(idx), meta@dims[4]))
 }
@@ -109,9 +158,9 @@ read_mapped_data <- function(meta, idx) {
     stop(paste("Cannot create series_reader with gzipped file", meta@data_file))
   }
 
-  assert_that(length(meta@dims) == 4, msg="'file_name' argument must refer to a 4-dimensional image")
-  nels <- prod(meta@dims[1:3])
-
+  if (length(meta@dims) != 4) {
+    cli::cli_abort("File must refer to a 4-dimensional image, not {length(meta@dims)}D.")
+  }
   ret <- .read_mmap(meta, idx)
 }
 
@@ -129,13 +178,17 @@ read_mapped_vols <- function(meta, idx) {
     stop(paste("Cannot create series_reader with gzipped file", meta@data_file))
   }
 
-  assert_that(length(meta@dims) == 4, msg="'file_name' argument must refer to a 4-dimensional image")
+  if (length(meta@dims) != 4) {
+    cli::cli_abort("File must refer to a 4-dimensional image, not {length(meta@dims)}D.")
+  }
   nels <- prod(meta@dims[1:3])
   nimages <- meta@dims[4]
 
-  assert_that(min(idx) >= 1 && max(idx) <= nimages)
+  if (min(idx) < 1 || max(idx) > nimages) {
+    cli::cli_abort("{.arg idx} must be in range [1, {nimages}], got [{min(idx)}, {max(idx)}].")
+  }
 
-  idx_set <- map(idx, ~ (.-1)*nels + seq(1,nels)) %>% flatten_dbl()
+  idx_set <- as.vector(outer(seq_len(nels), (idx - 1L) * nels, "+"))
   ret <- .read_mmap(meta, idx_set)
   mat <- matrix(ret, nels, length(idx))
   t(mat)  # Transpose to get [time, voxels]
@@ -160,7 +213,9 @@ series_reader <- function(file_name) {
   }
 
   meta <- read_header(file_name)
-  assert_that(length(meta@dims) == 4, msg="'file_name' argument must refer to a 4-dimensional image")
+  if (length(meta@dims) != 4) {
+    cli::cli_abort("{.arg file_name} must refer to a 4-dimensional image, not {length(meta@dims)}D.")
+  }
   nels <- prod(meta@dims[1:3])
 
   dtype <- .getRStorage(meta@data_type)
@@ -253,6 +308,7 @@ BinaryReader <- function(input, byte_offset, data_type, bytes_per_element,
 #' con <- file(tmp, "wb")
 #' writer <- BinaryWriter(con, byte_offset = 100L,
 #'                       data_type = "integer", bytes_per_element = 4L)
+#' close(writer)
 #' unlink(tmp)
 #' }
 #' @seealso \code{\link{BinaryReader}} for reading binary data
@@ -331,6 +387,7 @@ setMethod(f="initialize", signature=signature(.Object="BinaryWriter"),
 #' # Clean up
 #' unlink(tmp)
 #' }
+#' @rdname read_elements-methods
 #' @export
 setMethod(f="read_elements", signature=signature(x= "BinaryReader", num_elements="numeric"),
 			def=function(x, num_elements) {

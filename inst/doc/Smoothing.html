@@ -402,28 +402,14 @@ vs. preserves contrast.</li>
 </ul>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>gf_vol <span class="ot">&lt;-</span> <span class="fu">guided_filter</span>(vol3d, <span class="at">radius =</span> <span class="dv">4</span>, <span class="at">epsilon =</span> <span class="fl">0.7</span><span class="sc">^</span><span class="dv">2</span>)</span>
 <span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>gf_vol</span>
-<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="co">#&gt;  === NeuroVol Object === </span></span>
-<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="co">#&gt; * Basic Information </span></span>
-<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a><span class="co">#&gt;   Type:      DenseNeuroVol</span></span>
-<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="co">#&gt;   Dimensions: 64 x 64 x 25 (806.6 Kb)</span></span>
-<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a><span class="co">#&gt;   Total Voxels: 102,400</span></span>
-<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a><span class="co">#&gt; * Data Properties</span></span>
-<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a><span class="co">#&gt;   Value Range: [0.00, 1.00]</span></span>
-<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a><span class="co">#&gt; * Spatial Properties</span></span>
-<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a><span class="co">#&gt;   Spacing: 3.50 x 3.50 x 3.70 mm</span></span>
-<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a><span class="co">#&gt;   Origin:  112.0, -108.0, -46.2 mm</span></span>
-<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a><span class="co">#&gt;   Axes:    Right-to-Left x Posterior-to-Anterior x Inferior-to-Superior</span></span>
-<span id="cb3-18"><a href="#cb3-18" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb3-19"><a href="#cb3-19" tabindex="-1"></a><span class="co">#&gt; ======================================</span></span>
-<span id="cb3-20"><a href="#cb3-20" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb3-21"><a href="#cb3-21" tabindex="-1"></a><span class="co">#&gt;  Access Methods: </span></span>
-<span id="cb3-22"><a href="#cb3-22" tabindex="-1"></a><span class="co">#&gt;   .  Get Slice:   slice(object, zlevel=10) </span></span>
-<span id="cb3-23"><a href="#cb3-23" tabindex="-1"></a><span class="co">#&gt;   .  Get Value:   object[i, j, k] </span></span>
-<span id="cb3-24"><a href="#cb3-24" tabindex="-1"></a><span class="co">#&gt;   .  Plot:       plot(object)  # shows multiple slices</span></span></code></pre></div>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="co">#&gt; &lt;DenseNeuroVol&gt; [806.6 Kb] </span></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="co">#&gt; ── Spatial ───────────────────────────────────────────────────────────────────── </span></span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a><span class="co">#&gt;   Dimensions    : 64 x 64 x 25</span></span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="co">#&gt;   Spacing       : 3.5 x 3.5 x 3.7 mm</span></span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a><span class="co">#&gt;   Origin        : 112, -108, -46.2</span></span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="co">#&gt;   Orientation   : LAS</span></span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a><span class="co">#&gt; ── Data ──────────────────────────────────────────────────────────────────────── </span></span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a><span class="co">#&gt;   Range         : [0.000, 1.000]</span></span></code></pre></div>
 <p>Compared to Gaussian smoothing, guided filtering tends to retain
 sharp boundaries between tissues while denoising within regions.</p>
 </div>
@@ -439,28 +425,14 @@ intensity similarity, reducing noise while respecting edges.</p>
 <span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>  <span class="at">window          =</span> <span class="dv">1</span></span>
 <span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>)</span>
 <span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>bf_vol</span>
-<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a><span class="co">#&gt;  === NeuroVol Object === </span></span>
-<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a><span class="co">#&gt; * Basic Information </span></span>
-<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a><span class="co">#&gt;   Type:      DenseNeuroVol</span></span>
-<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a><span class="co">#&gt;   Dimensions: 64 x 64 x 25 (806.6 Kb)</span></span>
-<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a><span class="co">#&gt;   Total Voxels: 102,400</span></span>
-<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb4-16"><a href="#cb4-16" tabindex="-1"></a><span class="co">#&gt; * Data Properties</span></span>
-<span id="cb4-17"><a href="#cb4-17" tabindex="-1"></a><span class="co">#&gt;   Value Range: [0.00, 0.99]</span></span>
-<span id="cb4-18"><a href="#cb4-18" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb4-19"><a href="#cb4-19" tabindex="-1"></a><span class="co">#&gt; * Spatial Properties</span></span>
-<span id="cb4-20"><a href="#cb4-20" tabindex="-1"></a><span class="co">#&gt;   Spacing: 3.50 x 3.50 x 3.70 mm</span></span>
-<span id="cb4-21"><a href="#cb4-21" tabindex="-1"></a><span class="co">#&gt;   Origin:  112.0, -108.0, -46.2 mm</span></span>
-<span id="cb4-22"><a href="#cb4-22" tabindex="-1"></a><span class="co">#&gt;   Axes:    Right-to-Left x Posterior-to-Anterior x Inferior-to-Superior</span></span>
-<span id="cb4-23"><a href="#cb4-23" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb4-24"><a href="#cb4-24" tabindex="-1"></a><span class="co">#&gt; ======================================</span></span>
-<span id="cb4-25"><a href="#cb4-25" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb4-26"><a href="#cb4-26" tabindex="-1"></a><span class="co">#&gt;  Access Methods: </span></span>
-<span id="cb4-27"><a href="#cb4-27" tabindex="-1"></a><span class="co">#&gt;   .  Get Slice:   slice(object, zlevel=10) </span></span>
-<span id="cb4-28"><a href="#cb4-28" tabindex="-1"></a><span class="co">#&gt;   .  Get Value:   object[i, j, k] </span></span>
-<span id="cb4-29"><a href="#cb4-29" tabindex="-1"></a><span class="co">#&gt;   .  Plot:       plot(object)  # shows multiple slices</span></span></code></pre></div>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a><span class="co">#&gt; &lt;DenseNeuroVol&gt; [806.6 Kb] </span></span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a><span class="co">#&gt; ── Spatial ───────────────────────────────────────────────────────────────────── </span></span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a><span class="co">#&gt;   Dimensions    : 64 x 64 x 25</span></span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a><span class="co">#&gt;   Spacing       : 3.5 x 3.5 x 3.7 mm</span></span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a><span class="co">#&gt;   Origin        : 112, -108, -46.2</span></span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a><span class="co">#&gt;   Orientation   : LAS</span></span>
+<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a><span class="co">#&gt; ── Data ──────────────────────────────────────────────────────────────────────── </span></span>
+<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a><span class="co">#&gt;   Range         : [0.000, 0.990]</span></span></code></pre></div>
 <p>Key parameters:</p>
 <ul>
 <li><code>spatial_sigma</code>: spatial scale (in mm).</li>
@@ -480,28 +452,14 @@ to enhance details.</p>
 <div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>sharp_vol <span class="ot">&lt;-</span> <span class="fu">laplace_enhance</span>(vol3d, <span class="at">k =</span> <span class="dv">2</span>, <span class="at">patch_size =</span> <span class="dv">3</span>,</span>
 <span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>                             <span class="at">search_radius =</span> <span class="dv">2</span>, <span class="at">h =</span> <span class="fl">0.7</span>)</span>
 <span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>sharp_vol</span>
-<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="co">#&gt;  === NeuroVol Object === </span></span>
-<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a><span class="co">#&gt; * Basic Information </span></span>
-<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a><span class="co">#&gt;   Type:      DenseNeuroVol</span></span>
-<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a><span class="co">#&gt;   Dimensions: 64 x 64 x 25 (806.6 Kb)</span></span>
-<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a><span class="co">#&gt;   Total Voxels: 102,400</span></span>
-<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a><span class="co">#&gt; * Data Properties</span></span>
-<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a><span class="co">#&gt;   Value Range: [-0.02, 1.01]</span></span>
-<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a><span class="co">#&gt; * Spatial Properties</span></span>
-<span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a><span class="co">#&gt;   Spacing: 3.50 x 3.50 x 3.70 mm</span></span>
-<span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a><span class="co">#&gt;   Origin:  112.0, -108.0, -46.2 mm</span></span>
-<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a><span class="co">#&gt;   Axes:    Right-to-Left x Posterior-to-Anterior x Inferior-to-Superior</span></span>
-<span id="cb5-19"><a href="#cb5-19" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb5-20"><a href="#cb5-20" tabindex="-1"></a><span class="co">#&gt; ======================================</span></span>
-<span id="cb5-21"><a href="#cb5-21" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb5-22"><a href="#cb5-22" tabindex="-1"></a><span class="co">#&gt;  Access Methods: </span></span>
-<span id="cb5-23"><a href="#cb5-23" tabindex="-1"></a><span class="co">#&gt;   .  Get Slice:   slice(object, zlevel=10) </span></span>
-<span id="cb5-24"><a href="#cb5-24" tabindex="-1"></a><span class="co">#&gt;   .  Get Value:   object[i, j, k] </span></span>
-<span id="cb5-25"><a href="#cb5-25" tabindex="-1"></a><span class="co">#&gt;   .  Plot:       plot(object)  # shows multiple slices</span></span></code></pre></div>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="co">#&gt; &lt;DenseNeuroVol&gt; [806.6 Kb] </span></span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="co">#&gt; ── Spatial ───────────────────────────────────────────────────────────────────── </span></span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="co">#&gt;   Dimensions    : 64 x 64 x 25</span></span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a><span class="co">#&gt;   Spacing       : 3.5 x 3.5 x 3.7 mm</span></span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a><span class="co">#&gt;   Origin        : 112, -108, -46.2</span></span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a><span class="co">#&gt;   Orientation   : LAS</span></span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a><span class="co">#&gt; ── Data ──────────────────────────────────────────────────────────────────────── </span></span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a><span class="co">#&gt;   Range         : [-0.017, 1.013]</span></span></code></pre></div>
 <p>Use higher <code>h</code> or more layers <code>k</code> for stronger
 enhancement, but be cautious about amplifying noise.</p>
 </div>

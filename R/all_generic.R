@@ -175,6 +175,21 @@ setGeneric(name="linear_access", def=function(x, i, ...) standardGeneric("linear
 #' # Each column in ts_mat contains the full time series for that voxel
 setGeneric(name="matricized_access", def=function(x, i, ...) standardGeneric("matricized_access"))
 
+#' Extract full sparse rows across time.
+#'
+#' This function extracts one or more rows from the sparse time-by-voxel backing
+#' representation used by sparse neuroimaging vectors. It complements
+#' \code{matricized_access()}, which is the column-oriented accessor.
+#'
+#' @param x a data source, typically a \code{SparseNeuroVec} object containing 4D neuroimaging data
+#' @param i a numeric vector of temporal indices to extract
+#' @param ... additional arguments to be passed to methods.
+#' @return A matrix with one row per requested time index and one column per
+#'   sparse voxel in the backing representation.
+#' @rdname temporal_access-methods
+#' @export
+setGeneric(name="temporal_access", def=function(x, i, ...) standardGeneric("temporal_access"))
+
 #' Read data from a data source.
 #'
 #' This function loads data from a data source and returns it in a format that is compatible with
@@ -1020,6 +1035,21 @@ setGeneric(name="grid_to_grid",   def=function(x, vox) standardGeneric("grid_to_
 setGeneric(name="grid_to_index",   def=function(x, coords) standardGeneric("grid_to_index"))
 
 
+#' Get per-volume labels for a \code{NeuroVec}.
+#'
+#' @param x A \code{NeuroVec} or compatible object.
+#' @return A character vector of labels. Returns \code{character(0)} when no
+#'   labels are defined.
+#' @export
+#' @examples
+#' sp <- NeuroSpace(c(2, 2, 2, 3), c(1, 1, 1))
+#' vec <- NeuroVec(array(1:24, dim = c(2, 2, 2, 3)), sp,
+#'                 volume_labels = c("baseline", "task", "rest"))
+#' volume_labels(vec)
+#' @rdname volume_labels-methods
+setGeneric(name="volume_labels", def=function(x) standardGeneric("volume_labels"))
+
+
 
 #' Generic function to extract a sub-vector from a \code{NeuroVec} object.
 #' @param x four-dimensional image
@@ -1656,3 +1686,31 @@ setGeneric("embed_kernel", def=function(x, sp, center_voxel, ...) standardGeneri
 #' m2 <- mask(svec)  # Returns the stored mask
 #' 
 setGeneric("mask", def=function(x) standardGeneric("mask"))
+
+
+#' Select a Subset of Clusters
+#'
+#' Return a new object containing only the requested clusters. Clusters can
+#' be identified by integer ID or by name (matched against the label map).
+#'
+#' @param x A clustered neuroimaging object.
+#' @param ids Integer cluster IDs, numeric (coerced to integer), or character
+#'   cluster names to retain.
+#' @param ... Additional arguments (currently unused).
+#' @return An object of the same class as \code{x} containing only the
+#'   selected clusters.
+#'
+#' @examples
+#' sp <- NeuroSpace(c(10L, 10L, 10L), c(1, 1, 1))
+#' mask <- LogicalNeuroVol(array(c(rep(TRUE, 500), rep(FALSE, 500)),
+#'                               c(10, 10, 10)), sp)
+#' clusters <- rep(1:5, length.out = 500)
+#' cvol <- ClusteredNeuroVol(mask, clusters,
+#'           label_map = list(A = 1, B = 2, C = 3, D = 4, E = 5))
+#' # By integer ID
+#' sub <- sub_clusters(cvol, c(1L, 3L))
+#' # By name
+#' sub2 <- sub_clusters(cvol, c("A", "C"))
+#'
+#' @export
+setGeneric("sub_clusters", function(x, ids, ...) standardGeneric("sub_clusters"))

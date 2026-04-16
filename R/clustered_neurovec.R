@@ -291,56 +291,69 @@ setMethod("[", signature(x = "ClusteredNeuroVec", i = "numeric", j = "numeric"),
             }
           })
 
-#' Show method for ClusteredNeuroVec
 #' @export
+#' @importFrom stats median
 #' @rdname show-methods
-setMethod("show", signature(object = "ClusteredNeuroVec"),
-          function(object) {
-            # Header with class name
-            cat("\n", crayon::bold(crayon::blue("ClusteredNeuroVec")), " ", sep = "")
-            
-            # Add label if present
-            if (length(object@label) > 0 && nchar(object@label) > 0) {
-              cat(crayon::silver(paste0("'", object@label, "'")), "\n")
-            } else {
-              cat("\n")
+setMethod("show", "ClusteredNeuroVec", function(object) {
+  d <- dim(object@cvol)
+  nc <- num_clusters(object@cvol)
+  nt <- nrow(object@ts)
+  show_header("ClusteredNeuroVec", paste(nc, "clusters x", nt, "timepoints"))
+  show_rule("Spatial")
+  show_field("Dimensions", paste(d, collapse = " x "))
+  show_field("Spacing", paste(round(spacing(object@cvol), 3), collapse = " x "), " mm")
+  show_rule("Cluster Data")
+  show_field("Clusters", nc)
+  show_field("Time Points", nt)
+  sizes <- table(object@cvol@clusters)
+  show_field("Cluster Sizes", sprintf("min=%d, median=%d, max=%d",
+             min(sizes), as.integer(median(sizes)), max(sizes)))
+  show_field("Size", format_mem(object))
+})
+
+
+# ---- sub_clusters for ClusteredNeuroVec ------------------------------------
+
+#' @rdname sub_clusters
+#' @export
+setMethod("sub_clusters", signature(x = "ClusteredNeuroVec", ids = "integer"),
+          function(x, ids, ...) {
+            new_cvol <- sub_clusters(x@cvol, ids)
+
+            # Map selected IDs to their old column positions in x@ts
+            old_ids <- sort(unique(x@cvol@clusters))
+            col_indices <- match(sort(ids), old_ids)
+            new_ts <- x@ts[, col_indices, drop = FALSE]
+
+            # Build cl_map with contiguous column indices (1:K_new)
+            new_ids_sorted <- sort(ids)
+            new_cl_map <- integer(length(x@cl_map))
+            for (ci in seq_along(new_ids_sorted)) {
+              new_cl_map[x@cl_map == old_ids[col_indices[ci]]] <- ci
             }
-            
-            # Spatial Info Block
-            cat(crayon::bold("\n+= Spatial Info "), crayon::silver("---------------------------"), "\n", sep = "")
-            sp <- space(object@cvol)
-            dims <- dim(object)
-            cat("| ", crayon::yellow("Dimensions"), "    : ", paste(dims[1:3], collapse = " x "), "\n", sep = "")
-            cat("| ", crayon::yellow("Spacing"), "       : ", paste(sp@spacing[1:3], collapse = " x "), "\n", sep = "")
-            cat("| ", crayon::yellow("Origin"), "        : ", paste(round(sp@origin[1:3], 2), collapse = " x "), "\n", sep = "")
-            cat("| ", crayon::yellow("Orientation"), "   : ", paste(sp@axes@i@axis, sp@axes@j@axis, sp@axes@k@axis), "\n", sep = "")
-            
-            # Clustering Info Block
-            cat(crayon::bold("\n+= Clustering Info "), crayon::silver("------------------------"), "\n", sep = "")
-            n_clusters <- ncol(object@ts)
-            cat("| ", crayon::yellow("Clusters"), "      : ", crayon::green(n_clusters), "\n", sep = "")
-            
-            # Get cluster sizes
-            cluster_sizes <- table(object@cl_map[object@cl_map > 0])
-            if (length(cluster_sizes) > 0) {
-              size_summary <- summary(as.numeric(cluster_sizes))
-              cat("| ", crayon::yellow("Cluster Sizes"), " : ",
-                  "min=", round(size_summary["Min."], 0), ", ",
-                  "med=", round(size_summary["Median"], 0), ", ",
-                  "max=", round(size_summary["Max."], 0), "\n", sep = "")
+
+            new("ClusteredNeuroVec",
+                cvol = new_cvol,
+                ts = new_ts,
+                cl_map = new_cl_map,
+                label = x@label,
+                space = x@space)
+          })
+
+#' @rdname sub_clusters
+#' @export
+setMethod("sub_clusters", signature(x = "ClusteredNeuroVec", ids = "numeric"),
+          function(x, ids, ...) sub_clusters(x, as.integer(ids)))
+
+#' @rdname sub_clusters
+#' @export
+setMethod("sub_clusters", signature(x = "ClusteredNeuroVec", ids = "character"),
+          function(x, ids, ...) {
+            lm <- x@cvol@label_map
+            found <- ids %in% names(lm)
+            if (!all(found)) {
+              stop("cluster names not found: ", paste(ids[!found], collapse = ", "))
             }
-            
-            # Temporal Info Block
-            cat(crayon::bold("\n+= Temporal Info "), crayon::silver("--------------------------"), "\n", sep = "")
-            cat("| ", crayon::yellow("Time Points"), "   : ", crayon::green(dims[4]), "\n", sep = "")
-            
-            # Memory Info Block
-            mem_size <- format(object.size(object@ts) / (1024^2), digits = 2, nsmall = 2)
-            total_voxels <- sum(object@cl_map > 0)
-            cat(crayon::bold("\n+= Memory Info "), crayon::silver("----------------------------"), "\n", sep = "")
-            cat("| ", crayon::yellow("Matrix Size"), "   : ", mem_size, " MB (", 
-                nrow(object@ts), " x ", ncol(object@ts), ")\n", sep = "")
-            cat("| ", crayon::yellow("Active Voxels"), " : ", format(total_voxels, big.mark = ","), "\n", sep = "")
-            
-            invisible(NULL)
+            int_ids <- as.integer(unlist(lm[ids]))
+            sub_clusters(x, int_ids)
           })

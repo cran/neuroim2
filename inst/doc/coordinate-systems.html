@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Coordinate Systems and Spatial Transforms</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Coordinate Systems and Spatial
+Transforms</h1>
+
+
+
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(neuroim2)</span></code></pre></div>
+<p>Every neuro object in neuroim2 — a <code>NeuroVol</code>, a
+<code>NeuroVec</code>, an ROI — carries a <code>NeuroSpace</code> that
+answers one question: <em>where in the scanner room does this voxel
+sit?</em> Get that mapping right and anatomical coordinates, atlas
+overlays, and multi-subject registration all fall into place. Get it
+wrong and your activations end up in the wrong hemisphere.</p>
+<p>This vignette builds the mental model from the ground up: what a
+<code>NeuroSpace</code> is, how the affine transform works, and how to
+move fluently between voxel indices, grid coordinates, and millimetre
+world coordinates.</p>
+<hr />
+<div id="what-is-a-neurospace" class="section level2">
+<h2>What is a NeuroSpace?</h2>
+<p>A <code>NeuroSpace</code> is the spatial reference frame attached to
+every neuro image. It bundles:</p>
+<ul>
+<li><strong>Grid dimensions</strong> — how many voxels along each axis
+(<code>dim</code>)</li>
+<li><strong>Voxel spacing</strong> — physical size of each voxel in
+millimetres (<code>spacing</code>)</li>
+<li><strong>Origin</strong> — world coordinates of voxel
+<code>(1, 1, 1)</code> in mm (<code>origin</code>)</li>
+<li><strong>Affine transform</strong> — the 4 × 4 matrix that maps voxel
+indices to mm (<code>trans</code>)</li>
+<li><strong>Axis orientation</strong> — which anatomical direction each
+image axis points (<code>axes</code>)</li>
+</ul>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>sp <span class="ot">&lt;-</span> <span class="fu">NeuroSpace</span>(</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>  <span class="at">dim     =</span> <span class="fu">c</span>(<span class="dv">64</span><span class="dt">L</span>, <span class="dv">64</span><span class="dt">L</span>, <span class="dv">40</span><span class="dt">L</span>),</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>  <span class="at">spacing =</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">2</span>),</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>  <span class="at">origin  =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">90</span>, <span class="sc">-</span><span class="dv">126</span>, <span class="sc">-</span><span class="dv">72</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>)</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>sp</span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a><span class="co">#&gt; &lt;NeuroSpace&gt; [3D] </span></span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a><span class="co">#&gt; ── Geometry ──────────────────────────────────────────────────────────────────── </span></span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a><span class="co">#&gt;   Dimensions    : 64 x 64 x 40</span></span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a><span class="co">#&gt;   Spacing       : 2 x 2 x 2 mm</span></span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a><span class="co">#&gt;   Origin        : -90, -126, -72</span></span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a><span class="co">#&gt;   Orientation   : RAS</span></span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a><span class="co">#&gt;   Voxels        : 163,840</span></span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">dim</span>(sp)       <span class="co"># grid dimensions</span></span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="co">#&gt; [1] 64 64 40</span></span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="fu">spacing</span>(sp)   <span class="co"># voxel sizes in mm</span></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="co">#&gt; [1] 2 2 2</span></span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a><span class="fu">origin</span>(sp)    <span class="co"># world coords of voxel (1,1,1)</span></span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="co">#&gt; [1]  -90 -126  -72</span></span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a><span class="fu">ndim</span>(sp)      <span class="co"># number of spatial dimensions</span></span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="co">#&gt; [1] 3</span></span></code></pre></div>
+<p>The <code>NeuroSpace</code> is also the bridge to any volume or
+time-series built on top of it. Call <code>space(x)</code> on any neuro
+object to retrieve it.</p>
+<hr />
+</div>
+<div id="the-affine-transform" class="section level2">
+<h2>The Affine Transform</h2>
+<p>The affine transform is a 4 × 4 homogeneous matrix stored in
+<code>trans(sp)</code>. It maps a voxel position (expressed as a
+zero-based column vector) to millimetre world coordinates:</p>
+<pre><code>[x_mm]   [M  t] [i]
+[y_mm] = [      [j]
+[z_mm]    0  1] [k]
+[ 1  ]          [1]</code></pre>
+<p>where <code>M</code> is the 3 × 3 linear part (encodes spacing,
+rotation, and possible shear) and <code>t</code> is the 3-element
+translation (the origin in mm).</p>
+<p>For an axis-aligned image built from <code>spacing</code> and
+<code>origin</code>, <code>M</code> is diagonal:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="fu">trans</span>(sp)</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="co">#&gt;      [,1] [,2] [,3] [,4]</span></span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="co">#&gt; [1,]    2    0    0  -90</span></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="co">#&gt; [2,]    0    2    0 -126</span></span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="co">#&gt; [3,]    0    0    2  -72</span></span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="co">#&gt; [4,]    0    0    0    1</span></span></code></pre></div>
+<p>The translation column (<code>trans(sp)[1:3, 4]</code>) recovers the
+origin, and the diagonal of the linear block recovers the voxel
+sizes:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="co"># Translation column = origin</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="fu">trans</span>(sp)[<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, <span class="dv">4</span>]</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="co">#&gt; [1]  -90 -126  -72</span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="co"># Diagonal of linear block = voxel sizes</span></span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a><span class="fu">diag</span>(<span class="fu">trans</span>(sp)[<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>])</span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a><span class="co">#&gt; [1] 2 2 2</span></span></code></pre></div>
+<p>The inverse affine (world -&gt; voxel) is cached and accessible via
+<code>inverse_trans(sp)</code>:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="fu">inverse_trans</span>(sp)</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="co">#&gt;      [,1] [,2] [,3] [,4]</span></span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="co">#&gt; [1,]  0.5  0.0  0.0   45</span></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="co">#&gt; [2,]  0.0  0.5  0.0   63</span></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a><span class="co">#&gt; [3,]  0.0  0.0  0.5   36</span></span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a><span class="co">#&gt; [4,]  0.0  0.0  0.0    1</span></span></code></pre></div>
+<div id="passing-an-explicit-affine" class="section level3">
+<h3>Passing an explicit affine</h3>
+<p>You can supply a full 4 × 4 affine directly to
+<code>NeuroSpace()</code>. neuroim2 will derive <code>spacing</code> and
+<code>origin</code> from it automatically:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>aff <span class="ot">&lt;-</span> <span class="fu">diag</span>(<span class="fu">c</span>(<span class="dv">3</span>, <span class="dv">3</span>, <span class="dv">4</span>, <span class="dv">1</span>))          <span class="co"># 3 × 3 × 4 mm voxels</span></span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>aff[<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, <span class="dv">4</span>] <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">90</span>, <span class="sc">-</span><span class="dv">126</span>, <span class="sc">-</span><span class="dv">72</span>)    <span class="co"># origin</span></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>sp_aff <span class="ot">&lt;-</span> <span class="fu">NeuroSpace</span>(<span class="at">dim =</span> <span class="fu">c</span>(<span class="dv">60</span><span class="dt">L</span>, <span class="dv">60</span><span class="dt">L</span>, <span class="dv">35</span><span class="dt">L</span>), <span class="at">trans =</span> aff)</span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a><span class="fu">spacing</span>(sp_aff)   <span class="co"># derived from column norms of linear block</span></span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a><span class="co">#&gt; [1] 3 3 4</span></span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a><span class="fu">origin</span>(sp_aff)    <span class="co"># derived from translation column</span></span>
+<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a><span class="co">#&gt; [1]  -90 -126  -72</span></span></code></pre></div>
+<p>When the affine is oblique (rotated relative to the scanner axes),
+<code>spacing()</code> returns the column norms of the linear block —
+the true physical voxel sizes — while the diagonal of the linear block
+would be smaller. See the <em>Oblique affines</em> section below.</p>
+<hr />
+</div>
+</div>
+<div id="voxel-vs-world-coordinates" class="section level2">
+<h2>Voxel vs World Coordinates</h2>
+<p>neuroim2 uses <strong>1-based grid indices</strong> everywhere,
+matching R’s array conventions. The affine convention is therefore:</p>
+<blockquote>
+<p><code>grid_to_coord</code> subtracts 1 from each 1-based index before
+applying the affine, placing voxel <code>(1, 1, 1)</code> at the
+origin.</p>
+</blockquote>
+<p>There are two flavours of voxel addressing:</p>
+<table>
+<colgroup>
+<col width="41%" />
+<col width="20%" />
+<col width="38%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Address type</th>
+<th align="left">Range</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">Linear index</td>
+<td align="left"><code>1 ... prod(dim)</code></td>
+<td align="left">Single integer; column-major (as in R arrays)</td>
+</tr>
+<tr class="even">
+<td align="left">Grid index</td>
+<td align="left"><code>(1...d1, 1...d2, 1...d3)</code></td>
+<td align="left">3-tuple of 1-based integers</td>
+</tr>
+</tbody>
+</table>
+<p>And one world-coordinate system: millimetres, defined by the
+affine.</p>
+<div class="float">
+<img role="img" aria-label="The three addressing schemes and the functions that convert between them." src="data:image/png;base64,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" alt="The three addressing schemes and the functions that convert between them." />
+<div class="figcaption">The three addressing schemes and the functions
+that convert between them.</div>
+</div>
+<hr />
+</div>
+<div id="coordinate-conversions" class="section level2">
+<h2>Coordinate Conversions</h2>
+<p>All conversion functions accept a <code>NeuroSpace</code> (or any
+neuro object, via its attached space) as the first argument.</p>
+<div id="grid---linear-index" class="section level3">
+<h3>Grid &lt;-&gt; linear index</h3>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="co"># Which linear index does grid position (10, 12, 5) map to?</span></span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="fu">grid_to_index</span>(sp, <span class="fu">matrix</span>(<span class="fu">c</span>(<span class="dv">10</span>, <span class="dv">12</span>, <span class="dv">5</span>), <span class="at">nrow =</span> <span class="dv">1</span>))</span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a><span class="co">#&gt; [1] 17098</span></span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a></span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a><span class="co"># And back to grid</span></span>
+<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a><span class="fu">index_to_grid</span>(sp, <span class="dv">8394</span><span class="dt">L</span>)</span>
+<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a><span class="co">#&gt;      [,1] [,2] [,3]</span></span>
+<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a><span class="co">#&gt; [1,]   10    4    3</span></span></code></pre></div>
+</div>
+<div id="grid---world-coordinates" class="section level3">
+<h3>Grid -&gt; world coordinates</h3>
+<p><code>grid_to_coord</code> subtracts 1 from the 1-based grid before
+applying the affine, so grid <code>(1, 1, 1)</code> maps exactly to the
+origin:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="fu">grid_to_coord</span>(sp, <span class="fu">matrix</span>(<span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>), <span class="at">nrow =</span> <span class="dv">1</span>))   <span class="co"># should equal origin(sp)</span></span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a><span class="co">#&gt;      [,1] [,2] [,3]</span></span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a><span class="co">#&gt; [1,]  -90 -126  -72</span></span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a><span class="fu">grid_to_coord</span>(sp, <span class="fu">matrix</span>(<span class="fu">c</span>(<span class="dv">10</span>, <span class="dv">12</span>, <span class="dv">5</span>), <span class="at">nrow =</span> <span class="dv">1</span>))</span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a><span class="co">#&gt;      [,1] [,2] [,3]</span></span>
+<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a><span class="co">#&gt; [1,]  -72 -104  -64</span></span></code></pre></div>
+<p>Multiple points are passed as a matrix with one row per point:</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a>pts <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">c</span>(</span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a>   <span class="dv">1</span>,  <span class="dv">1</span>,  <span class="dv">1</span>,</span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a>  <span class="dv">32</span>, <span class="dv">32</span>, <span class="dv">20</span>,</span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a>  <span class="dv">64</span>, <span class="dv">64</span>, <span class="dv">40</span></span>
+<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a>), <span class="at">ncol =</span> <span class="dv">3</span>, <span class="at">byrow =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a></span>
+<span id="cb11-7"><a href="#cb11-7" tabindex="-1"></a><span class="fu">grid_to_coord</span>(sp, pts)</span>
+<span id="cb11-8"><a href="#cb11-8" tabindex="-1"></a><span class="co">#&gt;      [,1] [,2] [,3]</span></span>
+<span id="cb11-9"><a href="#cb11-9" tabindex="-1"></a><span class="co">#&gt; [1,]  -90 -126  -72</span></span>
+<span id="cb11-10"><a href="#cb11-10" tabindex="-1"></a><span class="co">#&gt; [2,]  -28  -64  -34</span></span>
+<span id="cb11-11"><a href="#cb11-11" tabindex="-1"></a><span class="co">#&gt; [3,]   36    0    6</span></span></code></pre></div>
+</div>
+<div id="world---grid-coordinates" class="section level3">
+<h3>World -&gt; grid coordinates</h3>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a><span class="fu">coord_to_grid</span>(sp, <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>))          <span class="co"># near isocenter</span></span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a><span class="co">#&gt; [1] 46 64 37</span></span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a><span class="fu">coord_to_grid</span>(sp, <span class="fu">matrix</span>(<span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>,</span>
+<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a>                           <span class="dv">10</span>, <span class="sc">-</span><span class="dv">20</span>, <span class="dv">8</span>), <span class="at">ncol =</span> <span class="dv">3</span>, <span class="at">byrow =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a><span class="co">#&gt;      [,1] [,2] [,3]</span></span>
+<span id="cb12-6"><a href="#cb12-6" tabindex="-1"></a><span class="co">#&gt; [1,]   46   64   37</span></span>
+<span id="cb12-7"><a href="#cb12-7" tabindex="-1"></a><span class="co">#&gt; [2,]   51   54   41</span></span></code></pre></div>
+</div>
+<div id="convenience-linear-index---world" class="section level3">
+<h3>Convenience: linear index &lt;-&gt; world</h3>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="co"># Linear index 1 should land at the origin (pass integer)</span></span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a><span class="fu">index_to_coord</span>(sp, <span class="dv">1</span><span class="dt">L</span>)</span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a><span class="co">#&gt;      [,1] [,2] [,3]</span></span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a><span class="co">#&gt; [1,]  -89 -125  -71</span></span>
+<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a></span>
+<span id="cb13-6"><a href="#cb13-6" tabindex="-1"></a><span class="co"># World coord back to linear index</span></span>
+<span id="cb13-7"><a href="#cb13-7" tabindex="-1"></a><span class="fu">coord_to_index</span>(sp, <span class="fu">matrix</span>(<span class="fu">c</span>(<span class="sc">-</span><span class="dv">90</span>, <span class="sc">-</span><span class="dv">126</span>, <span class="sc">-</span><span class="dv">72</span>), <span class="at">nrow =</span> <span class="dv">1</span>))</span>
+<span id="cb13-8"><a href="#cb13-8" tabindex="-1"></a><span class="co">#&gt; [1] -2079</span></span></code></pre></div>
+</div>
+<div id="a-concrete-round-trip" class="section level3">
+<h3>A concrete round-trip</h3>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a>idx   <span class="ot">&lt;-</span> <span class="dv">12345</span><span class="dt">L</span></span>
+<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a>grid  <span class="ot">&lt;-</span> <span class="fu">index_to_grid</span>(sp, idx)</span>
+<span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a>world <span class="ot">&lt;-</span> <span class="fu">grid_to_coord</span>(sp, grid)</span>
+<span id="cb14-4"><a href="#cb14-4" tabindex="-1"></a>back  <span class="ot">&lt;-</span> <span class="fu">coord_to_index</span>(sp, world)</span>
+<span id="cb14-5"><a href="#cb14-5" tabindex="-1"></a></span>
+<span id="cb14-6"><a href="#cb14-6" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;index:&quot;</span>, idx, <span class="st">&quot;-&gt; grid:&quot;</span>, grid, <span class="st">&quot;-&gt; world:&quot;</span>, <span class="fu">round</span>(world, <span class="dv">2</span>),</span>
+<span id="cb14-7"><a href="#cb14-7" tabindex="-1"></a>    <span class="st">&quot;-&gt; index:&quot;</span>, back, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb14-8"><a href="#cb14-8" tabindex="-1"></a><span class="co">#&gt; index: 12345 -&gt; grid: 57 1 4 -&gt; world: 22 -126 -66 -&gt; index: 10264</span></span></code></pre></div>
+<hr />
+</div>
+</div>
+<div id="orientation-codes" class="section level2">
+<h2>Orientation Codes</h2>
+<p>Neuroimaging images can be stored in many orientations. The
+<strong>orientation code</strong> (also called axis codes or RAS codes)
+tells you which anatomical direction each image axis points:</p>
+<table>
+<thead>
+<tr class="header">
+<th align="center">Letter</th>
+<th align="left">Anatomical direction</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="center">R</td>
+<td align="left">increasing -&gt; Right</td>
+</tr>
+<tr class="even">
+<td align="center">L</td>
+<td align="left">increasing -&gt; Left</td>
+</tr>
+<tr class="odd">
+<td align="center">A</td>
+<td align="left">increasing -&gt; Anterior</td>
+</tr>
+<tr class="even">
+<td align="center">P</td>
+<td align="left">increasing -&gt; Posterior</td>
+</tr>
+<tr class="odd">
+<td align="center">S</td>
+<td align="left">increasing -&gt; Superior</td>
+</tr>
+<tr class="even">
+<td align="center">I</td>
+<td align="left">increasing -&gt; Inferior</td>
+</tr>
+</tbody>
+</table>
+<p>A code of <code>&quot;RAS&quot;</code> means: axis 1 runs left-to-right, axis 2
+runs posterior-to-anterior, axis 3 runs inferior-to-superior. This is
+the standard NIfTI/MNI convention. <code>&quot;LPI&quot;</code> (sometimes called
+“neurological”) reverses all three.</p>
+<p><code>affine_to_axcodes()</code> reads the orientation directly from
+the affine matrix:</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a><span class="fu">affine_to_axcodes</span>(<span class="fu">trans</span>(sp))</span>
+<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a><span class="co">#&gt; [1] &quot;R&quot; &quot;A&quot; &quot;S&quot;</span></span></code></pre></div>
+<p>The default axis-aligned <code>NeuroSpace</code> built above uses the
+nearest-anatomy convention inferred from the affine. You can also
+inspect the <code>axes</code> slot directly:</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a><span class="fu">axes</span>(sp)</span>
+<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a><span class="co">#&gt; &lt;AxisSet3D&gt; </span></span>
+<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a><span class="co">#&gt;   Axis 1        : Left-to-Right</span></span>
+<span id="cb16-4"><a href="#cb16-4" tabindex="-1"></a><span class="co">#&gt;   Axis 2        : Posterior-to-Anterior</span></span>
+<span id="cb16-5"><a href="#cb16-5" tabindex="-1"></a><span class="co">#&gt;   Axis 3        : Inferior-to-Superior</span></span></code></pre></div>
+<div id="reorienting-a-space" class="section level3">
+<h3>Reorienting a space</h3>
+<p><code>reorient()</code> flips and permutes the affine to match a
+target orientation string:</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a>sp_ras <span class="ot">&lt;-</span> <span class="fu">reorient</span>(sp, <span class="fu">c</span>(<span class="st">&quot;R&quot;</span>, <span class="st">&quot;A&quot;</span>, <span class="st">&quot;S&quot;</span>))</span>
+<span id="cb17-2"><a href="#cb17-2" tabindex="-1"></a><span class="fu">affine_to_axcodes</span>(<span class="fu">trans</span>(sp_ras))</span>
+<span id="cb17-3"><a href="#cb17-3" tabindex="-1"></a><span class="co">#&gt; [1] &quot;L&quot; &quot;P&quot; &quot;I&quot;</span></span></code></pre></div>
+<hr />
+</div>
+</div>
+<div id="creating-neurospaces" class="section level2">
+<h2>Creating NeuroSpaces</h2>
+<div id="from-dim-spacing-origin-axis-aligned" class="section level3">
+<h3>From dim + spacing + origin (axis-aligned)</h3>
+<p>The simplest case: an isotropic or anisotropic grid with no
+rotation.</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a><span class="co"># 2 mm isotropic, MNI-ish origin</span></span>
+<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a>sp_mni <span class="ot">&lt;-</span> <span class="fu">NeuroSpace</span>(</span>
+<span id="cb18-3"><a href="#cb18-3" tabindex="-1"></a>  <span class="at">dim     =</span> <span class="fu">c</span>(<span class="dv">91</span><span class="dt">L</span>, <span class="dv">109</span><span class="dt">L</span>, <span class="dv">91</span><span class="dt">L</span>),</span>
+<span id="cb18-4"><a href="#cb18-4" tabindex="-1"></a>  <span class="at">spacing =</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">2</span>),</span>
+<span id="cb18-5"><a href="#cb18-5" tabindex="-1"></a>  <span class="at">origin  =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">90</span>, <span class="sc">-</span><span class="dv">126</span>, <span class="sc">-</span><span class="dv">72</span>)</span>
+<span id="cb18-6"><a href="#cb18-6" tabindex="-1"></a>)</span>
+<span id="cb18-7"><a href="#cb18-7" tabindex="-1"></a>sp_mni</span>
+<span id="cb18-8"><a href="#cb18-8" tabindex="-1"></a><span class="co">#&gt; &lt;NeuroSpace&gt; [3D] </span></span>
+<span id="cb18-9"><a href="#cb18-9" tabindex="-1"></a><span class="co">#&gt; ── Geometry ──────────────────────────────────────────────────────────────────── </span></span>
+<span id="cb18-10"><a href="#cb18-10" tabindex="-1"></a><span class="co">#&gt;   Dimensions    : 91 x 109 x 91</span></span>
+<span id="cb18-11"><a href="#cb18-11" tabindex="-1"></a><span class="co">#&gt;   Spacing       : 2 x 2 x 2 mm</span></span>
+<span id="cb18-12"><a href="#cb18-12" tabindex="-1"></a><span class="co">#&gt;   Origin        : -90, -126, -72</span></span>
+<span id="cb18-13"><a href="#cb18-13" tabindex="-1"></a><span class="co">#&gt;   Orientation   : RAS</span></span>
+<span id="cb18-14"><a href="#cb18-14" tabindex="-1"></a><span class="co">#&gt;   Voxels        : 902,629</span></span></code></pre></div>
+</div>
+<div id="from-an-explicit-affine" class="section level3">
+<h3>From an explicit affine</h3>
+<p>When you have a NIfTI sform/qform matrix, pass it directly:</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a><span class="co"># Oblique affine: slight off-diagonal terms (scanner tilt)</span></span>
+<span id="cb19-2"><a href="#cb19-2" tabindex="-1"></a>aff_obl <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">c</span>(</span>
+<span id="cb19-3"><a href="#cb19-3" tabindex="-1"></a>   <span class="fl">2.0</span>,  <span class="fl">0.2</span>,  <span class="fl">0.0</span>,  <span class="sc">-</span><span class="dv">90</span>,</span>
+<span id="cb19-4"><a href="#cb19-4" tabindex="-1"></a>   <span class="fl">0.0</span>,  <span class="fl">2.0</span>,  <span class="fl">0.1</span>, <span class="sc">-</span><span class="dv">126</span>,</span>
+<span id="cb19-5"><a href="#cb19-5" tabindex="-1"></a>   <span class="fl">0.0</span>,  <span class="fl">0.0</span>,  <span class="fl">2.0</span>,  <span class="sc">-</span><span class="dv">72</span>,</span>
+<span id="cb19-6"><a href="#cb19-6" tabindex="-1"></a>   <span class="fl">0.0</span>,  <span class="fl">0.0</span>,  <span class="fl">0.0</span>,    <span class="dv">1</span></span>
+<span id="cb19-7"><a href="#cb19-7" tabindex="-1"></a>), <span class="at">nrow =</span> <span class="dv">4</span>, <span class="at">byrow =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb19-8"><a href="#cb19-8" tabindex="-1"></a></span>
+<span id="cb19-9"><a href="#cb19-9" tabindex="-1"></a>sp_obl <span class="ot">&lt;-</span> <span class="fu">NeuroSpace</span>(<span class="at">dim =</span> <span class="fu">c</span>(<span class="dv">91</span><span class="dt">L</span>, <span class="dv">109</span><span class="dt">L</span>, <span class="dv">91</span><span class="dt">L</span>), <span class="at">trans =</span> aff_obl)</span>
+<span id="cb19-10"><a href="#cb19-10" tabindex="-1"></a></span>
+<span id="cb19-11"><a href="#cb19-11" tabindex="-1"></a><span class="co"># spacing() returns column norms — the true physical voxel sizes</span></span>
+<span id="cb19-12"><a href="#cb19-12" tabindex="-1"></a><span class="fu">spacing</span>(sp_obl)</span>
+<span id="cb19-13"><a href="#cb19-13" tabindex="-1"></a><span class="co">#&gt; [1] 2.00000 2.00998 2.00250</span></span>
+<span id="cb19-14"><a href="#cb19-14" tabindex="-1"></a></span>
+<span id="cb19-15"><a href="#cb19-15" tabindex="-1"></a><span class="co"># diagonal is not exactly 2 mm when the image is tilted</span></span>
+<span id="cb19-16"><a href="#cb19-16" tabindex="-1"></a><span class="fu">diag</span>(aff_obl[<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>])</span>
+<span id="cb19-17"><a href="#cb19-17" tabindex="-1"></a><span class="co">#&gt; [1] 2 2 2</span></span></code></pre></div>
+</div>
+<div id="when-does-spacing-differ-from-the-affine-diagonal" class="section level3">
+<h3>When does spacing() differ from the affine diagonal?</h3>
+<p><code>spacing()</code> always returns the column norms of the 3 × 3
+linear block — the physical length of each voxel edge. For a pure
+diagonal affine these equal the diagonal entries. For a rotated or
+oblique affine they differ. Always use <code>spacing()</code> for
+physical voxel sizes; never rely on the diagonal directly.</p>
+<p>You can also compute voxel sizes from any affine matrix with
+<code>voxel_sizes()</code>:</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" tabindex="-1"></a><span class="fu">voxel_sizes</span>(aff_obl)</span>
+<span id="cb20-2"><a href="#cb20-2" tabindex="-1"></a><span class="co">#&gt; [1] 2.000000 2.009975 2.002498</span></span></code></pre></div>
+<hr />
+</div>
+</div>
+<div id="dimension-manipulation" class="section level2">
+<h2>Dimension Manipulation</h2>
+<div id="adding-a-time-dimension-add_dim" class="section level3">
+<h3>Adding a time dimension: add_dim</h3>
+<p><code>add_dim()</code> extends a 3D <code>NeuroSpace</code> to 4D by
+appending a new dimension. The spatial affine is preserved
+unchanged:</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" tabindex="-1"></a>sp_3d <span class="ot">&lt;-</span> <span class="fu">NeuroSpace</span>(<span class="fu">c</span>(<span class="dv">64</span><span class="dt">L</span>, <span class="dv">64</span><span class="dt">L</span>, <span class="dv">40</span><span class="dt">L</span>), <span class="at">spacing =</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">2</span>),</span>
+<span id="cb21-2"><a href="#cb21-2" tabindex="-1"></a>                    <span class="at">origin =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">90</span>, <span class="sc">-</span><span class="dv">126</span>, <span class="sc">-</span><span class="dv">72</span>))</span>
+<span id="cb21-3"><a href="#cb21-3" tabindex="-1"></a>sp_4d <span class="ot">&lt;-</span> <span class="fu">add_dim</span>(sp_3d, <span class="dv">200</span>)   <span class="co"># 200 time points</span></span>
+<span id="cb21-4"><a href="#cb21-4" tabindex="-1"></a><span class="fu">dim</span>(sp_4d)</span>
+<span id="cb21-5"><a href="#cb21-5" tabindex="-1"></a><span class="co">#&gt; [1]  64  64  40 200</span></span>
+<span id="cb21-6"><a href="#cb21-6" tabindex="-1"></a><span class="fu">trans</span>(sp_4d)                   <span class="co"># 4x4 spatial affine unchanged</span></span>
+<span id="cb21-7"><a href="#cb21-7" tabindex="-1"></a><span class="co">#&gt;      [,1] [,2] [,3] [,4]</span></span>
+<span id="cb21-8"><a href="#cb21-8" tabindex="-1"></a><span class="co">#&gt; [1,]    2    0    0  -90</span></span>
+<span id="cb21-9"><a href="#cb21-9" tabindex="-1"></a><span class="co">#&gt; [2,]    0    2    0 -126</span></span>
+<span id="cb21-10"><a href="#cb21-10" tabindex="-1"></a><span class="co">#&gt; [3,]    0    0    2  -72</span></span>
+<span id="cb21-11"><a href="#cb21-11" tabindex="-1"></a><span class="co">#&gt; [4,]    0    0    0    1</span></span></code></pre></div>
+</div>
+<div id="dropping-the-time-dimension-drop_dim" class="section level3">
+<h3>Dropping the time dimension: drop_dim</h3>
+<p><code>drop_dim()</code> removes the last (or a named) dimension:</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" tabindex="-1"></a>sp_back <span class="ot">&lt;-</span> <span class="fu">drop_dim</span>(sp_4d)</span>
+<span id="cb22-2"><a href="#cb22-2" tabindex="-1"></a><span class="fu">dim</span>(sp_back)</span>
+<span id="cb22-3"><a href="#cb22-3" tabindex="-1"></a><span class="co">#&gt; [1] 64 64 40</span></span>
+<span id="cb22-4"><a href="#cb22-4" tabindex="-1"></a><span class="fu">all.equal</span>(<span class="fu">trans</span>(sp_back), <span class="fu">trans</span>(sp_3d))   <span class="co"># affine preserved</span></span>
+<span id="cb22-5"><a href="#cb22-5" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
+<p>This round-trip is used internally whenever a 4D volume is sliced to
+a single time point.</p>
+<hr />
+</div>
+</div>
+<div id="resampling-and-reorientation" class="section level2">
+<h2>Resampling and Reorientation</h2>
+<div id="resample-change-voxel-size-keep-geometry" class="section level3">
+<h3>resample — change voxel size, keep geometry</h3>
+<p><code>resample()</code> resamples a <code>NeuroVol</code> into a
+target space (or another volume’s space). To demonstrate, build a small
+volume and resample it to a coarser grid:</p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" tabindex="-1"></a>vol_mni <span class="ot">&lt;-</span> <span class="fu">NeuroVol</span>(<span class="fu">array</span>(<span class="fu">rnorm</span>(<span class="fu">prod</span>(<span class="fu">dim</span>(sp_mni))), <span class="fu">dim</span>(sp_mni)), sp_mni)</span>
+<span id="cb23-2"><a href="#cb23-2" tabindex="-1"></a>sp_coarse <span class="ot">&lt;-</span> <span class="fu">NeuroSpace</span>(<span class="fu">c</span>(<span class="dv">45</span><span class="dt">L</span>, <span class="dv">54</span><span class="dt">L</span>, <span class="dv">45</span><span class="dt">L</span>), <span class="at">spacing =</span> <span class="fu">c</span>(<span class="dv">4</span>, <span class="dv">4</span>, <span class="dv">4</span>),</span>
+<span id="cb23-3"><a href="#cb23-3" tabindex="-1"></a>                        <span class="at">origin =</span> <span class="fu">origin</span>(sp_mni))</span>
+<span id="cb23-4"><a href="#cb23-4" tabindex="-1"></a>vol_coarse <span class="ot">&lt;-</span> <span class="fu">resample</span>(vol_mni, sp_coarse)</span>
+<span id="cb23-5"><a href="#cb23-5" tabindex="-1"></a><span class="fu">dim</span>(vol_coarse)</span>
+<span id="cb23-6"><a href="#cb23-6" tabindex="-1"></a><span class="co">#&gt; [1] 45 54 45</span></span>
+<span id="cb23-7"><a href="#cb23-7" tabindex="-1"></a><span class="fu">spacing</span>(<span class="fu">space</span>(vol_coarse))</span>
+<span id="cb23-8"><a href="#cb23-8" tabindex="-1"></a><span class="co">#&gt; [1] 4 4 4</span></span></code></pre></div>
+</div>
+<div id="deoblique-remove-scanner-tilt" class="section level3">
+<h3>deoblique — remove scanner tilt</h3>
+<p>Many scanners acquire data with a slight tilt relative to the MNI
+axes. The resulting affine has non-zero off-diagonal elements (an
+<em>oblique</em> affine). <code>deoblique()</code> builds an
+axis-aligned output space that encloses the original field of view,
+using the minimum input voxel size by default (AFNI-style):</p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" tabindex="-1"></a>sp_deob <span class="ot">&lt;-</span> <span class="fu">deoblique</span>(sp_obl)</span>
+<span id="cb24-2"><a href="#cb24-2" tabindex="-1"></a><span class="fu">affine_to_axcodes</span>(<span class="fu">trans</span>(sp_deob))   <span class="co"># now axis-aligned</span></span>
+<span id="cb24-3"><a href="#cb24-3" tabindex="-1"></a><span class="co">#&gt; [1] &quot;R&quot; &quot;A&quot; &quot;S&quot;</span></span>
+<span id="cb24-4"><a href="#cb24-4" tabindex="-1"></a><span class="fu">obliquity</span>(<span class="fu">trans</span>(sp_deob))           <span class="co"># near zero</span></span>
+<span id="cb24-5"><a href="#cb24-5" tabindex="-1"></a><span class="co">#&gt; [1] 0 0 0</span></span></code></pre></div>
+<p>When passed a <code>NeuroVol</code>, <code>deoblique()</code> also
+resamples the image data into the new space.</p>
+<hr />
+</div>
+</div>
+<div id="common-gotchas" class="section level2">
+<h2>Common Gotchas</h2>
+<p><strong>1. Oblique affines and spacing()</strong> If
+<code>diag(trans(sp)[1:3, 1:3])</code> does not match
+<code>spacing(sp)</code>, the affine is oblique. Use
+<code>obliquity(trans(sp))</code> to quantify the tilt angle (in
+radians) per axis.</p>
+<div class="sourceCode" id="cb25"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" tabindex="-1"></a><span class="fu">obliquity</span>(aff_obl)        <span class="co"># non-zero: image is slightly tilted</span></span>
+<span id="cb25-2"><a href="#cb25-2" tabindex="-1"></a><span class="co">#&gt; [1] 0.00000000 0.09966865 0.04995840</span></span>
+<span id="cb25-3"><a href="#cb25-3" tabindex="-1"></a><span class="fu">obliquity</span>(<span class="fu">trans</span>(sp_mni))  <span class="co"># near zero: axis-aligned</span></span>
+<span id="cb25-4"><a href="#cb25-4" tabindex="-1"></a><span class="co">#&gt; [1] 0 0 0</span></span></code></pre></div>
+<p><strong>2. 1-based grid indices</strong> R uses 1-based indexing.
+<code>grid_to_coord()</code> handles this by subtracting 1 before
+applying the affine, so voxel <code>(1, 1, 1)</code> lands at
+<code>origin(sp)</code>. If you ever use raw affine arithmetic, remember
+to subtract 1 from your 1-based grid coordinates first.</p>
+<p><strong>3. NIfTI sform vs qform</strong> NIfTI files store two
+possible affines (sform and qform). <code>read_vol()</code> and
+<code>read_vec()</code> follow the NIfTI priority rules: sform_code &gt;
+0 -&gt; use sform; otherwise use qform. The resulting
+<code>trans(space(img))</code> reflects whichever was chosen. You can
+inspect the header with <code>read_header()</code> if you need to see
+both.</p>
+<p><strong>4. Float32 precision</strong> NIfTI stores affine
+coefficients as 32-bit floats. neuroim2 rounds the affine to 7
+significant figures on construction (<code>signif(trans, 7)</code>) to
+match this precision. Round-trip coordinates through
+<code>index_to_coord</code> / <code>coord_to_index</code> may therefore
+show sub-voxel floating-point noise at the ~0.001 mm level.</p>
+<hr />
+</div>
+<div id="quick-reference" class="section level2">
+<h2>Quick Reference</h2>
+<table>
+<colgroup>
+<col width="25%" />
+<col width="41%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Function</th>
+<th align="left">Input -&gt; Output</th>
+<th align="left">Typical use</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left"><code>grid_to_index(sp, mat)</code></td>
+<td align="left">grid -&gt; linear index</td>
+<td align="left">looking up voxel data</td>
+</tr>
+<tr class="even">
+<td align="left"><code>index_to_grid(sp, idx)</code></td>
+<td align="left">linear index -&gt; grid</td>
+<td align="left">converting R array subscripts</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>grid_to_coord(sp, mat)</code></td>
+<td align="left">grid -&gt; mm</td>
+<td align="left">overlay on anatomy</td>
+</tr>
+<tr class="even">
+<td align="left"><code>coord_to_grid(sp, mat)</code></td>
+<td align="left">mm -&gt; grid</td>
+<td align="left">atlas lookup</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>index_to_coord(sp, idx)</code></td>
+<td align="left">linear index -&gt; mm</td>
+<td align="left">shortcut past grid</td>
+</tr>
+<tr class="even">
+<td align="left"><code>coord_to_index(sp, mat)</code></td>
+<td align="left">mm -&gt; linear index</td>
+<td align="left">mask extraction</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>affine_to_axcodes(aff)</code></td>
+<td align="left">affine -&gt; <code>&quot;RAS&quot;</code> etc.</td>
+<td align="left">orientation check</td>
+</tr>
+<tr class="even">
+<td align="left"><code>voxel_sizes(aff)</code></td>
+<td align="left">affine -&gt; mm vector</td>
+<td align="left">physical voxel size</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>obliquity(aff)</code></td>
+<td align="left">affine -&gt; radians</td>
+<td align="left">tilt check</td>
+</tr>
+<tr class="even">
+<td align="left"><code>add_dim(sp, n)</code></td>
+<td align="left">3D space -&gt; 4D space</td>
+<td align="left">attach time axis</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>drop_dim(sp)</code></td>
+<td align="left">4D space -&gt; 3D space</td>
+<td align="left">strip time axis</td>
+</tr>
+<tr class="even">
+<td align="left"><code>resample(sp, spacing)</code></td>
+<td align="left">space -&gt; resampled space</td>
+<td align="left">change resolution</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>reorient(sp, codes)</code></td>
+<td align="left">space -&gt; reoriented space</td>
+<td align="left">standardise orientation</td>
+</tr>
+<tr class="even">
+<td align="left"><code>deoblique(sp)</code></td>
+<td align="left">oblique space -&gt; aligned space</td>
+<td align="left">remove scanner tilt</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="where-to-go-next" class="section level2">
+<h2>Where to go next</h2>
+<ul>
+<li><code>vignette(&quot;ImageVolumes&quot;)</code> — creating and manipulating
+<code>NeuroVol</code> objects</li>
+<li><code>vignette(&quot;NeuroVector&quot;)</code> — working with 4D time-series
+(<code>NeuroVec</code>)</li>
+<li><code>vignette(&quot;Resampling&quot;)</code> — image resampling in depth</li>
+<li><code>vignette(&quot;regionOfInterest&quot;)</code> — ROI construction and
+coordinate-based queries</li>
+<li><code>?NeuroSpace</code>, <code>?affine_to_axcodes</code>,
+<code>?deoblique</code> — function reference pages</li>
+</ul>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

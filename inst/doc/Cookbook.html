@@ -11,7 +11,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 
 
-<meta name="date" content="2026-01-14" />
+<meta name="date" content="2026-04-16" />
 
 <title>neuroim2 Cookbook</title>
 
@@ -339,7 +339,7 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 
 <h1 class="title toc-ignore">neuroim2 Cookbook</h1>
-<h4 class="date">2026-01-14</h4>
+<h4 class="date">2026-04-16</h4>
 
 
 
@@ -375,28 +375,14 @@ standard deviation, or any custom summary).</p>
 <span id="cb1-12"><a href="#cb1-12" tabindex="-1"></a><span class="co"># Example: temporal mean volume</span></span>
 <span id="cb1-13"><a href="#cb1-13" tabindex="-1"></a>mean_vol <span class="ot">&lt;-</span> <span class="fu">reduce_ts_to_vol</span>(vec, mean)</span>
 <span id="cb1-14"><a href="#cb1-14" tabindex="-1"></a>mean_vol</span>
-<span id="cb1-15"><a href="#cb1-15" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb1-16"><a href="#cb1-16" tabindex="-1"></a><span class="co">#&gt;  === NeuroVol Object === </span></span>
-<span id="cb1-17"><a href="#cb1-17" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb1-18"><a href="#cb1-18" tabindex="-1"></a><span class="co">#&gt; * Basic Information </span></span>
-<span id="cb1-19"><a href="#cb1-19" tabindex="-1"></a><span class="co">#&gt;   Type:      DenseNeuroVol</span></span>
-<span id="cb1-20"><a href="#cb1-20" tabindex="-1"></a><span class="co">#&gt;   Dimensions: 64 x 64 x 25 (806.6 Kb)</span></span>
-<span id="cb1-21"><a href="#cb1-21" tabindex="-1"></a><span class="co">#&gt;   Total Voxels: 102,400</span></span>
-<span id="cb1-22"><a href="#cb1-22" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb1-23"><a href="#cb1-23" tabindex="-1"></a><span class="co">#&gt; * Data Properties</span></span>
-<span id="cb1-24"><a href="#cb1-24" tabindex="-1"></a><span class="co">#&gt;   Value Range: [0.00, 1.00]</span></span>
-<span id="cb1-25"><a href="#cb1-25" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb1-26"><a href="#cb1-26" tabindex="-1"></a><span class="co">#&gt; * Spatial Properties</span></span>
-<span id="cb1-27"><a href="#cb1-27" tabindex="-1"></a><span class="co">#&gt;   Spacing: 3.50 x 3.50 x 3.70 mm</span></span>
-<span id="cb1-28"><a href="#cb1-28" tabindex="-1"></a><span class="co">#&gt;   Origin:  112.0, -108.0, -46.2 mm</span></span>
-<span id="cb1-29"><a href="#cb1-29" tabindex="-1"></a><span class="co">#&gt;   Axes:    Right-to-Left x Posterior-to-Anterior x Inferior-to-Superior</span></span>
-<span id="cb1-30"><a href="#cb1-30" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb1-31"><a href="#cb1-31" tabindex="-1"></a><span class="co">#&gt; ======================================</span></span>
-<span id="cb1-32"><a href="#cb1-32" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb1-33"><a href="#cb1-33" tabindex="-1"></a><span class="co">#&gt;  Access Methods: </span></span>
-<span id="cb1-34"><a href="#cb1-34" tabindex="-1"></a><span class="co">#&gt;   .  Get Slice:   slice(object, zlevel=10) </span></span>
-<span id="cb1-35"><a href="#cb1-35" tabindex="-1"></a><span class="co">#&gt;   .  Get Value:   object[i, j, k] </span></span>
-<span id="cb1-36"><a href="#cb1-36" tabindex="-1"></a><span class="co">#&gt;   .  Plot:       plot(object)  # shows multiple slices</span></span></code></pre></div>
+<span id="cb1-15"><a href="#cb1-15" tabindex="-1"></a><span class="co">#&gt; &lt;DenseNeuroVol&gt; [806.6 Kb] </span></span>
+<span id="cb1-16"><a href="#cb1-16" tabindex="-1"></a><span class="co">#&gt; ── Spatial ───────────────────────────────────────────────────────────────────── </span></span>
+<span id="cb1-17"><a href="#cb1-17" tabindex="-1"></a><span class="co">#&gt;   Dimensions    : 64 x 64 x 25</span></span>
+<span id="cb1-18"><a href="#cb1-18" tabindex="-1"></a><span class="co">#&gt;   Spacing       : 3.5 x 3.5 x 3.7 mm</span></span>
+<span id="cb1-19"><a href="#cb1-19" tabindex="-1"></a><span class="co">#&gt;   Origin        : 112, -108, -46.2</span></span>
+<span id="cb1-20"><a href="#cb1-20" tabindex="-1"></a><span class="co">#&gt;   Orientation   : LAS</span></span>
+<span id="cb1-21"><a href="#cb1-21" tabindex="-1"></a><span class="co">#&gt; ── Data ──────────────────────────────────────────────────────────────────────── </span></span>
+<span id="cb1-22"><a href="#cb1-22" tabindex="-1"></a><span class="co">#&gt;   Range         : [0.000, 1.000]</span></span></code></pre></div>
 <p>You can plug in any summary function that maps a numeric vector to a
 single value (e.g. <code>median</code>, a trimmed mean, robust
 summaries, etc.).</p>
@@ -405,7 +391,7 @@ summaries, etc.).</p>
 <h2>Splitting a NeuroVec into blocks by an index vector</h2>
 <p>If you have a single concatenated <code>NeuroVec</code> with multiple
 logical blocks along the time dimension (e.g., runs or sessions), you
-can “un‑concatenate” it into one <code>NeuroVec</code> per block using
+can “unconcatenate” it into one <code>NeuroVec</code> per block using
 <code>split_blocks()</code>.</p>
 <p>Create an index vector of length <code>dim(vec)[4]</code> indicating
 which block each timepoint belongs to, then split the time index and
@@ -450,30 +436,22 @@ writing an uncompressed NIfTI file if needed.</p>
 <span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="co"># Convert to a memory-mapped representation backed by a temporary .nii file</span></span>
 <span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>mvec <span class="ot">&lt;-</span> <span class="fu">as_mmap</span>(vec)</span>
 <span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a>mvec</span>
-<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="co">#&gt;  MappedNeuroVec Object </span></span>
-<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a><span class="co">#&gt; ====================</span></span>
-<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a><span class="co">#&gt;  Dimensions: </span></span>
-<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a><span class="co">#&gt;   .  Spatial:  64 x 64 x 25 </span></span>
-<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a><span class="co">#&gt;   .  Temporal:  4 </span></span>
-<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a><span class="co">#&gt;  Memory Mapping: </span></span>
-<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a><span class="co">#&gt;   .  Offset:  88  elements</span></span>
-<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb3-18"><a href="#cb3-18" tabindex="-1"></a><span class="co">#&gt;  Space Information: </span></span>
-<span id="cb3-19"><a href="#cb3-19" tabindex="-1"></a><span class="co">#&gt;   .  Spacing:  3.5 x 3.5 x 3.7 </span></span>
-<span id="cb3-20"><a href="#cb3-20" tabindex="-1"></a><span class="co">#&gt;   .  Origin:  112 x -108 x -46.2 </span></span>
-<span id="cb3-21"><a href="#cb3-21" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb3-22"><a href="#cb3-22" tabindex="-1"></a><span class="co">#&gt;  Label: </span></span>
-<span id="cb3-23"><a href="#cb3-23" tabindex="-1"></a><span class="co">#&gt;   .   file894716ba0f85.nii</span></span>
-<span id="cb3-24"><a href="#cb3-24" tabindex="-1"></a></span>
-<span id="cb3-25"><a href="#cb3-25" tabindex="-1"></a><span class="co"># Or explicitly choose an output file (must be uncompressed for mmap)</span></span>
-<span id="cb3-26"><a href="#cb3-26" tabindex="-1"></a>tmp_nii <span class="ot">&lt;-</span> <span class="fu">tempfile</span>(<span class="at">fileext =</span> <span class="st">&quot;.nii&quot;</span>)</span>
-<span id="cb3-27"><a href="#cb3-27" tabindex="-1"></a>mvec2   <span class="ot">&lt;-</span> <span class="fu">as_mmap</span>(vec, <span class="at">file =</span> tmp_nii, <span class="at">overwrite =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb3-28"><a href="#cb3-28" tabindex="-1"></a></span>
-<span id="cb3-29"><a href="#cb3-29" tabindex="-1"></a><span class="fu">inherits</span>(mvec2, <span class="st">&quot;MappedNeuroVec&quot;</span>)</span>
-<span id="cb3-30"><a href="#cb3-30" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a><span class="co">#&gt; &lt;MappedNeuroVec&gt; [7.4 Kb] </span></span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="co">#&gt; ── Spatial ───────────────────────────────────────────────────────────────────── </span></span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a><span class="co">#&gt;   Dimensions    : 64 x 64 x 25</span></span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a><span class="co">#&gt;   Time Points   : 4</span></span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a><span class="co">#&gt;   Spacing       : 3.5 x 3.5 x 3.7</span></span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a><span class="co">#&gt;   Origin        : 112, -108, -46.2</span></span>
+<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a><span class="co">#&gt; ── Mapping ───────────────────────────────────────────────────────────────────── </span></span>
+<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a><span class="co">#&gt;   Offset        : 88</span></span>
+<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a><span class="co">#&gt;   Label         : file56a7520f4a4.nii</span></span>
+<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a></span>
+<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a><span class="co"># Or explicitly choose an output file (must be uncompressed for mmap)</span></span>
+<span id="cb3-18"><a href="#cb3-18" tabindex="-1"></a>tmp_nii <span class="ot">&lt;-</span> <span class="fu">tempfile</span>(<span class="at">fileext =</span> <span class="st">&quot;.nii&quot;</span>)</span>
+<span id="cb3-19"><a href="#cb3-19" tabindex="-1"></a>mvec2   <span class="ot">&lt;-</span> <span class="fu">as_mmap</span>(vec, <span class="at">file =</span> tmp_nii, <span class="at">overwrite =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb3-20"><a href="#cb3-20" tabindex="-1"></a></span>
+<span id="cb3-21"><a href="#cb3-21" tabindex="-1"></a><span class="fu">inherits</span>(mvec2, <span class="st">&quot;MappedNeuroVec&quot;</span>)</span>
+<span id="cb3-22"><a href="#cb3-22" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
 <p>For sparse data (<code>SparseNeuroVec</code>), <code>as_mmap()</code>
 first densifies the vector and then writes a full 4D NIfTI before
 mapping it, trading memory once for much more efficient subsequent
@@ -493,28 +471,14 @@ metadata while doing neighborhood computations.</p>
 <span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a></span>
 <span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>smoothed_vol <span class="ot">&lt;-</span> <span class="fu">mapf</span>(vol, kern)</span>
 <span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>smoothed_vol</span>
-<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a><span class="co">#&gt;  === NeuroVol Object === </span></span>
-<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a><span class="co">#&gt; * Basic Information </span></span>
-<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a><span class="co">#&gt;   Type:      DenseNeuroVol</span></span>
-<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a><span class="co">#&gt;   Dimensions: 10 x 10 x 10 (14.4 Kb)</span></span>
-<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a><span class="co">#&gt;   Total Voxels: 1,000</span></span>
-<span id="cb4-16"><a href="#cb4-16" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb4-17"><a href="#cb4-17" tabindex="-1"></a><span class="co">#&gt; * Data Properties</span></span>
-<span id="cb4-18"><a href="#cb4-18" tabindex="-1"></a><span class="co">#&gt;   Value Range: [-2.21, 2.67]</span></span>
-<span id="cb4-19"><a href="#cb4-19" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb4-20"><a href="#cb4-20" tabindex="-1"></a><span class="co">#&gt; * Spatial Properties</span></span>
-<span id="cb4-21"><a href="#cb4-21" tabindex="-1"></a><span class="co">#&gt;   Spacing: 1.00 x 1.00 x 1.00 mm</span></span>
-<span id="cb4-22"><a href="#cb4-22" tabindex="-1"></a><span class="co">#&gt;   Origin:  0.0, 0.0, 0.0 mm</span></span>
-<span id="cb4-23"><a href="#cb4-23" tabindex="-1"></a><span class="co">#&gt;   Axes:    Left-to-Right x Posterior-to-Anterior x Inferior-to-Superior</span></span>
-<span id="cb4-24"><a href="#cb4-24" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb4-25"><a href="#cb4-25" tabindex="-1"></a><span class="co">#&gt; ======================================</span></span>
-<span id="cb4-26"><a href="#cb4-26" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb4-27"><a href="#cb4-27" tabindex="-1"></a><span class="co">#&gt;  Access Methods: </span></span>
-<span id="cb4-28"><a href="#cb4-28" tabindex="-1"></a><span class="co">#&gt;   .  Get Slice:   slice(object, zlevel=10) </span></span>
-<span id="cb4-29"><a href="#cb4-29" tabindex="-1"></a><span class="co">#&gt;   .  Get Value:   object[i, j, k] </span></span>
-<span id="cb4-30"><a href="#cb4-30" tabindex="-1"></a><span class="co">#&gt;   .  Plot:       plot(object)  # shows multiple slices</span></span></code></pre></div>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a><span class="co">#&gt; &lt;DenseNeuroVol&gt; [14.4 Kb] </span></span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a><span class="co">#&gt; ── Spatial ───────────────────────────────────────────────────────────────────── </span></span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a><span class="co">#&gt;   Dimensions    : 10 x 10 x 10</span></span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a><span class="co">#&gt;   Spacing       : 1 x 1 x 1 mm</span></span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a><span class="co">#&gt;   Origin        : 0, 0, 0</span></span>
+<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a><span class="co">#&gt;   Orientation   : RAS</span></span>
+<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a><span class="co">#&gt; ── Data ──────────────────────────────────────────────────────────────────────── </span></span>
+<span id="cb4-16"><a href="#cb4-16" tabindex="-1"></a><span class="co">#&gt;   Range         : [-2.156, 2.186]</span></span></code></pre></div>
 <p>You can also pass a logical mask to restrict computation to a region
 while keeping the output volume in the original space.</p>
 </div>
@@ -536,36 +500,22 @@ time‑series of voxels in that cluster.</p>
 <span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a><span class="fu">length</span>(roi_list)   <span class="co"># number of non-empty clusters</span></span>
 <span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a><span class="co">#&gt; [1] 5</span></span>
 <span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a>roi_list[[<span class="dv">1</span>]]      <span class="co"># ROIVec for cluster &quot;1&quot;</span></span>
-<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a><span class="co">#&gt;  === ROIVec Object === </span></span>
-<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a><span class="co">#&gt; - Structure </span></span>
-<span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a><span class="co">#&gt;   Points:     20,592</span></span>
-<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a><span class="co">#&gt;   Features:   4 (82,368 total)</span></span>
-<span id="cb5-19"><a href="#cb5-19" tabindex="-1"></a><span class="co">#&gt;   Memory:     891.8 Kb</span></span>
-<span id="cb5-20"><a href="#cb5-20" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb5-21"><a href="#cb5-21" tabindex="-1"></a><span class="co">#&gt; - Spatial Properties</span></span>
-<span id="cb5-22"><a href="#cb5-22" tabindex="-1"></a><span class="co">#&gt;   Parent Space: 64 x 64 x 25 x 4</span></span>
-<span id="cb5-23"><a href="#cb5-23" tabindex="-1"></a><span class="co">#&gt;   Centroid:     [32.6, 32.7, 13.0 mm]</span></span>
-<span id="cb5-24"><a href="#cb5-24" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb5-25"><a href="#cb5-25" tabindex="-1"></a><span class="co">#&gt; - Value Properties</span></span>
-<span id="cb5-26"><a href="#cb5-26" tabindex="-1"></a><span class="co">#&gt;   Range:    [0.00, 1.00]</span></span>
-<span id="cb5-27"><a href="#cb5-27" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb5-28"><a href="#cb5-28" tabindex="-1"></a><span class="co">#&gt; ======================================</span></span>
-<span id="cb5-29"><a href="#cb5-29" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb5-30"><a href="#cb5-30" tabindex="-1"></a><span class="co">#&gt;  Access Methods: </span></span>
-<span id="cb5-31"><a href="#cb5-31" tabindex="-1"></a><span class="co">#&gt;   .  Get Points:   coords(object) </span></span>
-<span id="cb5-32"><a href="#cb5-32" tabindex="-1"></a><span class="co">#&gt;   .  Get Values:   as.matrix(object) </span></span>
-<span id="cb5-33"><a href="#cb5-33" tabindex="-1"></a><span class="co">#&gt;   .  Subset:       object[1:10, ]</span></span>
-<span id="cb5-34"><a href="#cb5-34" tabindex="-1"></a><span class="fu">coords</span>(roi_list[[<span class="dv">1</span>]])[<span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, ]   <span class="co"># first few voxel coordinates</span></span>
-<span id="cb5-35"><a href="#cb5-35" tabindex="-1"></a><span class="co">#&gt;      [,1] [,2] [,3]</span></span>
-<span id="cb5-36"><a href="#cb5-36" tabindex="-1"></a><span class="co">#&gt; [1,]    3    1    1</span></span>
-<span id="cb5-37"><a href="#cb5-37" tabindex="-1"></a><span class="co">#&gt; [2,]   10    1    1</span></span>
-<span id="cb5-38"><a href="#cb5-38" tabindex="-1"></a><span class="co">#&gt; [3,]   12    1    1</span></span>
-<span id="cb5-39"><a href="#cb5-39" tabindex="-1"></a><span class="co">#&gt; [4,]   15    1    1</span></span>
-<span id="cb5-40"><a href="#cb5-40" tabindex="-1"></a><span class="co">#&gt; [5,]   18    1    1</span></span>
-<span id="cb5-41"><a href="#cb5-41" tabindex="-1"></a><span class="fu">dim</span>(<span class="fu">values</span>(roi_list[[<span class="dv">1</span>]]))     <span class="co"># time × voxels in that cluster</span></span>
-<span id="cb5-42"><a href="#cb5-42" tabindex="-1"></a><span class="co">#&gt; [1]     4 20592</span></span></code></pre></div>
+<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a><span class="co">#&gt; &lt;ROIVec&gt; [20513 voxels x 4 features] </span></span>
+<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a><span class="co">#&gt; ── Structure ─────────────────────────────────────────────────────────────────── </span></span>
+<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a><span class="co">#&gt;   Voxels        : 20513</span></span>
+<span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a><span class="co">#&gt;   Features      : 4</span></span>
+<span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a><span class="co">#&gt;   Size          : 888.4 Kb</span></span>
+<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a><span class="co">#&gt; ── Data ──────────────────────────────────────────────────────────────────────── </span></span>
+<span id="cb5-19"><a href="#cb5-19" tabindex="-1"></a><span class="co">#&gt;   Range         : [0.000, 1.000]</span></span>
+<span id="cb5-20"><a href="#cb5-20" tabindex="-1"></a><span class="fu">coords</span>(roi_list[[<span class="dv">1</span>]])[<span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, ]   <span class="co"># first few voxel coordinates</span></span>
+<span id="cb5-21"><a href="#cb5-21" tabindex="-1"></a><span class="co">#&gt;      [,1] [,2] [,3]</span></span>
+<span id="cb5-22"><a href="#cb5-22" tabindex="-1"></a><span class="co">#&gt; [1,]    3    1    1</span></span>
+<span id="cb5-23"><a href="#cb5-23" tabindex="-1"></a><span class="co">#&gt; [2,]    4    1    1</span></span>
+<span id="cb5-24"><a href="#cb5-24" tabindex="-1"></a><span class="co">#&gt; [3,]    5    1    1</span></span>
+<span id="cb5-25"><a href="#cb5-25" tabindex="-1"></a><span class="co">#&gt; [4,]   15    1    1</span></span>
+<span id="cb5-26"><a href="#cb5-26" tabindex="-1"></a><span class="co">#&gt; [5,]   16    1    1</span></span>
+<span id="cb5-27"><a href="#cb5-27" tabindex="-1"></a><span class="fu">dim</span>(<span class="fu">values</span>(roi_list[[<span class="dv">1</span>]]))     <span class="co"># time × voxels in that cluster</span></span>
+<span id="cb5-28"><a href="#cb5-28" tabindex="-1"></a><span class="co">#&gt; [1]     4 20513</span></span></code></pre></div>
 <p>This is useful when you want to work directly with voxel‑level ROIs
 per cluster rather than first building a
 <code>ClusteredNeuroVec</code>.</p>
@@ -611,37 +561,13 @@ summaries, etc.).</p>
 <span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a><span class="fu">dim</span>(vec_3)   <span class="co"># 10 × 10 × 10 × 3</span></span>
 <span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a><span class="co">#&gt; [1] 10 10 10  3</span></span>
 <span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a><span class="fu">space</span>(vec_3) <span class="co"># inherits spatial metadata from inputs</span></span>
-<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb7-13"><a href="#cb7-13" tabindex="-1"></a><span class="co">#&gt;  NeuroSpace Object </span></span>
-<span id="cb7-14"><a href="#cb7-14" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb7-15"><a href="#cb7-15" tabindex="-1"></a><span class="co">#&gt;  &gt;&gt; Dimensions </span></span>
-<span id="cb7-16"><a href="#cb7-16" tabindex="-1"></a><span class="co">#&gt;   Grid Size: 10 x 10 x 10 x 3</span></span>
-<span id="cb7-17"><a href="#cb7-17" tabindex="-1"></a><span class="co">#&gt;   Memory:   5.9 KB</span></span>
-<span id="cb7-18"><a href="#cb7-18" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb7-19"><a href="#cb7-19" tabindex="-1"></a><span class="co">#&gt;  &gt;&gt; Spatial Properties </span></span>
-<span id="cb7-20"><a href="#cb7-20" tabindex="-1"></a><span class="co">#&gt;   Spacing:   1.00 x 1.00 x 1.00 mm</span></span>
-<span id="cb7-21"><a href="#cb7-21" tabindex="-1"></a><span class="co">#&gt;   Origin:    0.00 x 0.00 x 0.00 mm</span></span>
-<span id="cb7-22"><a href="#cb7-22" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb7-23"><a href="#cb7-23" tabindex="-1"></a><span class="co">#&gt;  &gt;&gt; Anatomical Orientation </span></span>
-<span id="cb7-24"><a href="#cb7-24" tabindex="-1"></a><span class="co">#&gt;   X: Left-to-Right  |  Y: Posterior-to-Anterior  |  Z: Inferior-to-Superior </span></span>
-<span id="cb7-25"><a href="#cb7-25" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb7-26"><a href="#cb7-26" tabindex="-1"></a><span class="co">#&gt;  &gt;&gt; World Transformation </span></span>
-<span id="cb7-27"><a href="#cb7-27" tabindex="-1"></a><span class="co">#&gt;   Forward (Voxel to World): </span></span>
-<span id="cb7-28"><a href="#cb7-28" tabindex="-1"></a><span class="co">#&gt;     1.000  0.000  0.000  0.000</span></span>
-<span id="cb7-29"><a href="#cb7-29" tabindex="-1"></a><span class="co">#&gt; 0.000  1.000  0.000  0.000</span></span>
-<span id="cb7-30"><a href="#cb7-30" tabindex="-1"></a><span class="co">#&gt; 0.000  0.000  1.000  0.000</span></span>
-<span id="cb7-31"><a href="#cb7-31" tabindex="-1"></a><span class="co">#&gt; 0.000  0.000  0.000  1.000 </span></span>
-<span id="cb7-32"><a href="#cb7-32" tabindex="-1"></a><span class="co">#&gt;   Inverse (World to Voxel): </span></span>
-<span id="cb7-33"><a href="#cb7-33" tabindex="-1"></a><span class="co">#&gt;     1.000  0.000  0.000  0.000</span></span>
-<span id="cb7-34"><a href="#cb7-34" tabindex="-1"></a><span class="co">#&gt; 0.000  1.000  0.000  0.000</span></span>
-<span id="cb7-35"><a href="#cb7-35" tabindex="-1"></a><span class="co">#&gt; 0.000  0.000  1.000  0.000</span></span>
-<span id="cb7-36"><a href="#cb7-36" tabindex="-1"></a><span class="co">#&gt; 0.000  0.000  0.000  1.000 </span></span>
-<span id="cb7-37"><a href="#cb7-37" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb7-38"><a href="#cb7-38" tabindex="-1"></a><span class="co">#&gt;  &gt;&gt; Bounding Box </span></span>
-<span id="cb7-39"><a href="#cb7-39" tabindex="-1"></a><span class="co">#&gt;   Min Corner: 0.0, 0.0, 0.0 mm</span></span>
-<span id="cb7-40"><a href="#cb7-40" tabindex="-1"></a><span class="co">#&gt;   Max Corner: 9.0, 9.0, 9.0 mm</span></span>
-<span id="cb7-41"><a href="#cb7-41" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb7-42"><a href="#cb7-42" tabindex="-1"></a><span class="co">#&gt; ==================================================</span></span></code></pre></div>
+<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a><span class="co">#&gt; &lt;NeuroSpace&gt; [4D] </span></span>
+<span id="cb7-13"><a href="#cb7-13" tabindex="-1"></a><span class="co">#&gt; ── Geometry ──────────────────────────────────────────────────────────────────── </span></span>
+<span id="cb7-14"><a href="#cb7-14" tabindex="-1"></a><span class="co">#&gt;   Dimensions    : 10 x 10 x 10 x 3</span></span>
+<span id="cb7-15"><a href="#cb7-15" tabindex="-1"></a><span class="co">#&gt;   Spacing       : 1 x 1 x 1 mm</span></span>
+<span id="cb7-16"><a href="#cb7-16" tabindex="-1"></a><span class="co">#&gt;   Origin        : 0, 0, 0</span></span>
+<span id="cb7-17"><a href="#cb7-17" tabindex="-1"></a><span class="co">#&gt;   Orientation   : RAS</span></span>
+<span id="cb7-18"><a href="#cb7-18" tabindex="-1"></a><span class="co">#&gt;   Voxels        : 3,000</span></span></code></pre></div>
 <p>All input volumes must have identical spatial dimensions and
 <code>NeuroSpace</code>; otherwise <code>concat()</code> will error.</p>
 </div>

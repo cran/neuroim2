@@ -3,6 +3,92 @@ NULL
 #' @include all_generic.R
 NULL
 
+#' @keywords internal
+#' @noRd
+.normalize_volume_labels <- function(volume_labels, n) {
+  if (is.null(volume_labels) || length(volume_labels) == 0L) {
+    return(character())
+  }
+
+  if (!is.character(volume_labels)) {
+    cli::cli_abort("{.arg volume_labels} must be a character vector.")
+  }
+
+  if (length(volume_labels) != n) {
+    cli::cli_abort(
+      "{.arg volume_labels} must have length 0 or match the number of volumes ({n})."
+    )
+  }
+
+  as.character(volume_labels)
+}
+
+#' @keywords internal
+#' @noRd
+.subset_volume_labels <- function(volume_labels, i) {
+  if (length(volume_labels) == 0L) {
+    character()
+  } else {
+    volume_labels[i]
+  }
+}
+
+#' @keywords internal
+#' @noRd
+.combine_volume_labels <- function(vecs) {
+  label_list <- lapply(vecs, volume_labels)
+  if (!any(vapply(label_list, length, integer(1)) > 0L)) {
+    return(character())
+  }
+
+  unlist(Map(function(vec, labs) {
+    if (length(labs) == 0L) {
+      rep("", dim(vec)[4])
+    } else {
+      labs
+    }
+  }, vecs, label_list), use.names = FALSE)
+}
+
+#' @keywords internal
+#' @noRd
+.infer_volume_labels_from_vols <- function(vols) {
+  labs <- vapply(vols, function(x) {
+    if ("label" %in% methods::slotNames(x)) x@label else ""
+  }, character(1))
+
+  if (any(nzchar(labs))) labs else character()
+}
+
+#' @keywords internal
+#' @noRd
+.resolve_volume_label_index <- function(x, label) {
+  if (!is.character(label) || length(label) != 1L || is.na(label)) {
+    cli::cli_abort("{.arg label} must be a single, non-missing character string.")
+  }
+
+  labs <- volume_labels(x)
+  if (length(labs) == 0L) {
+    cli::cli_abort("{.cls NeuroVec} object has no per-volume labels.")
+  }
+
+  matches <- which(!is.na(labs) & nzchar(labs) & labs == label)
+  if (length(matches) == 0L) {
+    cli::cli_abort("Unknown volume label {.val {label}}.")
+  }
+  if (length(matches) > 1L) {
+    cli::cli_abort("Volume label {.val {label}} is not unique.")
+  }
+
+  matches[[1]]
+}
+
+#' @export
+#' @rdname volume_labels-methods
+#' @param x A \code{NeuroVec} or compatible object.
+#' @return A character vector of per-volume labels, or \code{character(0)} if none are set.
+setMethod("volume_labels", "NeuroVec", function(x) x@volume_labels)
+
 
 
 #' NeuroVec: Neuroimaging Data Vector Class
@@ -25,6 +111,8 @@ NULL
 #' @param mask An optional logical array specifying which voxels to include. If provided,
 #'   a SparseNeuroVec object will be created.
 #' @param label A character string providing a label for the NeuroVec object. Default is an empty string.
+#' @param volume_labels Optional character vector of length \code{dim(x)[4]} giving
+#'   per-volume labels.
 #'
 #' @return A concrete instance of the \code{\linkS4class{NeuroVec}} class:
 #'   \itemize{
@@ -68,10 +156,12 @@ NULL
 #'
 #' @export
 #' @importFrom methods new
-#' @importFrom assertthat assert_that
 #' @rdname NeuroVec-class
-NeuroVec <- function(data, space = NULL, mask = NULL, label = "") {
+NeuroVec <- function(data, space = NULL, mask = NULL, label = "", volume_labels = character()) {
   if (is.list(data)) {
+    if (length(volume_labels) == 0L) {
+      volume_labels <- .infer_volume_labels_from_vols(data)
+    }
     space <- space(data[[1]])
     space <- add_dim(space, length(data))
     data <- do.call(cbind, lapply(data, function(x) as.vector(x)))
@@ -82,10 +172,9 @@ NeuroVec <- function(data, space = NULL, mask = NULL, label = "") {
 	  if (prod(dim(space)) != length(data)) {
 	    stop("dimensions of data argument do not match dimensions of space argument")
 	  }
-		DenseNeuroVec(data,space, label)
+		DenseNeuroVec(data, space, label = label, volume_labels = volume_labels)
 	} else {
-		#SparseNeuroVec(data,space,mask,label)
-	  SparseNeuroVec(data,space,mask)
+	  SparseNeuroVec(data, space, mask, label = label, volume_labels = volume_labels)
 	}
 
 }
@@ -157,6 +246,8 @@ vec_from_vols <- function(vols, mask = NULL) {
 #'   }
 #' @param space A \code{\linkS4class{NeuroSpace}} object defining the spatial properties of the image.
 #' @param label A character string providing a label for the DenseNeuroVec object. Default is an empty string.
+#' @param volume_labels Optional character vector of length \code{dim(space)[4]}
+#'   giving per-volume labels.
 #'
 #' @return A concrete instance of the \code{\linkS4class{DenseNeuroVec}} class.
 #'
@@ -194,7 +285,7 @@ vec_from_vols <- function(vols, mask = NULL) {
 #'
 #' @export
 #' @rdname DenseNeuroVec-class
-DenseNeuroVec <- function(data, space, label="none") {
+DenseNeuroVec <- function(data, space, label = "none", volume_labels = character()) {
 	if (is.matrix(data)) {
 		splen <- prod(dim(space)[1:3])
 		data <- if (nrow(data) == splen) {
@@ -215,7 +306,9 @@ DenseNeuroVec <- function(data, space, label="none") {
 	  data <- array(data, dim(space))
 	}
 
-	new("DenseNeuroVec", .Data=data, space=space, label=label)
+	volume_labels <- .normalize_volume_labels(volume_labels, dim(space)[4])
+	new("DenseNeuroVec", .Data = data, space = space, label = label,
+      volume_labels = volume_labels)
 
 }
 
@@ -291,7 +384,16 @@ setMethod(f="load_data", signature=c("NeuroVecSource"),
                                  meta@spatial_axes,
                                  trans(meta))
 
-            DenseNeuroVec(dat, bspace, label = meta@data_file)
+            DenseNeuroVec(
+              dat,
+              bspace,
+              label = meta@data_file,
+              volume_labels = nifti_volume_labels(
+                meta@header,
+                expected_length = length(ind),
+                indices = ind
+              )
+            )
           })
 
 
@@ -319,18 +421,26 @@ setMethod(f="load_data", signature=c("NeuroVecSource"),
 #' nonzero elements of the volume.
 #'
 #' @rdname NeuroVecSource
-#' @importFrom assertthat assert_that
 NeuroVecSource <- function(file_name, indices=NULL, mask=NULL) {
-	assert_that(is.character(file_name))
-	assert_that(file.exists(file_name))
-
+	if (!is.character(file_name)) {
+	  cli::cli_abort("{.arg file_name} must be a character string.")
+	}
+	if (!file.exists(file_name)) {
+	  cli::cli_abort("File {.path {file_name}} does not exist.")
+	}
 
 	meta_info <- read_header(file_name)
 
 	if (!is.null(indices) && max(indices) > 1) {
-	  assert_that(length(dim(meta_info)) == 4)
-	  assert_that(max(indices) <= dim(meta_info)[4])
-	  assert_that(min(indices) > 0)
+	  if (length(dim(meta_info)) != 4) {
+	    cli::cli_abort("Image must be 4-dimensional when {.arg indices} is specified, not {length(dim(meta_info))}D.")
+	  }
+	  if (max(indices) > dim(meta_info)[4]) {
+	    cli::cli_abort("Max index {.val {max(indices)}} exceeds 4th dimension size {.val {dim(meta_info)[4]}}.")
+	  }
+	  if (min(indices) <= 0) {
+	    cli::cli_abort("All indices must be > 0, but min is {.val {min(indices)}}.")
+	  }
 	}
 
   if (length(meta_info@dims) == 2) {
@@ -348,7 +458,9 @@ NeuroVecSource <- function(file_name, indices=NULL, mask=NULL) {
 		new("NeuroVecSource", meta_info=meta_info, indices=as.integer(indices))
 	} else {
 	  mask <- as.logical(mask)
-	  assert_that(!any(is.na(mask)))
+	  if (any(is.na(mask))) {
+	    cli::cli_abort("{.arg mask} must not contain NA values.")
+	  }
 		SparseNeuroVecSource(meta_info, as.integer(indices), mask)
 	}
 
@@ -408,7 +520,9 @@ read_vol_list <- function(file_names, mask=NULL) {
 	if (is.null(mask)) {
 		mat <- do.call(cbind, lapply(vols, function(v) as.vector(v@.Data)))
 		dspace <- add_dim(space(vols[[1]]), length(vols))
-		DenseNeuroVec(mat, dspace, label="")
+    labs <- .infer_volume_labels_from_vols(vols)
+		DenseNeuroVec(mat, dspace, label = "",
+                  volume_labels = if (any(nzchar(labs))) labs else character())
 	} else {
 		mat <- do.call(cbind, lapply(vols, function(v) as.vector(v@.Data)))
 		dspace <- add_dim(space(vols[[1]]), length(vols))
@@ -423,7 +537,9 @@ read_vol_list <- function(file_names, mask=NULL) {
 
 
 		#SparseNeuroVec(mat[mask,], dspace, mask=mask, label=map_chr(meta_info, function(m) m@label))
-		SparseNeuroVec(mat[mask,], dspace, mask=mask)
+    labs <- .infer_volume_labels_from_vols(vols)
+		SparseNeuroVec(mat[mask,], dspace, mask = mask,
+                   volume_labels = if (any(nzchar(labs))) labs else character())
 
 	}
 }
@@ -443,10 +559,10 @@ setMethod("drop", signature=(x="NeuroVec"),
           })
 
 
-#' @export
+# Coerce DenseNeuroVec to array.
 setAs("DenseNeuroVec", "array", function(from) from@.Data)
 
-#' @export
+# Coerce NeuroVec to array.
 setAs("NeuroVec", "array", function(from) {
   vals <- from[]
   dim(vals) <- dim(from)
@@ -455,58 +571,32 @@ setAs("NeuroVec", "array", function(from) {
 
 #' @rdname show-methods
 #' @export
-setMethod(f="show",
-		signature=signature(object="NeuroVecSource"),
-		def=function(object) {
-			cat("an instance of class",  class(object), "\n\n")
-			cat("   indices: ", object@indices, "\n\n")
-			cat("   meta_info: \n")
-			show(object@meta_info)
-			cat("\n\n")
-		})
+setMethod("show", "NeuroVecSource", function(object) {
+  show_header("NeuroVecSource")
+  show_field("Indices", paste(head(object@indices, 6), collapse = ", "),
+             if (length(object@indices) > 6) " ..." else "")
+  show(object@meta_info)
+})
 
 
 
 
 #' @rdname show-methods
 #' @export
-setMethod(f="show", signature=signature("NeuroVec"),
-          def=function(object) {
-            # Get class name without package prefix
-            class_name <- sub(".*:", "", class(object)[1])
-
-            # Header
-            cat("\n", crayon::bold(crayon::blue(class_name)), " ", sep="")
-            if (nchar(object@label) > 0) {
-              cat(crayon::silver(paste0("'", object@label, "'")), "\n", sep="")
-            } else {
-              cat("\n")
-            }
-
-            # Spatial Info
-            cat(crayon::bold("\n- Spatial Info"), crayon::silver(" ---------------------------"), "\n", sep="")
-            cat("| ", crayon::yellow("Dimensions"), "    : ", paste(dim(object)[1:3], collapse=" x "), "\n", sep="")
-            cat("| ", crayon::yellow("Time Points"), "   : ", dim(object)[4], "\n", sep="")
-            cat("| ", crayon::yellow("Spacing"), "       : ", paste(spacing(object)[1:3], collapse=" x "), "\n", sep="")
-            cat("| ", crayon::yellow("Origin"), "        : ", paste(round(origin(object)[1:3], 2), collapse=" x "), "\n", sep="")
-            cat("| ", crayon::yellow("Orientation"), "   : ", paste(object@space@axes@i@axis, object@space@axes@j@axis, object@space@axes@k@axis), "\n", sep="")
-
-            # Memory Info
-            mem_size <- object.size(object)
-            size_str <- if (mem_size < 1024) {
-              paste0(round(mem_size, 2), " B")
-            } else if (mem_size < 1024^2) {
-              paste0(round(mem_size/1024, 2), " KB")
-            } else if (mem_size < 1024^3) {
-              paste0(round(mem_size/1024^2, 2), " MB")
-            } else {
-              paste0(round(mem_size/1024^3, 2), " GB")
-            }
-
-            cat(crayon::bold("\n- Memory Usage"), crayon::silver(" --------------------------"), "\n", sep="")
-            cat("  ", crayon::yellow("Size"), "          : ", size_str, "\n", sep="")
-            cat("\n")
-          })
+setMethod("show", "NeuroVec", function(object) {
+  d <- dim(object)
+  class_name <- sub(".*:", "", class(object)[1])
+  show_header(class_name, format_mem(object))
+  show_rule("Spatial")
+  show_field("Dimensions", paste(d[1:3], collapse = " x "))
+  show_field("Time Points", d[4])
+  show_field("Spacing", paste(spacing(object)[1:3], collapse = " x "))
+  show_field("Origin", paste(round(origin(object)[1:3], 2), collapse = ", "))
+  show_field("Orientation", safe_axcodes(space(object)))
+  if (length(volume_labels(object)) > 0L) {
+    show_field("Volume Labels", sum(nzchar(volume_labels(object))), paste0("/", d[4], " named"))
+  }
+})
 
 
 
@@ -544,7 +634,9 @@ setMethod(f="concat", signature=signature(x="ROIVec", y="ROIVec"),
 
             cds <- map(ll, ~ coords(.))
             ident <- map_lgl(cds, ~ all(cds[[1]] == .))
-            assert_that(all(ident), msg=paste("concat.ROIVec: ", "all 'ROIVec' arguments must have the same set of coordinates"))
+            if (!all(ident)) {
+              cli::cli_abort("concat.ROIVec: all {.cls ROIVec} arguments must have the same set of coordinates.")
+            }
 
             dat <- do.call(rbind, map(ll, ~ .@.Data))
             vspace <- space(x)
@@ -570,7 +662,9 @@ setMethod(f="concat", signature=signature(x="ROIVec", y="ROIVec"),
 #' @export
 setMethod("series", signature(x="NeuroVec", i="matrix"),
 		def=function(x,i) {
-			assertthat::assert_that(ncol(i) == 3)
+			if (ncol(i) != 3) {
+			  cli::cli_abort("Coordinate matrix {.arg i} must have 3 columns, not {ncol(i)}.")
+			}
 
 		  d4 <- dim(x)[4]
 		  expanded <- i[rep(1:nrow(i), each=d4),]
@@ -611,9 +705,13 @@ setMethod("series_roi", signature(x="NeuroVec", i="ROICoords"),
 #' @export
 setMethod("series", signature(x="NeuroVec", i="LogicalNeuroVol"),
           def=function(x,i) {
-            assertthat::assert_that(all.equal(dim(x)[1:3], dim(i)[1:3]))
+            if (!isTRUE(all.equal(dim(x)[1:3], dim(i)[1:3]))) {
+              cli::cli_abort("Spatial dimensions of {.arg x} ({.val {dim(x)[1:3]}}) and {.arg i} ({.val {dim(i)[1:3]}}) must match.")
+            }
             idx <- which(i == TRUE)
-            assertthat::assert_that(length(idx) > 0)
+            if (length(idx) == 0) {
+              cli::cli_abort("{.arg i} mask contains no TRUE voxels.")
+            }
 
             grid <- index_to_grid(i, idx)
             callGeneric(x, grid)
@@ -647,18 +745,47 @@ setMethod(f="series", signature(x="NeuroVec", i="integer"),
             if (missing(j) && missing(k)) {
               nels <- prod(dim(x)[1:3])
               offsets <- seq(0, dim(x)[4]-1) * nels
-              idx <- map(i, ~ . + offsets) %>% flatten_dbl()
+              idx <- as.vector(outer(offsets, i, "+"))
               vals <- x[idx]
               ret <- matrix(vals, dim(x)[4], length(i))
               if (isTRUE(drop)) base::drop(ret) else ret
             } else {
               ## could be solved with expand.grid, no?
-              assert_that(length(i) == 1 && length(j) == 1 && length(k) ==1)
+              if (length(i) != 1 || length(j) != 1 || length(k) != 1) {
+                cli::cli_abort("When providing {.arg j} and {.arg k}, {.arg i}, {.arg j}, and {.arg k} must each be length 1.")
+              }
               ret <- x[i,j,k,]
               if (isTRUE(drop)) base::drop(ret) else ret
             }
           })
 
+
+#' @rdname series-methods
+#' @export
+setMethod("series", signature(x="DenseNeuroVec", i="matrix"),
+          def=function(x, i) {
+            if (ncol(i) != 3) {
+              cli::cli_abort("Coordinate matrix {.arg i} must have 3 columns, not {ncol(i)}.")
+            }
+            if (!is.numeric(i) || any(!is.finite(i))) {
+              cli::cli_abort("Coordinate matrix {.arg i} must contain only finite numeric values.")
+            }
+            if (any(i != as.integer(i))) {
+              cli::cli_abort("Coordinate matrix {.arg i} must contain whole-number voxel coordinates.")
+            }
+            d <- dim(x)
+            validate_indices(d[1:3], list(i[,1], i[,2], i[,3]), c("i", "j", "k"))
+            i <- matrix(as.integer(i), ncol = 3)
+            # Direct linear indexing into .Data — avoids S4 dispatch overhead
+            lin <- (i[,3] - 1L) * d[1] * d[2] + (i[,2] - 1L) * d[1] + i[,1]
+            nt <- d[4]
+            nels <- prod(d[1:3])
+            out <- matrix(0, nt, nrow(i))
+            for (t in seq_len(nt)) {
+              out[t, ] <- x@.Data[lin + (t - 1L) * nels]
+            }
+            out
+          })
 
 #' @export
 #' @param j second dimension index
@@ -672,7 +799,9 @@ setMethod(f="series", signature=signature(x="DenseNeuroVec", i="integer"),
               ret <- callGeneric(x,g)
               if (isTRUE(drop)) base::drop(ret) else ret
             } else {
-              assert_that(length(i) == 1 && length(j) == 1 && length(k) ==1)
+              if (length(i) != 1 || length(j) != 1 || length(k) != 1) {
+                cli::cli_abort("When providing {.arg j} and {.arg k}, {.arg i}, {.arg j}, and {.arg k} must each be length 1.")
+              }
               ret <- x[i,j,k,]
               if (isTRUE(drop)) base::drop(ret) else ret
             }
@@ -706,7 +835,9 @@ setMethod("series_roi", signature(x="NeuroVec", i="numeric"),
             } else if (missing(i) || missing(j) || missing(k)) {
               stop("series_roi: must provide either 1D 'i' or 3D ('i', 'j', 'k') vector indices")
             } else {
-              assert_that(length(i) == 1 && length(j) == 1 && length(k) ==1)
+              if (length(i) != 1 || length(j) != 1 || length(k) != 1) {
+                cli::cli_abort("When providing {.arg j} and {.arg k}, {.arg i}, {.arg j}, and {.arg k} must each be length 1.")
+              }
               ret <- x[i,j,k,]
               if (isTRUE(drop)) base::drop(ret) else ret
 
@@ -721,7 +852,7 @@ setMethod("series_roi", signature(x="NeuroVec", i="numeric"),
 
 
 
-#' @export
+# Coerce NeuroVec to matrix.
 setAs(from="NeuroVec", to="matrix",
       function(from) {
         dm <- dim(from)
@@ -733,7 +864,7 @@ setAs(from="NeuroVec", to="matrix",
       })
 
 
-#' @export
+# Coerce DenseNeuroVec to matrix.
 setAs(from="DenseNeuroVec", to="matrix",
 		function(from) {
 			data <- from@.Data
@@ -773,7 +904,7 @@ setMethod(f="as.matrix", signature=signature(x = "NeuroVec"), def=function(x) {
 })
 
 
-#' @export
+# Coerce ROIVec to SparseNeuroVec.
 setAs(from="ROIVec", to="SparseNeuroVec",
       function(from) {
         dat <- from@.Data
@@ -792,8 +923,12 @@ setAs(from="ROIVec", to="SparseNeuroVec",
 #' @rdname as.sparse-methods
 setMethod(f="as.sparse", signature=signature(x="DenseNeuroVec", mask="LogicalNeuroVol"),
           def=function(x, mask) {
-            assert_that(all(dim(x)[1:3] == dim(mask)))
-            assert_that(all(spacing(x) == spacing(mask)))
+            if (!all(dim(x)[1:3] == dim(mask))) {
+              cli::cli_abort("Spatial dimensions of {.arg x} ({.val {dim(x)[1:3]}}) must match dimensions of {.arg mask} ({.val {dim(mask)}}).")
+            }
+            if (!all(spacing(x) == spacing(mask))) {
+              cli::cli_abort("Spacing of {.arg x} and {.arg mask} must be identical.")
+            }
 
             vdim <- dim(x)[1:3]
             dat <- as.matrix(x)[mask == TRUE,]
@@ -825,6 +960,32 @@ setMethod(f="as.sparse", signature=signature(x="DenseNeuroVec", mask="numeric"),
 
 
 
+
+#' @export
+#' @rdname write_vec-methods
+setMethod(f="write_vec", signature=signature(x="NeuroHyperVec", file_name="character", format="missing", data_type="missing"),
+          def=function(x, file_name) {
+            write_nifti_hyper_vector(x, file_name)
+          })
+
+#' @export
+#' @rdname write_vec-methods
+setMethod(f="write_vec", signature=signature(x="NeuroHyperVec", file_name="character", format="character", data_type="missing"),
+          def=function(x, file_name, format, ...) {
+            if (toupper(format) == "NIFTI" || toupper(format) == "NIFTI1" || toupper(format) == "NIFTI-1") {
+              write_nifti_hyper_vector(x, file_name)
+            } else {
+              stop(paste("format ", format, "not supported for NeuroHyperVec."))
+            }
+          })
+
+#' @export write_vec
+#' @rdname write_vec-methods
+#' @aliases write_vec,NeuroHyperVec,character,missing,character,ANY-method
+setMethod(f="write_vec", signature=signature(x="NeuroHyperVec", file_name="character", format="missing", data_type="character"),
+          def=function(x, file_name, data_type) {
+            write_nifti_hyper_vector(x, file_name, data_type)
+          })
 
 #' @export
 #' @rdname write_vec-methods
@@ -897,50 +1058,28 @@ setMethod("as_mmap", signature(x = "NeuroVec"),
 
 #' @export
 #' @rdname show-methods
-setMethod("show", "DenseNeuroVec",
-          def=function(object) {
-            # Get class name without package prefix
-            class_name <- sub(".*:", "", class(object)[1])
-
-            # Header with class name and memory info
-            total_elements <- prod(dim(object))
-            mem_size <- format(object.size(object) / 1024^2, digits=2)
-
-            cat("\n", crayon::bold(crayon::blue("DenseNeuroVec")), " ",
-                crayon::silver(paste0("(", mem_size, " MB)")), "\n", sep="")
-
-            # Spatial information
-            cat(crayon::bold("\n- Spatial Info"), crayon::silver(" ---------------------------"), "\n", sep="")
-            cat("| ", crayon::yellow("Dimensions"), "    : ",
-                paste(dim(object)[1:3], collapse=" x "),
-                crayon::silver(" ("), dim(object)[4], " timepoints", crayon::silver(")"), "\n", sep="")
-            cat("| ", crayon::yellow("Total Voxels"), "  : ",
-                format(prod(dim(object)[1:3]), big.mark=","), "\n", sep="")
-            cat("| ", crayon::yellow("Spacing"), "       : ",
-                paste(object@space@spacing[1:3], collapse=" x "), "\n", sep="")
-
-            # Data properties
-            cat(crayon::bold("\n- Properties"), crayon::silver(" ---------------------------"), "\n", sep="")
-            cat("| ", crayon::yellow("Origin"), "        : ",
-                paste(round(object@space@origin[1:3], 2), collapse=" x "), "\n", sep="")
-            cat("| ", crayon::yellow("Orientation"), "   : ",
-                paste(object@space@axes@i@axis, object@space@axes@j@axis, object@space@axes@k@axis), "\n", sep="")
-
-            # Summary statistics
-            cat(crayon::bold("\n- Statistics"), crayon::silver(" ---------------------------"), "\n", sep="")
-
-            # Calculate stats efficiently for the first timepoint
-            first_vol <- object[,,,1]
-            cat("    ", crayon::silver("Mean +/- SD"), "    : ",
-                round(mean(first_vol, na.rm=TRUE), 3), " +/- ",
-                round(sd(first_vol, na.rm=TRUE), 3), "\n", sep="")
-
-            if(!is.null(object@label) && nchar(object@label) > 0) {
-              cat("\n", crayon::italic(paste("Label:", object@label)), "\n", sep="")
-            }
-
-            cat("\n")
-          })
+setMethod("show", "DenseNeuroVec", function(object) {
+  d <- dim(object)
+  sp <- space(object)
+  show_header("DenseNeuroVec", format_mem(object))
+  show_rule("Spatial")
+  show_field("Dimensions", paste(d[1:3], collapse = " x "),
+             paste0(" (", d[4], " timepoints)"))
+  show_field("Spacing", paste(spacing(sp)[1:3], collapse = " x "))
+  show_field("Origin", paste(round(origin(sp)[1:3], 2), collapse = ", "))
+  show_field("Orientation", safe_axcodes(sp))
+  show_rule("Data")
+  first_vol <- object[,,,1]
+  show_field("Mean +/- SD", sprintf("%.3f +/- %.3f",
+             mean(first_vol, na.rm = TRUE), sd(first_vol, na.rm = TRUE)),
+             " (t=1)")
+  if (!is.null(object@label) && nchar(object@label) > 0) {
+    show_field("Label", object@label)
+  }
+  if (length(volume_labels(object)) > 0L) {
+    show_field("Volume Labels", sum(nzchar(volume_labels(object))), paste0("/", d[4], " named"))
+  }
+})
 
 
 
@@ -951,7 +1090,9 @@ setMethod("show", "DenseNeuroVec",
 #' @rdname split_blocks-methods
 setMethod(f="split_blocks", signature=signature(x="NeuroVec", indices="integer"),
           def = function(x, indices,...) {
-            assert_that(length(indices) == dim(x)[4])
+            if (length(indices) != dim(x)[4]) {
+              cli::cli_abort("{.arg indices} length ({length(indices)}) must equal the 4th dimension of {.arg x} ({dim(x)[4]}).")
+            }
             isplit <- split(1:length(indices), indices)
 
             f <- function(i) {
@@ -966,7 +1107,9 @@ setMethod(f="split_blocks", signature=signature(x="NeuroVec", indices="integer")
 #' @rdname split_blocks-methods
 setMethod(f="split_blocks", signature=signature(x="NeuroVec", indices="factor"),
           def = function(x, indices,...) {
-            assert_that(length(indices) == dim(x)[4])
+            if (length(indices) != dim(x)[4]) {
+              cli::cli_abort("{.arg indices} length ({length(indices)}) must equal the 4th dimension of {.arg x} ({dim(x)[4]}).")
+            }
             ind <- as.integer(indices)
             ret <- callGeneric(x, ind)
 
@@ -981,8 +1124,11 @@ setMethod(f="split_blocks", signature=signature(x="NeuroVec", indices="factor"),
 #' Loads a neuroimaging volume from one or more files, with support for various input formats
 #' and memory management strategies.
 #'
-#' @param file_name The name(s) of the file(s) to load. If multiple files are specified,
-#'   they are loaded and concatenated along the time dimension.
+#' @param file_name A character vector of one or more file paths to load. A 3D file
+#'   is promoted to a 4D \code{NeuroVec} with a single time point (see Details). When
+#'   multiple paths are supplied the result is always a \code{\linkS4class{NeuroVecSeq}}
+#'   (which itself extends \code{\linkS4class{NeuroVec}}), regardless of whether the
+#'   individual files are 3D, 4D, or a mix of both.
 #' @param indices The indices of the sub-volumes to load (e.g. if the file is 4-dimensional).
 #'   Only supported in "normal" mode.
 #' @param mask A logical mask defining which spatial elements to load. Required for "bigvec" mode
@@ -997,7 +1143,6 @@ setMethod(f="split_blocks", signature=signature(x="NeuroVec", indices="factor"),
 #' This function supports multiple file formats:
 #' * .nii: Standard NIfTI format
 #' * .nii.gz: Compressed NIfTI (not supported in mmap mode)
-
 #'
 #' Memory management modes:
 #' * "normal": Loads entire dataset into memory. Best for smaller datasets or when memory
@@ -1008,7 +1153,41 @@ setMethod(f="split_blocks", signature=signature(x="NeuroVec", indices="factor"),
 #'   Requires a mask to specify which voxels to load.
 #' * "filebacked": Similar to mmap but with more flexible caching strategies.
 #'
-#' @return An \code{\linkS4class{NeuroVec}} object representing the loaded volume(s).
+#' \strong{3D inputs:} A path pointing at a 3D image is not rejected. It is promoted
+#' to a 4D \code{NeuroVec} whose fourth dimension has length 1, so the return type is
+#' always a \code{NeuroVec}, never a \code{\linkS4class{NeuroVol}}. If you want a true
+#' volume, use \code{\link{read_vol}} (or \code{vec[[1]]}).
+#'
+#' \strong{Multiple files:} When \code{file_name} has length > 1, each file is loaded
+#' independently and the results are wrapped with \code{\link{NeuroVecSeq}}. No data is
+#' copied or re-concatenated into a single dense 4D array; the returned
+#' \code{NeuroVecSeq} holds the constituent \code{NeuroVec}s in its \code{@@vecs} slot
+#' and exposes them as a single logical time series. Time-point lookups (e.g.
+#' \code{x[[i]]}, \code{sub_vector(x, i)}, \code{linear_access(x, i)}) transparently
+#' walk across the segments. The per-file time lengths may differ (e.g. a 3D file
+#' contributes 1 time point, a 4D file contributes \code{dim(file)[4]}); all spatial
+#' dimensions must match.
+#'
+#' @return The return type depends on how many files are supplied:
+#' \itemize{
+#'   \item \strong{Single 3D file} --- a \code{\linkS4class{NeuroVec}} with
+#'         \code{dim(x)[4] == 1} (concrete class depends on \code{mode}: e.g.
+#'         \code{\linkS4class{DenseNeuroVec}} for \code{"normal"},
+#'         \code{\linkS4class{MappedNeuroVec}} for \code{"mmap"},
+#'         \code{\linkS4class{BigNeuroVec}} for \code{"bigvec"},
+#'         \code{\linkS4class{FileBackedNeuroVec}} for \code{"filebacked"}).
+#'   \item \strong{Single 4D file} --- a \code{\linkS4class{NeuroVec}} of the same
+#'         concrete class as above, with \code{dim(x)[4]} equal to the 4th dimension
+#'         of the file (or \code{length(indices)} when \code{indices} is supplied).
+#'   \item \strong{Multiple files (any mix of 3D and 4D)} --- a
+#'         \code{\linkS4class{NeuroVecSeq}} wrapping one \code{NeuroVec} per input
+#'         file in the order given. Because \code{NeuroVecSeq} extends
+#'         \code{\linkS4class{NeuroVec}}, it can be used wherever a \code{NeuroVec}
+#'         is accepted, but its underlying storage is segmented rather than a single
+#'         contiguous 4D array. For example, \code{read_vec(c(vol, vec, vec, vol))}
+#'         returns a 4-element \code{NeuroVecSeq} whose segments have time lengths
+#'         \code{c(1, T2, T3, 1)}.
+#' }
 #'
 #' @examples
 #'
@@ -1028,7 +1207,6 @@ setMethod(f="split_blocks", signature=signature(x="NeuroVec", indices="factor"),
 #' @export
 #' @note
 #' * Memory-mapping (.mmap mode) is not supported for gzipped files
-#' * For .lv.h5 and .h5 files, the indices and mask parameters are ignored
 #' * The bigvec mode requires a mask to be specified
 #' * When loading multiple files, they must have compatible dimensions
 read_vec  <- function(file_name, indices=NULL, mask=NULL, mode=c("normal", "mmap", "bigvec", "filebacked")) {
@@ -1097,7 +1275,8 @@ read_vec  <- function(file_name, indices=NULL, mask=NULL, mode=c("normal", "mmap
     for (i  in seq_along(file_name)) {
       message("loading ", file_name[i], " as bigvec ")
       v <- load_data(NeuroVecSource(file_name[i], indices, mask))
-      out[[i]] <- BigNeuroVec(v@data, space(v), mask)
+      out[[i]] <- BigNeuroVec(v@data, space(v), mask,
+                              volume_labels = volume_labels(v))
     }
 
     out
@@ -1123,10 +1302,14 @@ read_vec  <- function(file_name, indices=NULL, mask=NULL, mode=c("normal", "mmap
 setMethod(f="split_clusters", signature=signature(x="NeuroVec", clusters="integer"),
           def = function(x, clusters,...) {
 
-            assert_that(length(clusters) == prod(dim(x)[1:3]))
+            if (length(clusters) != prod(dim(x)[1:3])) {
+              cli::cli_abort("{.arg clusters} length ({length(clusters)}) must equal the number of spatial voxels ({prod(dim(x)[1:3])}).")
+            }
             keep <- which(clusters > 0 & !is.na(clusters))
             clusters <- clusters[keep]
-            assert_that(length(clusters) > 0)
+            if (length(clusters) == 0) {
+              cli::cli_abort("{.arg clusters} contains no positive, non-NA values.")
+            }
 
             isplit <- split(keep, clusters)
 
@@ -1152,7 +1335,9 @@ setMethod(f="split_clusters", signature=signature(x="NeuroVec", clusters="numeri
 #' @rdname split_clusters-methods
 setMethod(f="split_clusters", signature=signature(x="NeuroVec", clusters="ClusteredNeuroVol"),
           def = function(x, clusters,...) {
-            assert_that(prod(dim(x)[1:3]) == length(clusters@mask))
+            if (prod(dim(x)[1:3]) != length(clusters@mask)) {
+              cli::cli_abort("Number of spatial voxels in {.arg x} ({prod(dim(x)[1:3])}) must equal length of {.arg clusters} mask ({length(clusters@mask)}).")
+            }
             m <- which(clusters@mask > 0)
             clus <- rep(0, length(clusters@mask))
             clus[m] <- clusters@clusters
@@ -1163,7 +1348,9 @@ setMethod(f="split_clusters", signature=signature(x="NeuroVec", clusters="Cluste
 #' @export
 setMethod(f="split_blocks", signature=signature(x="NeuroVec", indices="factor"),
           def = function(x, indices,...) {
-            assert_that(length(indices) == dim(x)[4])
+            if (length(indices) != dim(x)[4]) {
+              cli::cli_abort("{.arg indices} length ({length(indices)}) must equal the 4th dimension of {.arg x} ({dim(x)[4]}).")
+            }
             ind <- as.integer(indices)
             ret <- callGeneric(x, ind)
             names(ret) <- levels(indices)
@@ -1202,7 +1389,9 @@ setMethod(f="vectors", signature=signature(x="DenseNeuroVec", subset="missing"),
 setMethod(f="vectors", signature=signature(x="NeuroVec", subset="numeric"),
           def = function(x, subset) {
             ind <- subset
-            assert_that(max(ind) <= prod(dim(x)[1:3]))
+            if (max(ind) > prod(dim(x)[1:3])) {
+              cli::cli_abort("Max index in {.arg subset} ({max(ind)}) exceeds number of spatial voxels ({prod(dim(x)[1:3])}).")
+            }
             f <- function(i) series(x, ind[i])
             deflist::deflist(f, length(ind))
           })
@@ -1211,9 +1400,13 @@ setMethod(f="vectors", signature=signature(x="NeuroVec", subset="numeric"),
 #' @rdname vectors-methods
 setMethod(f="vectors", signature=signature(x="NeuroVec", subset="logical"),
           def = function(x, subset) {
-            assert_that(length(subset) == prod(dim(x)[1:3]))
+            if (length(subset) != prod(dim(x)[1:3])) {
+              cli::cli_abort("{.arg subset} length ({length(subset)}) must equal the number of spatial voxels ({prod(dim(x)[1:3])}).")
+            }
             ind <- which(subset)
-            assert_that(length(ind) > 0)
+            if (length(ind) == 0) {
+              cli::cli_abort("{.arg subset} contains no TRUE values.")
+            }
             f <- function(i) series(x, ind[i])
             deflist::deflist(f, length(ind))
           })
@@ -1222,7 +1415,9 @@ setMethod(f="vectors", signature=signature(x="NeuroVec", subset="logical"),
 #' @rdname vols-methods
 setMethod(f="vols", signature=signature(x="NeuroVec", indices="numeric"),
           def = function(x, indices) {
-            assert_that(min(indices) > 0 && max(indices) <= dim(x)[4])
+            if (min(indices) <= 0 || max(indices) > dim(x)[4]) {
+              cli::cli_abort("{.arg indices} must be in range [1, {dim(x)[4]}], got range [{min(indices)}, {max(indices)}].")
+            }
             force(x)
             f <- function(i) x[[indices[i]]]
             #lis <- lapply(indices, function(i) function(i) x[[i]])
@@ -1244,13 +1439,28 @@ setMethod(f="vols", signature=signature(x="NeuroVec", indices="missing"),
 #' @export
 setMethod(f="sub_vector", signature=signature(x="NeuroVec", i="numeric"),
           def=function(x, i) {
-            assertthat::assert_that(max(i) <= dim(x)[4])
+            if (max(i) > dim(x)[4]) {
+              cli::cli_abort("Max index {.val {max(i)}} exceeds 4th dimension size {.val {dim(x)[4]}}.")
+            }
             xs <- space(x)
             dat <- x[,,,i]
 
             newdim <- c(dim(x)[1:3], length(i))
             bspace <- NeuroSpace(newdim, spacing=spacing(xs), origin=origin(xs), axes(xs), trans(xs))
-            DenseNeuroVec(dat, bspace)
+            DenseNeuroVec(
+              dat,
+              bspace,
+              label = x@label,
+              volume_labels = .subset_volume_labels(volume_labels(x), i)
+            )
+          })
+
+#' @rdname sub_vector-methods
+#' @export
+setMethod(f = "sub_vector", signature = signature(x = "NeuroVec", i = "character"),
+          def = function(x, i) {
+            idx <- vapply(i, function(lbl) .resolve_volume_label_index(x, lbl), integer(1))
+            sub_vector(x, idx)
           })
 
 
@@ -1259,7 +1469,9 @@ setMethod(f="sub_vector", signature=signature(x="NeuroVec", i="numeric"),
 #' @export
 setMethod(f="sub_vector", signature=signature(x="NeuroVecSeq", i="numeric"),
           def=function(x, i) {
-            assertthat::assert_that(max(i) <= dim(x)[4])
+            if (max(i) > dim(x)[4]) {
+              cli::cli_abort("Max index {.val {max(i)}} exceeds 4th dimension size {.val {dim(x)[4]}}.")
+            }
             lens <- sapply(x@vecs, function(v) dim(v)[4])
             offset <- c(0, cumsum(lens)) + 1
 
@@ -1270,7 +1482,9 @@ setMethod(f="sub_vector", signature=signature(x="NeuroVecSeq", i="numeric"),
             probe <- vmap[i,]
             smap <- split(probe$lind, probe$i)
             runs <- as.integer(names(smap))
-            assertthat::assert_that(length(runs) > 0)
+            if (length(runs) == 0) {
+              cli::cli_abort("No valid run segments found for the requested indices.")
+            }
 
             svecs <- lapply(runs, function(rnum) {
               neuroim2::sub_vector(x@vecs[[rnum]], smap[[as.character(rnum)]])
@@ -1298,11 +1512,14 @@ setMethod(f="sub_vector", signature=signature(x="NeuroVecSeq", i="numeric"),
 #' @param i The volume index to extract.
 #'
 #' @return a DenseNeuroVol object
+#' @rdname extract-methods
 #' @export
 setMethod(f="[[", signature=signature(x="NeuroVec", i="numeric"),
           def = function(x, i) {
             ## or ... drop(sub_vector(x,i))
-            assert_that(length(i) == 1)
+            if (length(i) != 1) {
+              cli::cli_abort("{.arg i} must be a single index, not length {length(i)}.")
+            }
             xs <- space(x)
             # Use drop=FALSE to prevent dropping dimensions
             dat <- x[,,,i, drop=FALSE]
@@ -1311,6 +1528,13 @@ setMethod(f="[[", signature=signature(x="NeuroVec", i="numeric"),
             bspace <- NeuroSpace(newdim, spacing=spacing(xs),
                                  origin=origin(xs), axes(xs), trans(xs))
             DenseNeuroVol(dat, bspace)
+          })
+
+#' @export
+#' @rdname extract-methods
+setMethod(f = "[[", signature = signature(x = "NeuroVec", i = "character"),
+          def = function(x, i) {
+            x[[.resolve_volume_label_index(x, i)]]
           })
 
 
@@ -1358,33 +1582,24 @@ setMethod(f="write_vec",signature=signature(x="NeuroVec", file_name="character",
 
 #' @export
 #' @rdname show-methods
-setMethod("show", "NeuroVecSeq",
-          def=function(object) {
-            cat("\n", crayon::bold(crayon::blue("NeuroVecSeq")), " ",
-                crayon::silver(paste0("(", length(object@vecs), " vectors)")), "\n", sep="")
-
-            cat(crayon::bold("\n- Sequence Info"), crayon::silver(" ---------------------------"), "\n", sep="")
-            cat("  ", crayon::yellow("Length"), "        : ", length(object@vecs), "\n", sep="")
-            cat("  ", crayon::yellow("Total Time"), "    : ", sum(object@lens), " points\n", sep="")
-
-            sp <- space(object@vecs[[1]])
-            cat(crayon::bold("\n- Spatial Info"), crayon::silver(" ---------------------------"), "\n", sep="")
-            cat("  ", crayon::yellow("Dimensions"), "    : ", paste(dim(object@vecs[[1]])[1:3], collapse=" x "), "\n", sep="")
-            cat("  ", crayon::yellow("Spacing"), "       : ", paste(sp@spacing[1:3], collapse=" x "), "\n", sep="")
-            cat("  ", crayon::yellow("Origin"), "        : ", paste(round(sp@origin[1:3], 2), collapse=" x "), "\n", sep="")
-            cat("  ", crayon::yellow("Orientation"), "   : ", paste(sp@axes@i@axis, sp@axes@j@axis, sp@axes@k@axis), "\n", sep="")
-
-            cat(crayon::bold("\n- Vector Details"), crayon::silver(" --------------------------"), "\n", sep="")
-            for (i in seq_along(object@vecs)) {
-              v <- object@vecs[[i]]
-              vclass <- sub(".*:", "", class(v)[1])
-              cat("  ", crayon::green(paste0(i, ".")), " ",
-                  crayon::cyan(vclass), " ",
-                  crayon::silver(paste0("(", dim(v)[4], " timepoints)")),
-                  "\n", sep="")
-            }
-            cat("\n")
-          })
+setMethod("show", "NeuroVecSeq", function(object) {
+  n <- length(object@vecs)
+  show_header("NeuroVecSeq", paste(n, "vectors"))
+  show_rule("Sequence")
+  for (i in seq_len(min(n, 5))) {
+    v <- object@vecs[[i]]
+    d <- dim(v)
+    show_field(paste0("  [", i, "]"), paste0(class(v)[1], " ",
+               paste(d[1:3], collapse="x"), " x ", d[4], "t"))
+  }
+  if (n > 5) {
+    cat("  ... and", n - 5, "more\n")
+  }
+  if (length(volume_labels(object)) > 0L) {
+    show_field("Volume Labels", sum(nzchar(volume_labels(object))),
+               paste0("/", dim(object)[4], " named"))
+  }
+})
 
 
 #' @export

@@ -4,23 +4,24 @@
 {}
 #' @include nifti_extensions.R
 {}
-#' @importFrom assertthat assert_that
-
 #' @keywords internal
 #' @noRd
 .checkDimensions <- function(dimvec) {
-	assert_that(all(dimvec >= 0),
-				msg = sprintf("Illegal dimension vector in header: %s", 
-							paste(dimvec, collapse=" x ")))
+  if (!all(dimvec >= 0)) {
+    cli::cli_abort("Illegal dimension vector in header: {paste(dimvec, collapse=' x ')}.")
+  }
 }
 
 
 #' @keywords internal
 #' @noRd
 write_nifti_vector <- function(vec, file_name, data_type="FLOAT") {
-	assert_that(length(dim(vec)) == 4,
-				msg = "Input vector must be 4-dimensional")
-	hdr <- as_nifti_header(vec, file_name=file_name, data_type=data_type)
+  if (length(dim(vec)) != 4) {
+    cli::cli_abort("Input vector must be 4-dimensional, not {length(dim(vec))}D.")
+  }
+	ext <- .make_nifti_volume_labels_extension(volume_labels(vec))
+	hdr <- as_nifti_header(vec, file_name = file_name, data_type = data_type,
+                         extensions = ext)
 
 	conn <- if (substr(file_name, nchar(file_name)-2, nchar(file_name)) == ".gz") {
 				gzfile(file_name, open="wb")
@@ -41,9 +42,59 @@ write_nifti_vector <- function(vec, file_name, data_type="FLOAT") {
 
 #' @keywords internal
 #' @noRd
+write_nifti_hyper_vector <- function(vec, file_name, data_type="FLOAT") {
+  if (!inherits(vec, "NeuroHyperVec")) {
+    cli::cli_abort("{.arg vec} must be a {.cls NeuroHyperVec} object.")
+  }
+  if (length(dim(vec)) != 5) {
+    cli::cli_abort("Input hyper-vector must be 5-dimensional, not {length(dim(vec))}D.")
+  }
+
+	hdr <- createNIfTIHeader(oneFile=TRUE, file_name=file_name)
+	hdr$file_name <- file_name
+	hdr$endian <- .Platform$endian
+	hdr$datatype <- .getDataCode(data_type)
+	hdr$data_storage <- .getDataStorage(hdr$datatype)
+	hdr$bitpix <- .getDataSize(data_type) * 8
+	hdr$dimensions <- c(length(dim(vec)), dim(vec))
+	N <- 8 - length(hdr$dimensions)
+	hdr$dimensions <- c(hdr$dimensions, rep(1, N))
+	hdr$num_dimensions <- length(dim(vec))
+
+	hdr$pixdim <- c(0, spacing(vec), rep(1, 4))
+	hdr$scl_intercept <- 0
+	hdr$scl_slope <- 1
+
+	tmat <- trans(vec)
+	hdr$qoffset <- tmat[1:3, 4]
+	hdr$qform <- tmat
+	hdr$sform <- tmat
+	quat1 <- matrixToQuatern(tmat)
+	hdr$quaternion <- quat1$quaternion
+	hdr$qfac <- quat1$qfac
+	hdr$pixdim[1] <- hdr$qfac
+
+	hdr$extensions <- new("NiftiExtensionList")
+	hdr$vox_offset <- 348 + total_extension_size(hdr$extensions)
+
+	conn <- if (substr(file_name, nchar(file_name)-2, nchar(file_name)) == ".gz") {
+		gzfile(file_name, open="wb")
+	} else {
+		file(file_name, open="wb")
+	}
+
+	write_nifti_header(hdr, conn, close=FALSE)
+	writer <- BinaryWriter(conn, hdr$vox_offset, data_type, hdr$bitpix/8, .Platform$endian)
+	write_elements(writer, as.numeric(dense_array_5d(vec)))
+	close(writer)
+}
+
+#' @keywords internal
+#' @noRd
 write_nifti_volume <- function(vol, file_name, data_type="FLOAT") {
-	assert_that(length(dim(vol)) == 3,
-				msg = "Input volume must be 3-dimensional")
+  if (length(dim(vol)) != 3) {
+    cli::cli_abort("Input volume must be 3-dimensional, not {length(dim(vol))}D.")
+  }
 	hdr <- as_nifti_header(vol, file_name=file_name, data_type=data_type)
 
 	is_gzipped <- endsWith(file_name, ".gz")
@@ -117,11 +168,14 @@ as_nifti_header <- function(vol, file_name, oneFile=TRUE, data_type="FLOAT",
 		### only encodes pixdim for three dimensions
 		hd$pixdim <- c(0, spacing(vol), rep(0,4))
 
-		hd$qoffset <- origin(space(vol))
 		hd$scl_intercept <- 0
 		hd$scl_slope <- 1
 
 		tmat <- trans(vol)
+
+		# Derive qoffset from the transform matrix translation column
+		# to guarantee consistency between qoffset and sform
+		hd$qoffset <- tmat[1:3, 4]
 
 		hd$qform <- tmat
 		hd$sform <- tmat

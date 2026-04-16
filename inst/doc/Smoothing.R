@@ -1,6 +1,9 @@
+params <-
+list(family = "red", preset = "homage")
+
 ## ----echo = FALSE, message = FALSE--------------------------------------------
-knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
-library(neuroim2)
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", message = FALSE, warning = FALSE)
+suppressPackageStartupMessages(library(neuroim2))
 
 ## -----------------------------------------------------------------------------
 set.seed(1)

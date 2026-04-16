@@ -9,39 +9,72 @@ NULL
 #' @description Methods for performing arithmetic and comparison operations on neuroimaging objects
 NULL
 
-#' @importFrom assertthat assert_that
 #' @keywords internal
 #' @noRd
 checkDim <- function(e1,e2) {
-  assert_that(all(dim(e1) == dim(e2)))
-  assert_that(all(spacing(e1) == spacing(e2)))
+  if (!all(dim(e1) == dim(e2))) {
+    cli::cli_abort("Dimensions of operands must match: {.val {dim(e1)}} vs {.val {dim(e2)}}.")
+  }
+  if (!all(spacing(e1) == spacing(e2))) {
+    cli::cli_abort("Spacing of operands must match.")
+  }
 
 }
 
 #' Comparison Operations
 #'
 #' @name Compare-methods
-#' @aliases Compare,SparseNeuroVol,numeric-method
+#' @aliases Compare,DenseNeuroVol,DenseNeuroVol-method
+#'          Compare,DenseNeuroVol,numeric-method
+#'          Compare,numeric,DenseNeuroVol-method
+#'          Compare,SparseNeuroVol,numeric-method
 #'          Compare,numeric,SparseNeuroVol-method
 #'          Compare,NeuroVec,NeuroVec-method
-#' @description Methods for comparing neuroimaging objects
+#' @description Methods for comparing neuroimaging objects.
+#'   All volume comparisons return \code{\linkS4class{LogicalNeuroVol}} objects
+#'   that preserve spatial metadata.
 #'
-#' @param e1 A SparseNeuroVol object containing the data to be compared.
-#' @param e2 A numeric value to compare with the data of the SparseNeuroVol object.
-#' @return The result of the comparison between the SparseNeuroVol object's data and the numeric value.
+#' @param e1,e2 Neuroimaging objects or numeric values.
+#' @return A \code{\linkS4class{LogicalNeuroVol}} for volume comparisons.
+#' @rdname Compare-methods
+#' @export
+setMethod(f="Compare", signature=signature(e1="DenseNeuroVol", e2="DenseNeuroVol"),
+          def=function(e1, e2) {
+            checkDim(e1, e2)
+            ret <- callGeneric(e1@.Data, e2@.Data)
+            LogicalNeuroVol(ret, space(e1))
+          })
+
+#' @rdname Compare-methods
+#' @export
+setMethod(f="Compare", signature=signature(e1="DenseNeuroVol", e2="numeric"),
+          def=function(e1, e2) {
+            ret <- callGeneric(e1@.Data, e2)
+            LogicalNeuroVol(ret, space(e1))
+          })
+
+#' @rdname Compare-methods
+#' @export
+setMethod(f="Compare", signature=signature(e1="numeric", e2="DenseNeuroVol"),
+          def=function(e1, e2) {
+            ret <- callGeneric(e1, e2@.Data)
+            LogicalNeuroVol(ret, space(e2))
+          })
+
 #' @rdname Compare-methods
 #' @export
 setMethod(f="Compare", signature=signature(e1="SparseNeuroVol", e2="numeric"),
           def=function(e1, e2) {
-            ret <- callGeneric(e1@data,e2)
+            ret <- callGeneric(as.vector(e1@data), e2)
+            LogicalNeuroVol(array(ret, dim(e1)), space(e1))
           })
-
 
 #' @rdname Compare-methods
 #' @export
 setMethod(f="Compare", signature=signature(e1="numeric", e2="SparseNeuroVol"),
           def=function(e1, e2) {
-            callGeneric(e1, e2@data)
+            ret <- callGeneric(e1, as.vector(e2@data))
+            LogicalNeuroVol(array(ret, dim(e2)), space(e2))
           })
 
 
@@ -80,6 +113,7 @@ setMethod(f="Arith", signature=signature(e1="SparseNeuroVol", e2="SparseNeuroVol
 #'
 #' @return An ROIVol object resulting from the arithmetic operation.
 #'
+#' @rdname Arith-methods
 #' @export
 setMethod(f="Arith", signature=signature(e1="ROIVol", e2="ROIVol"),
           def=function(e1, e2) {
@@ -117,44 +151,6 @@ setMethod(f="Arith", signature=signature(e1="DenseNeuroVol", e2="DenseNeuroVol")
             bv <- DenseNeuroVol(ret, space(e1))
             bv
           })
-
-
-
-# #' @export
-# #' @name Arith
-# #' @rdname Arith-methods
-# #' @param e1 A SparseNeuroVec object.
-# #' @param e2 A SparseNeuroVec object.
-# #' @return A SparseNeuroVec object representing the result of the arithmetic operation.
-# #' @description Perform an arithmetic operation between two SparseNeuroVec objects.
-# #' The input SparseNeuroVec objects must have the same dimensions and NeuroSpace objects.
-# #' The method computes the union of the masks and performs the arithmetic operation
-# #' on the non-zero values. The result is returned as a new SparseNeuroVec object.
-# setMethod(f="Arith", signature=signature(e1="SparseNeuroVec", e2="SparseNeuroVec"),
-#           def=function(e1, e2) {
-#             checkDim(e1, e2)
-#             if (!identical(space(e1), space(e2))) {
-#               stop("The NeuroSpace objects of e1 and e2 must be identical.")
-#             }
-#
-#             mask_union <- e1@mask | e2@mask
-#             indices_union <- which(mask_union)
-#             data_e1 <- matrix(0, nrow(e1@data), length(indices_union))
-#             data_e2 <- matrix(0, nrow(e2@data), length(indices_union))
-#
-#             # Fill the data matrices with their corresponding values
-#             indices_e1 <- indices(e1)
-#             indices_e2 <- indices(e2)
-#             data_e1[, indices_union %in% indices_e1] <- e1@data[, indices_e1 %in% indices_union]
-#             data_e2[, indices_union %in% indices_e2] <- e2@data[, indices_e2 %in% indices_union]
-#
-#             # Perform the arithmetic operation
-#             result_data <- callGeneric(data_e1, data_e2)
-#
-#             # Create the resulting SparseNeuroVec object
-#             result <- SparseNeuroVec(data=result_data, space=space(e1), mask=mask_union)
-#             return(result)
-#           })
 
 
 #' @export
@@ -297,6 +293,7 @@ setMethod(f="Arith", signature=signature(e1="NeuroVec", e2="NeuroVec"),
 #'
 #' @return A DenseNeuroVec object resulting from the arithmetic operation.
 #'
+#' @rdname Arith-methods
 #' @export
 setMethod(f="Arith", signature=signature(e1="NeuroVec", e2="NeuroVol"),
 		  def=function(e1, e2) {
@@ -330,6 +327,7 @@ setMethod(f="Arith", signature=signature(e1="NeuroVec", e2="NeuroVol"),
 #'
 #' @return A DenseNeuroVec object resulting from the arithmetic operation.
 #'
+#' @rdname Arith-methods
 #' @export
 setMethod(f="Arith", signature=signature(e1="NeuroVol", e2="NeuroVec"),
           def=function(e1, e2) {
@@ -359,7 +357,8 @@ setMethod(f="Arith", signature=signature(e1="NeuroVol", e2="NeuroVec"),
 #' neuroimaging data objects.
 #'
 #' @name Summary-methods
-#' @aliases Summary,SparseNeuroVec-method
+#' @aliases Summary,SparseNeuroVec-method Summary,SparseNeuroVol-method
+#'   Summary,DenseNeuroVol-method
 #' @param x A neuroimaging object (SparseNeuroVec, SparseNeuroVol, or DenseNeuroVol)
 #' @param ... Additional arguments passed to methods
 #' @param na.rm Logical indicating whether to remove NA values before computation
@@ -400,18 +399,251 @@ setMethod(f="Summary", signature=signature(x="DenseNeuroVol", na.rm="ANY"),
       callGeneric(x@.Data, ..., na.rm=na.rm)
     })
 
-#' Compare two NeuroVec objects
+
+# ---- Temporal Mean for NeuroVec types ----------------------------------------
+
+#' Temporal Mean of a NeuroVec
 #'
-#' This method compares two NeuroVec objects (\code{e1} and \code{e2}) using a generic comparison function.
-#' The dimensions of both objects are checked for compatibility before performing the comparison.
+#' Computes the voxel-wise mean across the 4th dimension (time), returning
+#' a 3D \code{\linkS4class{DenseNeuroVol}} or \code{\linkS4class{SparseNeuroVol}}.
 #'
-#' @param e1 A NeuroVec object to be compared.
-#' @param e2 A NeuroVec object to be compared.
-#' @return The result of the comparison between \code{e1} and \code{e2}.
+#' @param x A \code{\linkS4class{NeuroVec}} object.
+#' @param ... Ignored.
+#' @return A \code{\linkS4class{NeuroVol}} containing the temporal mean at
+#'   each voxel.
+#'
+#' @examples
+#' bspace <- NeuroSpace(c(10, 10, 10, 20), c(1, 1, 1))
+#' dat <- array(rnorm(10 * 10 * 10 * 20), c(10, 10, 10, 20))
+#' vec <- DenseNeuroVec(dat, bspace)
+#' mean_vol <- mean(vec)
+#' dim(mean_vol)  # 10 10 10
+#'
+#' @name mean-methods
+#' @rdname mean-methods
+#' @aliases mean,DenseNeuroVec-method mean,SparseNeuroVec-method
+#'   mean,NeuroVec-method
+#' @export
+setMethod("mean", signature(x = "DenseNeuroVec"), function(x, ...) {
+  d <- dim(x)
+  M <- matrix(x@.Data, nrow = prod(d[1:3]), ncol = d[4])
+  DenseNeuroVol(rowMeans(M), drop_dim(space(x)))
+})
+
+#' @rdname mean-methods
+#' @export
+setMethod("mean", signature(x = "SparseNeuroVec"), function(x, ...) {
+  vals <- colMeans(x@data)
+  idx  <- indices(x)
+  SparseNeuroVol(vals, drop_dim(space(x)), indices = idx)
+})
+
+#' @rdname mean-methods
+#' @export
+setMethod("mean", signature(x = "NeuroVec"), function(x, ...) {
+  d <- dim(x)
+  M <- as.matrix(x)  # voxels x time
+  DenseNeuroVol(rowMeans(M), drop_dim(space(x)))
+})
+
+
 #' @rdname Compare-methods
 #' @export
 setMethod(f="Compare", signature=signature(e1="NeuroVec", e2="NeuroVec"),
           def=function(e1, e2) {
             checkDim(e1,e2)
             callGeneric(e1@.Data, e2@.Data)
+          })
+
+
+# ---- Scalar Arith for DenseNeuroVol ----------------------------------------
+
+#' @rdname Arith-methods
+#' @export
+setMethod(f="Arith", signature=signature(e1="DenseNeuroVol", e2="numeric"),
+          def=function(e1, e2) {
+            ret <- callGeneric(e1@.Data, e2)
+            DenseNeuroVol(ret, space(e1))
+          })
+
+#' @rdname Arith-methods
+#' @export
+setMethod(f="Arith", signature=signature(e1="numeric", e2="DenseNeuroVol"),
+          def=function(e1, e2) {
+            ret <- callGeneric(e1, e2@.Data)
+            DenseNeuroVol(ret, space(e2))
+          })
+
+
+# ---- Scalar Arith for SparseNeuroVol ---------------------------------------
+
+#' @rdname Arith-methods
+#' @export
+setMethod(f="Arith", signature=signature(e1="SparseNeuroVol", e2="numeric"),
+          def=function(e1, e2) {
+            ret <- callGeneric(as.vector(e1@data), e2)
+            DenseNeuroVol(ret, space(e1))
+          })
+
+#' @rdname Arith-methods
+#' @export
+setMethod(f="Arith", signature=signature(e1="numeric", e2="SparseNeuroVol"),
+          def=function(e1, e2) {
+            ret <- callGeneric(e1, as.vector(e2@data))
+            DenseNeuroVol(ret, space(e2))
+          })
+
+
+# ---- ClusteredNeuroVol Arith (warns about cluster loss) --------------------
+
+#' @rdname Arith-methods
+#' @export
+setMethod(f="Arith", signature=signature(e1="ClusteredNeuroVol", e2="ClusteredNeuroVol"),
+          def=function(e1, e2) {
+            warning("Arithmetic on ClusteredNeuroVol: cluster structure is not preserved")
+            callGeneric(as.dense(e1), as.dense(e2))
+          })
+
+#' @rdname Arith-methods
+#' @export
+setMethod(f="Arith", signature=signature(e1="ClusteredNeuroVol", e2="numeric"),
+          def=function(e1, e2) {
+            warning("Arithmetic on ClusteredNeuroVol: cluster structure is not preserved")
+            callGeneric(as.dense(e1), e2)
+          })
+
+#' @rdname Arith-methods
+#' @export
+setMethod(f="Arith", signature=signature(e1="numeric", e2="ClusteredNeuroVol"),
+          def=function(e1, e2) {
+            warning("Arithmetic on ClusteredNeuroVol: cluster structure is not preserved")
+            callGeneric(e1, as.dense(e2))
+          })
+
+#' @rdname Arith-methods
+#' @export
+setMethod(f="Arith", signature=signature(e1="ClusteredNeuroVol", e2="NeuroVol"),
+          def=function(e1, e2) {
+            warning("Arithmetic on ClusteredNeuroVol: cluster structure is not preserved")
+            callGeneric(as.dense(e1), as.dense(e2))
+          })
+
+#' @rdname Arith-methods
+#' @export
+setMethod(f="Arith", signature=signature(e1="NeuroVol", e2="ClusteredNeuroVol"),
+          def=function(e1, e2) {
+            warning("Arithmetic on ClusteredNeuroVol: cluster structure is not preserved")
+            callGeneric(as.dense(e1), as.dense(e2))
+          })
+
+
+# ---- Logic Operations (& and |) for NeuroVol types -------------------------
+
+#' Logic Operations for Neuroimaging Volumes
+#'
+#' @name Logic-methods
+#' @aliases Logic,DenseNeuroVol,DenseNeuroVol-method
+#'          Logic,SparseNeuroVol,SparseNeuroVol-method
+#'          Logic,SparseNeuroVol,NeuroVol-method
+#'          Logic,NeuroVol,SparseNeuroVol-method
+#'          Logic,NeuroVol,logical-method
+#'          Logic,logical,NeuroVol-method
+#' @description Methods for performing logical operations (\code{&} and
+#'   \code{|}) on neuroimaging volume objects. Results are always returned as
+#'   \code{\linkS4class{LogicalNeuroVol}} objects that preserve spatial metadata.
+#'
+#' @param e1,e2 Neuroimaging volume objects or logical values.
+#' @return A \code{\linkS4class{LogicalNeuroVol}}.
+#'
+#' @examples
+#' sp <- NeuroSpace(c(5L, 5L, 5L), c(1, 1, 1))
+#' v1 <- DenseNeuroVol(array(sample(0:1, 125, replace = TRUE), c(5, 5, 5)), sp)
+#' v2 <- DenseNeuroVol(array(sample(0:1, 125, replace = TRUE), c(5, 5, 5)), sp)
+#' intersection <- v1 & v2
+#' union_mask  <- v1 | v2
+#'
+#' @rdname Logic-methods
+#' @export
+setMethod(f="Logic", signature=signature(e1="DenseNeuroVol", e2="DenseNeuroVol"),
+          def=function(e1, e2) {
+            checkDim(e1, e2)
+            ret <- callGeneric(e1@.Data, e2@.Data)
+            LogicalNeuroVol(ret, space(e1))
+          })
+
+#' @rdname Logic-methods
+#' @export
+setMethod(f="Logic", signature=signature(e1="SparseNeuroVol", e2="SparseNeuroVol"),
+          def=function(e1, e2) {
+            checkDim(e1, e2)
+            ret <- callGeneric(as.vector(e1@data), as.vector(e2@data))
+            LogicalNeuroVol(array(ret, dim(e1)), space(e1))
+          })
+
+#' @rdname Logic-methods
+#' @export
+setMethod(f="Logic", signature=signature(e1="SparseNeuroVol", e2="NeuroVol"),
+          def=function(e1, e2) {
+            checkDim(e1, e2)
+            ret <- callGeneric(as.vector(e1@data), as.vector(as.dense(e2)@.Data))
+            LogicalNeuroVol(array(ret, dim(e1)), space(e1))
+          })
+
+#' @rdname Logic-methods
+#' @export
+setMethod(f="Logic", signature=signature(e1="NeuroVol", e2="SparseNeuroVol"),
+          def=function(e1, e2) {
+            checkDim(e1, e2)
+            ret <- callGeneric(as.vector(as.dense(e1)@.Data), as.vector(e2@data))
+            LogicalNeuroVol(array(ret, dim(e1)), space(e1))
+          })
+
+#' @rdname Logic-methods
+#' @export
+setMethod(f="Logic", signature=signature(e1="NeuroVol", e2="logical"),
+          def=function(e1, e2) {
+            ret <- callGeneric(as.dense(e1)@.Data, e2)
+            LogicalNeuroVol(ret, space(e1))
+          })
+
+#' @rdname Logic-methods
+#' @export
+setMethod(f="Logic", signature=signature(e1="logical", e2="NeuroVol"),
+          def=function(e1, e2) {
+            ret <- callGeneric(e1, as.dense(e2)@.Data)
+            LogicalNeuroVol(ret, space(e2))
+          })
+
+
+# ---- Logical NOT (!) for NeuroVol types ------------------------------------
+
+#' Logical Negation for Neuroimaging Volumes
+#'
+#' @name not-methods
+#' @aliases !,DenseNeuroVol-method !,SparseNeuroVol-method
+#' @description Logical negation (\code{!}) for neuroimaging volumes. Returns a
+#'   \code{\linkS4class{LogicalNeuroVol}} where non-zero voxels become
+#'   \code{FALSE} and zero voxels become \code{TRUE}.
+#'
+#' @param x A neuroimaging volume object.
+#' @return A \code{\linkS4class{LogicalNeuroVol}}.
+#'
+#' @examples
+#' sp <- NeuroSpace(c(5L, 5L, 5L), c(1, 1, 1))
+#' mask <- LogicalNeuroVol(array(sample(c(TRUE, FALSE), 125, replace = TRUE),
+#'                               c(5, 5, 5)), sp)
+#' inv <- !mask
+#'
+#' @rdname not-methods
+#' @export
+setMethod(f="!", signature=signature(x="DenseNeuroVol"),
+          def=function(x) {
+            LogicalNeuroVol(!x@.Data, space(x))
+          })
+
+#' @rdname not-methods
+#' @export
+setMethod(f="!", signature=signature(x="SparseNeuroVol"),
+          def=function(x) {
+            LogicalNeuroVol(array(!as.vector(x@data), dim(x)), space(x))
           })

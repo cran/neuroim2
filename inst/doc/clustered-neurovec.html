@@ -383,25 +383,15 @@ operations.</p>
 <span id="cb1-17"><a href="#cb1-17" tabindex="-1"></a><span class="co"># Create ClusteredNeuroVec</span></span>
 <span id="cb1-18"><a href="#cb1-18" tabindex="-1"></a>cv <span class="ot">&lt;-</span> <span class="fu">ClusteredNeuroVec</span>(vec, cvol)</span>
 <span id="cb1-19"><a href="#cb1-19" tabindex="-1"></a><span class="fu">print</span>(cv)</span>
-<span id="cb1-20"><a href="#cb1-20" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb1-21"><a href="#cb1-21" tabindex="-1"></a><span class="co">#&gt; ClusteredNeuroVec </span></span>
-<span id="cb1-22"><a href="#cb1-22" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb1-23"><a href="#cb1-23" tabindex="-1"></a><span class="co">#&gt; += Spatial Info ---------------------------</span></span>
-<span id="cb1-24"><a href="#cb1-24" tabindex="-1"></a><span class="co">#&gt; | Dimensions    : 10 x 10 x 10</span></span>
-<span id="cb1-25"><a href="#cb1-25" tabindex="-1"></a><span class="co">#&gt; | Spacing       : 2 x 2 x 2</span></span>
-<span id="cb1-26"><a href="#cb1-26" tabindex="-1"></a><span class="co">#&gt; | Origin        : 0 x 0 x 0</span></span>
-<span id="cb1-27"><a href="#cb1-27" tabindex="-1"></a><span class="co">#&gt; | Orientation   : Left-to-Right Posterior-to-Anterior Inferior-to-Superior</span></span>
-<span id="cb1-28"><a href="#cb1-28" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb1-29"><a href="#cb1-29" tabindex="-1"></a><span class="co">#&gt; += Clustering Info ------------------------</span></span>
-<span id="cb1-30"><a href="#cb1-30" tabindex="-1"></a><span class="co">#&gt; | Clusters      : 5</span></span>
-<span id="cb1-31"><a href="#cb1-31" tabindex="-1"></a><span class="co">#&gt; | Cluster Sizes : min=180, med=199, max=202</span></span>
-<span id="cb1-32"><a href="#cb1-32" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb1-33"><a href="#cb1-33" tabindex="-1"></a><span class="co">#&gt; += Temporal Info --------------------------</span></span>
-<span id="cb1-34"><a href="#cb1-34" tabindex="-1"></a><span class="co">#&gt; | Time Points   : 20</span></span>
-<span id="cb1-35"><a href="#cb1-35" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb1-36"><a href="#cb1-36" tabindex="-1"></a><span class="co">#&gt; += Memory Info ----------------------------</span></span>
-<span id="cb1-37"><a href="#cb1-37" tabindex="-1"></a><span class="co">#&gt; | Matrix Size   : 0 bytes MB (20 x 5)</span></span>
-<span id="cb1-38"><a href="#cb1-38" tabindex="-1"></a><span class="co">#&gt; | Active Voxels : 973</span></span></code></pre></div>
+<span id="cb1-20"><a href="#cb1-20" tabindex="-1"></a><span class="co">#&gt; &lt;ClusteredNeuroVec&gt; [5 clusters x 20 timepoints] </span></span>
+<span id="cb1-21"><a href="#cb1-21" tabindex="-1"></a><span class="co">#&gt; ── Spatial ───────────────────────────────────────────────────────────────────── </span></span>
+<span id="cb1-22"><a href="#cb1-22" tabindex="-1"></a><span class="co">#&gt;   Dimensions    : 10 x 10 x 10</span></span>
+<span id="cb1-23"><a href="#cb1-23" tabindex="-1"></a><span class="co">#&gt;   Spacing       : 2 x 2 x 2 mm</span></span>
+<span id="cb1-24"><a href="#cb1-24" tabindex="-1"></a><span class="co">#&gt; ── Cluster Data ──────────────────────────────────────────────────────────────── </span></span>
+<span id="cb1-25"><a href="#cb1-25" tabindex="-1"></a><span class="co">#&gt;   Clusters      : 5</span></span>
+<span id="cb1-26"><a href="#cb1-26" tabindex="-1"></a><span class="co">#&gt;   Time Points   : 20</span></span>
+<span id="cb1-27"><a href="#cb1-27" tabindex="-1"></a><span class="co">#&gt;   Cluster Sizes : min=180, median=199, max=202</span></span>
+<span id="cb1-28"><a href="#cb1-28" tabindex="-1"></a><span class="co">#&gt;   Size          : 42.9 Kb</span></span></code></pre></div>
 </div>
 <div id="key-properties" class="section level3">
 <h3>Key properties</h3>
@@ -439,15 +429,15 @@ operations.</p>
 <h2>Cluster searchlight analysis</h2>
 <p>Perform searchlight analysis at the cluster level using centroid
 distances:</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="co"># K-nearest neighbor searchlight (10 nearest clusters)</span></span>
-<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>windows_knn <span class="ot">&lt;-</span> <span class="fu">cluster_searchlight_series</span>(cv, <span class="at">k =</span> <span class="dv">10</span>)</span>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="co"># K-nearest neighbor searchlight (3 nearest clusters)</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>windows_knn <span class="ot">&lt;-</span> <span class="fu">cluster_searchlight_series</span>(cv, <span class="at">k =</span> <span class="dv">3</span>)</span>
 <span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a><span class="fu">length</span>(windows_knn)  <span class="co"># One window per cluster</span></span>
 <span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a><span class="co">#&gt; [1] 5</span></span>
 <span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a></span>
 <span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a><span class="co"># Look at first window</span></span>
 <span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>win1 <span class="ot">&lt;-</span> windows_knn[[<span class="dv">1</span>]]</span>
-<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a><span class="fu">dim</span>(<span class="fu">values</span>(win1))  <span class="co"># 10 neighbors x 20 time points</span></span>
-<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a><span class="co">#&gt; [1] 20  5</span></span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a><span class="fu">dim</span>(<span class="fu">values</span>(win1))  <span class="co"># 20 time points x 3 neighbors</span></span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a><span class="co">#&gt; [1] 20  3</span></span>
 <span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a></span>
 <span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a><span class="co"># Radius-based searchlight (e.g., 15mm radius)</span></span>
 <span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a>windows_radius <span class="ot">&lt;-</span> <span class="fu">cluster_searchlight_series</span>(cv, <span class="at">radius =</span> <span class="dv">15</span>)</span></code></pre></div>

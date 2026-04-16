@@ -1,11 +1,12 @@
 params <-
-list(family = "red")
+list(family = "red", preset = "homage")
 
 ## ----echo = FALSE, message = FALSE--------------------------------------------
-knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
-library(neuroim2)
-library(purrr)
-library(assertthat)
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", message = FALSE, warning = FALSE)
+suppressPackageStartupMessages({
+  library(neuroim2)
+  library(purrr)
+})
 
 ## -----------------------------------------------------------------------------
 file_name <- system.file("extdata", "global_mask_v4.nii", package = "neuroim2")

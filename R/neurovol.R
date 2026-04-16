@@ -1,4 +1,3 @@
-#' @importFrom assertthat assert_that
 #' @importFrom Matrix sparseVector
 #' @include all_class.R
 #' @include all_generic.R
@@ -6,7 +5,6 @@ NULL
 
 
 #' @importFrom methods new
-#' @importFrom assertthat assert_that
 NULL
 
 #' NeuroVol: 3D Neuroimaging Volume Class
@@ -69,7 +67,9 @@ DenseNeuroVol <- function(data, space, label="", indices=NULL) {
 
 
 	if (!is.null(indices)) {
-	  assert_that(length(indices) == length(data))
+	  if (length(indices) != length(data)) {
+	    cli::cli_abort("Length of {.arg indices} ({length(indices)}) must equal length of {.arg data} ({length(data)}).")
+	  }
 		newdat <- array(0, dim(space))
 		newdat[indices] <- data
 		data <- newdat
@@ -230,6 +230,7 @@ setAs(from="SparseNeuroVol", to="array", def=function(from) {
 #' @param ... Additional arguments (currently ignored).
 #' @return A dense array with voxel values at their spatial locations and zeros
 #'   elsewhere.
+#' @rdname as.array-methods
 #' @export
 setMethod("as.array", signature(x = "SparseNeuroVol"), function(x, ...) {
   as(x, "array")
@@ -243,10 +244,31 @@ setMethod("as.array", signature(x = "SparseNeuroVol"), function(x, ...) {
 #' @param x A `SparseNeuroVol` instance.
 #' @param mode Optional coercion mode (see [base::as.vector]).
 #' @return A vector of length `prod(dim(x))`.
+#' @rdname as.vector-methods
 #' @export
 setMethod("as.vector", signature(x = "SparseNeuroVol"), function(x, mode = "any") {
   as.vector(as.array(x), mode = mode)
 })
+
+
+#' @export
+#' @rdname show-methods
+setMethod("show", "DenseNeuroVol", function(object) {
+  d <- dim(object)
+  sp <- space(object)
+  show_header("DenseNeuroVol", format_mem(object))
+  show_rule("Spatial")
+  show_field("Dimensions", paste(d, collapse = " x "))
+  show_field("Spacing", paste(round(spacing(sp), 3), collapse = " x "), " mm")
+  show_field("Origin", paste(round(origin(sp), 2), collapse = ", "))
+  show_field("Orientation", safe_axcodes(sp))
+  show_rule("Data")
+  rng <- range(object@.Data, na.rm = TRUE)
+  show_field("Range", sprintf("[%.3f, %.3f]", rng[1], rng[2]))
+  nas <- sum(is.na(object@.Data))
+  if (nas > 0) show_field("NAs", format(nas, big.mark = ","))
+})
+
 
 
 #' Convert SparseNeuroVol to numeric
@@ -274,158 +296,67 @@ setMethod(f="as.numeric", signature=signature(x = "SparseNeuroVol"), def=functio
 
 
 
-#' conversion from \code{\linkS4class{NeuroVol}} to \code{\linkS4class{LogicalNeuroVol}}
-#'
-#' @name as
-#' @export
+# conversion from NeuroVol to LogicalNeuroVol.
+# Coerce NeuroVol to LogicalNeuroVol.
 setAs(from="NeuroVol", to="LogicalNeuroVol", def=function(from) {
 	LogicalNeuroVol(as.array(from), space(from))
 })
 
 
 
-#' conversion from \code{\linkS4class{NeuroVol}} to \code{array}
-#'
-#' @name as
-#' @export
+# conversion from NeuroVol to array.
+# Coerce NeuroVol to array.
 setAs(from="NeuroVol", to="array", def=function(from) from[,,])
 
 #'
-#' @importFrom crayon bold blue green red yellow silver
 #' @importFrom utils object.size
 #' @export
 #' @rdname show-methods
 setMethod(f="show", signature=signature("NeuroVol"),
           def=function(object) {
-            # Get space information and calculate stats
+            d <- dim(object)
             sp <- space(object)
-            val_range <- range(object, na.rm=TRUE)
-            n_na <- sum(is.na(object))
-            mem_size <- format(object.size(object), units="auto")
-            total_voxels <- prod(dim(object))
-
-            # Header
-            cat("\n", crayon::bold(crayon::blue("=== NeuroVol Object ===")), "\n\n")
-
-            # Basic Information
-            cat(crayon::bold(crayon::yellow("* Basic Information")), "\n")
-            cat("  ", crayon::silver("Type:"), "      ", class(object)[1], "\n", sep="")
-            cat("  ", crayon::silver("Dimensions:"), " ",
-                paste(dim(object), collapse=" x "),
-                " (", crayon::green(mem_size), ")", "\n", sep="")
-            cat("  ", crayon::silver("Total Voxels:"), " ",
-                format(total_voxels, big.mark=","), "\n", sep="")
-
-            # Data Properties
-            cat("\n", crayon::bold(crayon::yellow("* Data Properties")), "\n", sep="")
-            cat("  ", crayon::silver("Value Range:"), " [",
-                crayon::blue(sprintf("%.2f", val_range[1])), ", ",
-                crayon::blue(sprintf("%.2f", val_range[2])), "]", "\n", sep="")
-            if (n_na > 0) {
-                cat("  ", crayon::silver("Missing Values:"), " ",
-                    crayon::red(format(n_na, big.mark=",")), " (",
-                    sprintf("%.1f%%", 100*n_na/total_voxels), ")",
-                    "\n", sep="")
+            class_name <- sub(".*:", "", class(object)[1])
+            show_header(class_name, format_mem(object))
+            show_rule("Spatial")
+            show_field("Dimensions", paste(d, collapse = " x "))
+            show_field("Spacing", paste(round(spacing(sp), 3), collapse = " x "), " mm")
+            show_field("Origin", paste(round(origin(sp), 2), collapse = ", "))
+            show_field("Orientation", safe_axcodes(sp))
+            show_rule("Data")
+            rng <- tryCatch(range(object, na.rm = TRUE), error = function(e) c(NA, NA))
+            if (!anyNA(rng)) {
+              show_field("Range", sprintf("[%.3f, %.3f]", rng[1], rng[2]))
             }
-
-            # Spatial Properties
-            cat("\n", crayon::bold(crayon::yellow("* Spatial Properties")), "\n", sep="")
-            cat("  ", crayon::silver("Spacing:"), " ",
-                paste(sprintf("%.2f", sp@spacing), collapse=" x "),
-                crayon::silver(" mm"), "\n", sep="")
-            cat("  ", crayon::silver("Origin:"), "  ",
-                paste(sprintf("%.1f", sp@origin), collapse=", "),
-                crayon::silver(" mm"), "\n", sep="")
-            cat("  ", crayon::silver("Axes:"), "    ",
-                crayon::green(sp@axes@i@axis), " x ",
-                crayon::green(sp@axes@j@axis), " x ",
-                crayon::green(sp@axes@k@axis), "\n", sep="")
-
-            # Footer with usage hints
-            cat(crayon::silver("\n======================================\n"))
-            cat("\n", crayon::bold("Access Methods:"), "\n")
-            cat(" ", crayon::silver("."), " Get Slice:  ",
-                crayon::blue("slice(object, zlevel=10)"), "\n")
-            cat(" ", crayon::silver("."), " Get Value:  ",
-                crayon::blue("object[i, j, k]"), "\n")
-            cat(" ", crayon::silver("."), " Plot:      ",
-                crayon::blue("plot(object)"),
-                crayon::silver(" # shows multiple slices"), "\n\n")
+            show_field("Voxels", format(prod(d), big.mark = ","))
           })
 
 
-#' @importFrom crayon bold blue green red yellow silver
 #' @importFrom utils object.size
 #' @importFrom Matrix which
 #' @rdname show-methods
 #' @export
 setMethod(f="show", signature=signature("SparseNeuroVol"),
           def=function(object) {
-            # Get space information and calculate stats
+            d <- dim(object)
             sp <- space(object)
-            val_range <- range(as.numeric(object), na.rm=TRUE)
-            n_na <- sum(is.na(as.numeric(object)))
-            mem_size <- format(object.size(object), units="auto")
-            total_voxels <- prod(dim(object))
-            nonzero_voxels <- length(Matrix::which(object@data != 0))
-            sparsity <- (total_voxels - nonzero_voxels) / total_voxels * 100
-
-            # Header
-            cat("\n", crayon::bold(crayon::blue("=== SparseNeuroVol Object ===")), "\n\n")
-
-            # Basic Information
-            cat(crayon::bold(crayon::yellow("* Basic Information")), "\n")
-            cat("  ", crayon::silver("Type:"), "      ", class(object)[1], "\n", sep="")
-            cat("  ", crayon::silver("Dimensions:"), " ",
-                paste(dim(object), collapse=" x "),
-                " (", crayon::green(mem_size), ")", "\n", sep="")
-
-            # Sparsity Information
-            cat("\n", crayon::bold(crayon::yellow("* Sparsity Properties")), "\n", sep="")
-            cat("  ", crayon::silver("Total Voxels:  "),
-                format(total_voxels, big.mark=","), "\n", sep="")
-            cat("  ", crayon::silver("Active Voxels: "),
-                crayon::green(format(nonzero_voxels, big.mark=",")),
-                " (", sprintf("%.2f%%", 100-sparsity), ")", "\n", sep="")
-            cat("  ", crayon::silver("Sparsity:     "),
-                sprintf("%.2f%%", sparsity), "\n", sep="")
-
-            # Data Properties
-            cat("\n", crayon::bold(crayon::yellow("* Data Properties")), "\n", sep="")
-            cat("  ", crayon::silver("Value Range:"), " [",
-                crayon::blue(sprintf("%.2f", val_range[1])), ", ",
-                crayon::blue(sprintf("%.2f", val_range[2])), "]", "\n", sep="")
-            if (n_na > 0) {
-                cat("  ", crayon::silver("Missing Values:"), " ",
-                    crayon::red(format(n_na, big.mark=",")), " (",
-                    sprintf("%.1f%%", 100*n_na/total_voxels), ")",
-                    "\n", sep="")
+            n_nonzero <- length(Matrix::which(object@data != 0))
+            n_total <- prod(d)
+            pct <- sprintf("%.1f%% non-zero", 100 * n_nonzero / n_total)
+            show_header("SparseNeuroVol", pct)
+            show_rule("Spatial")
+            show_field("Dimensions", paste(d, collapse = " x "))
+            show_field("Spacing", paste(round(spacing(sp), 3), collapse = " x "), " mm")
+            show_field("Origin", paste(round(origin(sp), 2), collapse = ", "))
+            show_field("Orientation", safe_axcodes(sp))
+            show_rule("Sparse Data")
+            show_field("Active", paste0(format(n_nonzero, big.mark = ","), " / ",
+                       format(n_total, big.mark = ",")))
+            if (n_nonzero > 0) {
+              rng <- range(as.numeric(object), na.rm = TRUE)
+              show_field("Range", sprintf("[%.3f, %.3f]", rng[1], rng[2]))
             }
-
-            # Spatial Properties
-            cat("\n", crayon::bold(crayon::yellow("* Spatial Properties")), "\n", sep="")
-            cat("  ", crayon::silver("Spacing:"), " ",
-                paste(sprintf("%.2f", sp@spacing), collapse=" x "),
-                crayon::silver(" mm"), "\n", sep="")
-            cat("  ", crayon::silver("Origin:"), "  ",
-                paste(sprintf("%.1f", sp@origin), collapse=", "),
-                crayon::silver(" mm"), "\n", sep="")
-            cat("  ", crayon::silver("Axes:"), "    ",
-                crayon::green(sp@axes@i@axis), " x ",
-                crayon::green(sp@axes@j@axis), " x ",
-                crayon::green(sp@axes@k@axis), "\n", sep="")
-
-            # Footer with usage hints
-            cat(crayon::silver("\n======================================\n"))
-            cat("\n", crayon::bold("Access Methods:"), "\n")
-            cat(" ", crayon::silver("."), " Get Slice:     ",
-                crayon::blue("slice(object, zlevel=10)"), "\n")
-            cat(" ", crayon::silver("."), " Get Value:     ",
-                crayon::blue("object[i, j, k]"), "\n")
-            cat(" ", crayon::silver("."), " As Dense:      ",
-                crayon::blue("as(object, \"DenseNeuroVol\")"), "\n")
-            cat(" ", crayon::silver("."), " Active Indices: ",
-                crayon::blue("which(object != 0)"), "\n\n")
+            show_field("Size", format_mem(object))
           }
 )
 
@@ -491,17 +422,38 @@ NeuroVolSource <- function(input, index=1) {
 	new("NeuroVolSource", meta_info=meta_info, index=as.integer(index))
 }
 
-#' Load an image volume from a file
+#' Load a single 3D image volume from a file
 #'
-#' @param file_name the name of the file to load
-#' @param index the index of the volume (e.g. if the file is 4-dimensional)
-#' @return an instance of the class \code{\linkS4class{DenseNeuroVol}}
+#' @description
+#' Reads exactly one 3D volume from a neuroimaging file and returns it as a
+#' \code{\linkS4class{DenseNeuroVol}}. Accepts both 3D files (where only
+#' \code{index = 1} is valid) and 4D files (where \code{index} selects a single
+#' sub-volume along the 4th dimension).
+#'
+#' @param file_name Path to a single image file (NIfTI \code{.nii} or \code{.nii.gz}).
+#'   A character vector of length > 1 is not supported --- use \code{\link{read_vec}}
+#'   if you need to read multiple files, or call \code{read_vol} in a loop.
+#' @param index Integer giving the index of the sub-volume to load. Must be \code{1}
+#'   for a 3D file. For a 4D file, must satisfy \code{1 <= index <= dim(file)[4]}.
+#'
+#' @return A \code{\linkS4class{DenseNeuroVol}} (always 3D, always dense). The
+#'   associated \code{\linkS4class{NeuroSpace}} has three spatial dimensions even
+#'   when the source file is 4D.
+#'
+#' @seealso
+#' \code{\link{read_vec}} for loading 4D data as a \code{\linkS4class{NeuroVec}},
+#' \code{\link{read_image}} for automatic dimensionality-based dispatch, and
+#' \code{\link{read_hyper_vec}} for 5D data.
 #'
 #' @examples
+#' # Read the first volume from a 4D file
 #' fname <- system.file("extdata", "global_mask_v4.nii", package="neuroim2")
 #' x <- read_vol(fname)
-#' print(dim(x))
+#' print(dim(x))    # 3D
 #' space(x)
+#'
+#' # Read the 3rd sub-volume from the same 4D file
+#' x3 <- read_vol(fname, index = 3)
 #'
 #' @export read_vol
 read_vol  <- function(file_name, index=1) {
@@ -525,6 +477,7 @@ setMethod(f="slices", signature=signature(x="NeuroVol"),
           })
 
 
+#' @rdname extract-methods
 #' @export
 setMethod(f="[", signature=signature(x = "NeuroVol", i = "ROICoords", j = "missing"),
           def=function (x, i, j, k, ..., drop=TRUE) {
@@ -896,27 +849,12 @@ setMethod(f="mapf", signature=signature(x="NeuroVol", m="Kernel"),
 
 
 #' @export
-#' @importFrom utils capture.output
 #' @rdname show-methods
 setMethod("show", "Kernel", function(object) {
-  # Get dimensions of kernel
-  kernel_dims <- dim(object@weights)
-
-  # Create header string
-  header <- sprintf("Kernel object of dimensions: %s", paste(kernel_dims, collapse=" x "))
-
-  # Get kernel width info
-  width_str <- sprintf("Kernel widths: %s", paste(object@width, collapse=" x "))
-
-  # Format weights matrix/array nicely
-  weights_str <- capture.output(print(round(object@weights, 4)))
-  weights_str <- paste(weights_str, collapse="\n")
-
-  # Print everything
-  cat(header, "\n")
-  cat(width_str, "\n")
-  cat("\nKernel weights:\n")
-  cat(weights_str, "\n")
+  show_header("Kernel", paste(dim(object@weights), collapse = " x "))
+  show_field("Widths", paste(object@width, collapse = " x "))
+  show_field("Voxels", prod(dim(object@weights)))
+  show_field("Sum", round(sum(object@weights), 4))
 })
 
 
@@ -1066,8 +1004,12 @@ setMethod(f="as.logical", signature=signature(x = "NeuroVol"), def=function(x) {
 #' @export
 setMethod(f="as.sparse", signature=signature(x="DenseNeuroVol", mask="LogicalNeuroVol"),
           def=function(x, mask) {
-            assert_that(all(dim(x) == dim(mask)))
-            assert_that(all(spacing(x) == spacing(mask)))
+            if (!all(dim(x) == dim(mask))) {
+              cli::cli_abort("Dimensions of {.arg x} ({.val {dim(x)}}) must match dimensions of {.arg mask} ({.val {dim(mask)}}).")
+            }
+            if (!all(spacing(x) == spacing(mask))) {
+              cli::cli_abort("Spacing of {.arg x} and {.arg mask} must be identical.")
+            }
             dat <- x[mask]
             bvec <- SparseNeuroVol(data=dat, space=space(x),indices=which(mask>0))
 
@@ -1077,7 +1019,9 @@ setMethod(f="as.sparse", signature=signature(x="DenseNeuroVol", mask="LogicalNeu
 #' @rdname partition-methods
 setMethod("partition", signature=signature(x="LogicalNeuroVol", k="integer"),
           def=function(x,k) {
-            assert_that(k>1)
+            if (k <= 1) {
+              cli::cli_abort("{.arg k} must be > 1, not {.val {k}}.")
+            }
             idx <- which(x != 0)
             cds <- index_to_coord(x,idx)
             kres <- kmeans(cds, centers=k, iter.max=200)
@@ -1128,6 +1072,13 @@ setMethod(f = "as.dense", signature = signature(x = "SparseNeuroVol"),
             DenseNeuroVol(arr, space(x))
           })
 
+#' @rdname as.dense-methods
+#' @description Identity method: returns a \code{DenseNeuroVol} (or subclass such
+#'   as \code{LogicalNeuroVol}) unchanged.
+#' @export
+setMethod(f = "as.dense", signature = signature(x = "DenseNeuroVol"),
+          def = function(x) x)
+
 
 
 
@@ -1141,6 +1092,7 @@ setMethod(f="linear_access", signature=signature(x = "SparseNeuroVol", i = "nume
 
 
 
+#' @rdname extract-methods
 #' @export
 setMethod(f="[", signature=signature(x = "SparseNeuroVol", i = "numeric", j = "numeric", drop="ANY"),
           def=function (x, i, j, k, ..., drop=TRUE) {
@@ -1161,21 +1113,34 @@ setMethod(f="[", signature=signature(x = "SparseNeuroVol", i = "numeric", j = "n
 
 
 
-#' plot a NeuroVol
+#' Plot a NeuroVol
+#'
+#' Display axial slices of a \code{\linkS4class{NeuroVol}} as a faceted
+#' montage.
+#'
+#' When a second volume \code{y} is supplied it is treated as an overlay
+#' (e.g.\ a statistical map) composited on top of \code{x} with
+#' adjustable transparency.  This delegates to \code{\link{plot_overlay}}.
 #'
 #' @name plot,NeuroVol-method
-#' @aliases plot,NeuroVol,ANY-method
+#' @aliases plot,NeuroVol,missing-method plot,NeuroVol,NeuroVol-method
 #' @rdname plot-methods
-#' @param x the object to display
-#' @param cmap a color map consisting of a vector of colors in hex format (e.g. \code{gray(n=255)})
-#' @param zlevels the series of slice indices to display.
-#' @param irange the intensity range indicating the low and high values of the color scale.
-#' @param thresh a 2-element vector indicating the lower and upper transparency thresholds.
-#' @param alpha the level of alpha transparency
-#' @param bgvol a background volume that serves as an image underlay (currently ignored).
-#' @param bgcmap a color map for backround layer consisting of a vector of colors in hex format (e.g. \code{gray(n=255)})
-#' @param legend Logical indicating whether to display the color legend. Defaults to TRUE.
-#' @export
+#' @param x the background volume to display.
+#' @param y optional overlay volume (same dimensions as \code{x}).
+#'   When supplied, the plot is rendered as a background + overlay composite.
+#' @param cmap palette name or hex-color vector for the background
+#'   (default \code{"grays"}).  See \code{\link{resolve_cmap}}.
+#' @param zlevels integer slice indices to display.
+#'   Default: 9 evenly-spaced slices (3 \eqn{\times}{x} 3 grid).
+#' @param irange numeric length-2 intensity range for the color scale.
+#' @param thresh a 2-element vector indicating the lower and upper
+#'   transparency thresholds.
+#' @param alpha opacity for the background layer (0--1).
+#' @param ov_cmap overlay palette name (default \code{"inferno"}).
+#' @param ov_alpha overlay opacity (default 0.5).
+#' @param ov_thresh overlay threshold; values with
+#'   \eqn{|v| < } \code{ov_thresh} become transparent (default 0).
+#' @param legend logical; show the colour bar?
 #' @importFrom graphics plot
 #' @examples
 #'
@@ -1184,60 +1149,65 @@ setMethod(f="[", signature=signature(x = "SparseNeuroVol", i = "numeric", j = "n
 #' \donttest{
 #' plot(slice)
 #' }
-setMethod("plot", signature=signature(x="NeuroVol"),
-          def=function(x,
-                       cmap=gray(seq(0,1,length.out=255)),
-                       zlevels=unique(round(seq(1, dim(x)[3], length.out=6))),
+#' @export
+setMethod("plot", signature=signature(x="NeuroVol", y="missing"),
+          def=function(x, y,
+                       cmap="grays",
+                       zlevels=unique(round(seq(1, dim(x)[3], length.out=9))),
                        irange=range(x, na.rm=TRUE),
                        thresh=c(0,0),
-                      alpha=1,
-                      bgvol=NULL,
-                      bgcmap=gray(seq(0,1,length.out=255)),
-                      legend=TRUE) {
+                       alpha=1,
+                       legend=TRUE) {
 
             if (!requireNamespace("ggplot2", quietly = TRUE)) {
               stop("Package \"ggplot2\" needed for this function to work. Please install it.",
                    call. = FALSE)
             }
 
-            if (!is.null(bgvol)) {
-              assert_that(all(dim(x) == dim(bgvol)))
-              assert_that(all(spacing(x) == spacing(bgvol)))
-            }
+            colors <- resolve_cmap(cmap)
 
-            # Create a data frame of all the slices specified in zlevels
             df1 <- do.call(rbind, purrr::map(zlevels, function(i) {
               imslice <- slice(x, zlevel = i, along = 3)
-              vals <- as.numeric(imslice)
+              df <- slice_df(imslice)
 
               if (diff(thresh) > 0) {
-                vals[vals >= thresh[1] & vals <= thresh[2]] <- NA
+                df$value[df$value >= thresh[1] & df$value <= thresh[2]] <- NA_real_
               }
-
-              cds <- index_to_coord(space(imslice), 1:length(imslice))
-              data.frame(x = cds[,1], y = cds[,2], z = i, value = vals)
+              df$z <- i
+              df
             }))
 
-            {y = value = NULL} # to appease R CMD check
+            {y_coord = value = NULL} # to appease R CMD check
 
             p <- ggplot2::ggplot(df1, ggplot2::aes(x = x, y = y, fill = value)) +
-              ggplot2::coord_fixed() +
               ggplot2::geom_raster(alpha = alpha) +
-              ggplot2::scale_fill_gradientn(colours = cmap,
+              ggplot2::scale_fill_gradientn(colours = colors,
                                            limits = irange,
-                                           guide = if (legend) "colourbar" else "none",
+                                           guide = if (legend) ggplot2::guide_colourbar(barheight = grid::unit(3, "cm")) else "none",
                                            na.value = "transparent") +
-              ggplot2::facet_wrap(~ z, labeller = ggplot2::labeller(z = function(z) paste("Slice:", z))) +
-              ggplot2::ggtitle("Brain Slices") +
-              ggplot2::theme_void() +
-              ggplot2::theme(
-                strip.background = ggplot2::element_blank(),
-                strip.text = ggplot2::element_text(face="bold", size=10),
-                plot.title = ggplot2::element_text(hjust = 0.5, face = "bold"),
-                plot.margin = grid::unit(c(0.5, 0.5, 0.5, 0.5), "cm")
-              )
+              ggplot2::facet_wrap(~ z, ncol = 3L,
+                                 labeller = ggplot2::labeller(
+                                   z = function(z) paste("z =", z))) +
+              coord_neuro_fixed() +
+              theme_neuro()
 
             p
+          })
+
+#' @rdname plot-methods
+#' @export
+setMethod("plot", signature=signature(x="NeuroVol", y="NeuroVol"),
+          def=function(x, y,
+                       cmap="grays",
+                       zlevels=unique(round(seq(1, dim(x)[3], length.out=9))),
+                       ov_cmap="inferno",
+                       ov_alpha=0.5,
+                       ov_thresh=0) {
+            plot_overlay(bgvol = x, overlay = y,
+                         zlevels = zlevels, along = 3L,
+                         bg_cmap = cmap, ov_cmap = ov_cmap,
+                         ov_alpha = ov_alpha, ov_thresh = ov_thresh,
+                         ncol = 3L)
           })
 
 #' @rdname mask-methods
@@ -1255,7 +1225,7 @@ setMethod("mask", "LogicalNeuroVol",
             # return a filled mask indicating all voxels are valid
             LogicalNeuroVol(array(TRUE, dim(x)), space(x))
           })
-#' @export
+# Coerce DenseNeuroVol to matrix.
 setAs(from="DenseNeuroVol", to="matrix", function(from) {
   arr <- from@.Data
   if (length(dim(arr)) != 3) {
