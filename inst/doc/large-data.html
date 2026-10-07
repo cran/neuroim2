@@ -1,0 +1,2414 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Large data</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+<link rel="stylesheet" href="albers-fonts.css" data-external="1" />
+<script>(function () {
+  var FAMILY_CLASSES = ["red", "lapis", "ochre", "teal", "green", "violet"];
+  var PRESET_CLASSES = ["homage", "interaction", "study", "structural", "adobe", "midnight"];
+  var STYLE_CLASSES = ["minimal", "assertive"];
+
+  function classes(prefix, values) {
+    return values.map(function (v) { return prefix + v; });
+  }
+
+  function applySingleClass(el, prefix, value, values) {
+    classes(prefix, values).forEach(function (c) { el.classList.remove(c); });
+    if (value) el.classList.add(prefix + value);
+  }
+
+  function inferBootstrapTheme() {
+    if (!document.body) return "light";
+    return document.body.classList.contains("preset-midnight") ? "dark" : "light";
+  }
+
+  function syncBootstrapTheme() {
+    var theme = inferBootstrapTheme();
+    document.documentElement.setAttribute("data-bs-theme", theme);
+    document.body.setAttribute("data-bs-theme", theme);
+    var nav = document.querySelector("nav.navbar");
+    if (nav) nav.setAttribute("data-bs-theme", theme);
+  }
+
+  function hashSeed(seed) {
+    var h = 2166136261;
+    for (var i = 0; i < seed.length; i++) {
+      h ^= seed.charCodeAt(i);
+      h += (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24);
+    }
+    return h >>> 0;
+  }
+
+  function seeded(seed) {
+    var state = hashSeed(seed || "albersdown");
+    return function () {
+      state = (1664525 * state + 1013904223) >>> 0;
+      return state / 4294967296;
+    };
+  }
+
+  function readPalette(el) {
+    var source = el || document.body;
+    var style = getComputedStyle(source);
+    var colors = ["--A900", "--A700", "--A500", "--A300"].map(function (k) {
+      var value = style.getPropertyValue(k).trim();
+      return value || "#666";
+    });
+    return colors;
+  }
+
+  function clearChildren(el) {
+    while (el.firstChild) el.removeChild(el.firstChild);
+  }
+
+  function svgEl(name, attrs) {
+    var el = document.createElementNS("http://www.w3.org/2000/svg", name);
+    Object.keys(attrs || {}).forEach(function (key) {
+      el.setAttribute(key, String(attrs[key]));
+    });
+    return el;
+  }
+
+  function renderComposition(container, idx) {
+    var seed = container.getAttribute("data-seed") || (window.location.pathname + ":" + idx);
+    var density = Number(container.getAttribute("data-density") || "6");
+    var rand = seeded(seed);
+    var palette = readPalette(container);
+    var w = 1600;
+    var h = 500;
+
+    clearChildren(container);
+    var svg = svgEl("svg", {
+      viewBox: "0 0 " + w + " " + h,
+      preserveAspectRatio: "xMidYMid slice",
+      role: "img",
+      "aria-label": "Albers composition"
+    });
+
+    svg.appendChild(svgEl("rect", { x: 0, y: 0, width: w, height: h, fill: "var(--surface)" }));
+
+    var blockCount = Math.max(4, Math.min(16, density * 2));
+    for (var i = 0; i < blockCount; i++) {
+      var side = 90 + rand() * 260;
+      var x = rand() * (w - side);
+      var y = rand() * (h - side);
+      var tone = palette[Math.floor(rand() * palette.length)];
+      svg.appendChild(svgEl("rect", {
+        x: x.toFixed(2),
+        y: y.toFixed(2),
+        width: side.toFixed(2),
+        height: side.toFixed(2),
+        fill: tone,
+        opacity: (0.17 + rand() * 0.72).toFixed(3)
+      }));
+    }
+
+    for (var j = 0; j < 3; j++) {
+      var cx = 80 + rand() * (w - 160);
+      var cy = 60 + rand() * (h - 120);
+      var radius = 26 + rand() * 66;
+      var color = palette[Math.floor(rand() * palette.length)];
+      svg.appendChild(svgEl("circle", {
+        cx: cx.toFixed(2),
+        cy: cy.toFixed(2),
+        r: radius.toFixed(2),
+        fill: color,
+        opacity: (0.16 + rand() * 0.44).toFixed(3)
+      }));
+    }
+
+    svg.appendChild(svgEl("rect", {
+      x: 0,
+      y: 0,
+      width: w,
+      height: h,
+      fill: "none",
+      stroke: "var(--border)",
+      "stroke-width": "4"
+    }));
+
+    container.appendChild(svg);
+  }
+
+  function renderAllCompositions() {
+    Array.from(document.querySelectorAll(".albers-composition")).forEach(function (el, idx) {
+      renderComposition(el, idx);
+    });
+  }
+
+  function initCopyButtons() {
+    var hasPkgdownCopy =
+      document.querySelector(".btn-copy-ex") ||
+      document.querySelector("[data-clipboard-copy]") ||
+      document.querySelector("div.sourceCode.hasCopyButton");
+
+    if (hasPkgdownCopy) return;
+
+    document.querySelectorAll("pre > code").forEach(function (code) {
+      var pre = code.parentElement;
+      if (!pre || pre.querySelector("button.copy-code")) return;
+      if (!code.textContent || !code.textContent.trim()) return;
+      var btn = document.createElement("button");
+      btn.className = "copy-code";
+      btn.type = "button";
+      btn.setAttribute("aria-label", "Copy code");
+      btn.textContent = "Copy";
+      btn.addEventListener("click", async function () {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          btn.textContent = "Copied";
+        } catch (e) {
+          try {
+            var r = document.createRange();
+            r.selectNodeContents(code);
+            var sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(r);
+            document.execCommand("copy");
+            sel.removeAllRanges();
+            btn.textContent = "Copied";
+          } catch (e2) {
+            btn.textContent = "Oops";
+          }
+        } finally {
+          setTimeout(function () { btn.textContent = "Copy"; }, 1400);
+        }
+      });
+      pre.appendChild(btn);
+    });
+  }
+
+  function initAnchors() {
+    Array.from(document.querySelectorAll("h2, h3")).forEach(function (h) {
+      if (!h.id || h.querySelector("a.anchor")) return;
+      var a = document.createElement("a");
+      a.href = "#" + h.id;
+      a.className = "anchor";
+      a.textContent = "—";
+      a.setAttribute("aria-label", "Link to this section");
+      a.setAttribute("title", "Link to this section");
+      h.appendChild(a);
+    });
+  }
+
+  function initDefaults() {
+    if (
+      document.body &&
+      !document.body.classList.contains("style-minimal") &&
+      !document.body.classList.contains("style-assertive")
+    ) {
+      document.body.classList.add("style-minimal");
+    }
+  }
+
+  function setSearchParam(key, value) {
+    try {
+      var url = new URL(window.location.href);
+      if (value === null || value === "") url.searchParams.delete(key);
+      else url.searchParams.set(key, value);
+      window.history.replaceState({}, "", url.toString());
+    } catch (e) {
+      // no-op
+    }
+  }
+
+  function updateLabSummary(root, state) {
+    var target = root.querySelector("[data-albers-lab-summary]");
+    if (!target) return;
+    target.textContent = [
+      "family=" + state.family,
+      "preset=" + state.preset,
+      "style=" + state.style,
+      "width=" + state.width + "ch"
+    ].join(" | ");
+  }
+
+  function applyLabState(root, state) {
+    applySingleClass(document.body, "palette-", state.family, FAMILY_CLASSES);
+    applySingleClass(document.body, "preset-", state.preset, PRESET_CLASSES);
+
+    classes("style-", STYLE_CLASSES).forEach(function (c) {
+      document.body.classList.remove(c);
+    });
+    if (state.style && state.style !== "balanced") {
+      document.body.classList.add("style-" + state.style);
+    }
+
+    document.documentElement.style.setProperty("--content", state.width + "ch");
+
+    syncBootstrapTheme();
+
+    setSearchParam("family", state.family);
+    setSearchParam("preset", state.preset);
+    setSearchParam("style", state.style);
+    setSearchParam("width", String(state.width));
+
+    updateLabSummary(root, state);
+    renderAllCompositions();
+  }
+
+  function watchThemeClasses() {
+    if (!document.body || typeof MutationObserver === "undefined") return;
+    var observer = new MutationObserver(function (muts) {
+      for (var i = 0; i < muts.length; i++) {
+        if (muts[i].attributeName === "class") {
+          syncBootstrapTheme();
+          renderAllCompositions();
+          break;
+        }
+      }
+    });
+    observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+  }
+
+  function initThemeLab() {
+    var root = document.querySelector("[data-albers-lab]");
+    if (!root) return;
+
+    var controls = {
+      family: root.querySelector("[data-albers-control='family']"),
+      preset: root.querySelector("[data-albers-control='preset']"),
+      style: root.querySelector("[data-albers-control='style']"),
+      width: root.querySelector("[data-albers-control='width']")
+    };
+
+    if (!controls.family || !controls.preset || !controls.style || !controls.width) return;
+
+    var params = new URLSearchParams(window.location.search);
+    var initial = {
+      family: params.get("family") || controls.family.value || "red",
+      preset: params.get("preset") || controls.preset.value || "study",
+      style: params.get("style") || controls.style.value || "minimal",
+      width: Number(params.get("width") || controls.width.value || 78)
+    };
+
+    controls.family.value = initial.family;
+    controls.preset.value = initial.preset;
+    controls.style.value = initial.style;
+    controls.width.value = String(initial.width);
+
+    applyLabState(root, initial);
+
+    Object.keys(controls).forEach(function (key) {
+      controls[key].addEventListener("change", function () {
+        applyLabState(root, {
+          family: controls.family.value,
+          preset: controls.preset.value,
+          style: controls.style.value,
+          width: Number(controls.width.value || "78")
+        });
+      });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    initDefaults();
+    initCopyButtons();
+    initAnchors();
+    initThemeLab();
+    watchThemeClasses();
+    syncBootstrapTheme();
+    renderAllCompositions();
+  });
+})();
+</script>
+<script>document.addEventListener('DOMContentLoaded',function(){document.body.classList.add('palette-red');});</script>
+<script>(function () {
+  var FAMILY_CLASSES = ["red", "lapis", "ochre", "teal", "green", "violet"];
+  var PRESET_CLASSES = ["homage", "interaction", "study", "structural", "adobe", "midnight"];
+  var STYLE_CLASSES = ["minimal", "assertive"];
+
+  function classes(prefix, values) {
+    return values.map(function (v) { return prefix + v; });
+  }
+
+  function applySingleClass(el, prefix, value, values) {
+    classes(prefix, values).forEach(function (c) { el.classList.remove(c); });
+    if (value) el.classList.add(prefix + value);
+  }
+
+  function inferBootstrapTheme() {
+    if (!document.body) return "light";
+    return document.body.classList.contains("preset-midnight") ? "dark" : "light";
+  }
+
+  function syncBootstrapTheme() {
+    var theme = inferBootstrapTheme();
+    document.documentElement.setAttribute("data-bs-theme", theme);
+    document.body.setAttribute("data-bs-theme", theme);
+    var nav = document.querySelector("nav.navbar");
+    if (nav) nav.setAttribute("data-bs-theme", theme);
+  }
+
+  function hashSeed(seed) {
+    var h = 2166136261;
+    for (var i = 0; i < seed.length; i++) {
+      h ^= seed.charCodeAt(i);
+      h += (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24);
+    }
+    return h >>> 0;
+  }
+
+  function seeded(seed) {
+    var state = hashSeed(seed || "albersdown");
+    return function () {
+      state = (1664525 * state + 1013904223) >>> 0;
+      return state / 4294967296;
+    };
+  }
+
+  function readPalette(el) {
+    var source = el || document.body;
+    var style = getComputedStyle(source);
+    var colors = ["--A900", "--A700", "--A500", "--A300"].map(function (k) {
+      var value = style.getPropertyValue(k).trim();
+      return value || "#666";
+    });
+    return colors;
+  }
+
+  function clearChildren(el) {
+    while (el.firstChild) el.removeChild(el.firstChild);
+  }
+
+  function svgEl(name, attrs) {
+    var el = document.createElementNS("http://www.w3.org/2000/svg", name);
+    Object.keys(attrs || {}).forEach(function (key) {
+      el.setAttribute(key, String(attrs[key]));
+    });
+    return el;
+  }
+
+  function renderComposition(container, idx) {
+    var seed = container.getAttribute("data-seed") || (window.location.pathname + ":" + idx);
+    var density = Number(container.getAttribute("data-density") || "6");
+    var rand = seeded(seed);
+    var palette = readPalette(container);
+    var w = 1600;
+    var h = 500;
+
+    clearChildren(container);
+    var svg = svgEl("svg", {
+      viewBox: "0 0 " + w + " " + h,
+      preserveAspectRatio: "xMidYMid slice",
+      role: "img",
+      "aria-label": "Albers composition"
+    });
+
+    svg.appendChild(svgEl("rect", { x: 0, y: 0, width: w, height: h, fill: "var(--surface)" }));
+
+    var blockCount = Math.max(4, Math.min(16, density * 2));
+    for (var i = 0; i < blockCount; i++) {
+      var side = 90 + rand() * 260;
+      var x = rand() * (w - side);
+      var y = rand() * (h - side);
+      var tone = palette[Math.floor(rand() * palette.length)];
+      svg.appendChild(svgEl("rect", {
+        x: x.toFixed(2),
+        y: y.toFixed(2),
+        width: side.toFixed(2),
+        height: side.toFixed(2),
+        fill: tone,
+        opacity: (0.17 + rand() * 0.72).toFixed(3)
+      }));
+    }
+
+    for (var j = 0; j < 3; j++) {
+      var cx = 80 + rand() * (w - 160);
+      var cy = 60 + rand() * (h - 120);
+      var radius = 26 + rand() * 66;
+      var color = palette[Math.floor(rand() * palette.length)];
+      svg.appendChild(svgEl("circle", {
+        cx: cx.toFixed(2),
+        cy: cy.toFixed(2),
+        r: radius.toFixed(2),
+        fill: color,
+        opacity: (0.16 + rand() * 0.44).toFixed(3)
+      }));
+    }
+
+    svg.appendChild(svgEl("rect", {
+      x: 0,
+      y: 0,
+      width: w,
+      height: h,
+      fill: "none",
+      stroke: "var(--border)",
+      "stroke-width": "4"
+    }));
+
+    container.appendChild(svg);
+  }
+
+  function renderAllCompositions() {
+    Array.from(document.querySelectorAll(".albers-composition")).forEach(function (el, idx) {
+      renderComposition(el, idx);
+    });
+  }
+
+  function initCopyButtons() {
+    var hasPkgdownCopy =
+      document.querySelector(".btn-copy-ex") ||
+      document.querySelector("[data-clipboard-copy]") ||
+      document.querySelector("div.sourceCode.hasCopyButton");
+
+    if (hasPkgdownCopy) return;
+
+    document.querySelectorAll("pre > code").forEach(function (code) {
+      var pre = code.parentElement;
+      if (!pre || pre.querySelector("button.copy-code")) return;
+      if (!code.textContent || !code.textContent.trim()) return;
+      var btn = document.createElement("button");
+      btn.className = "copy-code";
+      btn.type = "button";
+      btn.setAttribute("aria-label", "Copy code");
+      btn.textContent = "Copy";
+      btn.addEventListener("click", async function () {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          btn.textContent = "Copied";
+        } catch (e) {
+          try {
+            var r = document.createRange();
+            r.selectNodeContents(code);
+            var sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(r);
+            document.execCommand("copy");
+            sel.removeAllRanges();
+            btn.textContent = "Copied";
+          } catch (e2) {
+            btn.textContent = "Oops";
+          }
+        } finally {
+          setTimeout(function () { btn.textContent = "Copy"; }, 1400);
+        }
+      });
+      pre.appendChild(btn);
+    });
+  }
+
+  function initAnchors() {
+    Array.from(document.querySelectorAll("h2, h3")).forEach(function (h) {
+      if (!h.id || h.querySelector("a.anchor")) return;
+      var a = document.createElement("a");
+      a.href = "#" + h.id;
+      a.className = "anchor";
+      a.textContent = "—";
+      a.setAttribute("aria-label", "Link to this section");
+      a.setAttribute("title", "Link to this section");
+      h.appendChild(a);
+    });
+  }
+
+  function initDefaults() {
+    if (
+      document.body &&
+      !document.body.classList.contains("style-minimal") &&
+      !document.body.classList.contains("style-assertive")
+    ) {
+      document.body.classList.add("style-minimal");
+    }
+  }
+
+  function setSearchParam(key, value) {
+    try {
+      var url = new URL(window.location.href);
+      if (value === null || value === "") url.searchParams.delete(key);
+      else url.searchParams.set(key, value);
+      window.history.replaceState({}, "", url.toString());
+    } catch (e) {
+      // no-op
+    }
+  }
+
+  function updateLabSummary(root, state) {
+    var target = root.querySelector("[data-albers-lab-summary]");
+    if (!target) return;
+    target.textContent = [
+      "family=" + state.family,
+      "preset=" + state.preset,
+      "style=" + state.style,
+      "width=" + state.width + "ch"
+    ].join(" | ");
+  }
+
+  function applyLabState(root, state) {
+    applySingleClass(document.body, "palette-", state.family, FAMILY_CLASSES);
+    applySingleClass(document.body, "preset-", state.preset, PRESET_CLASSES);
+
+    classes("style-", STYLE_CLASSES).forEach(function (c) {
+      document.body.classList.remove(c);
+    });
+    if (state.style && state.style !== "balanced") {
+      document.body.classList.add("style-" + state.style);
+    }
+
+    document.documentElement.style.setProperty("--content", state.width + "ch");
+
+    syncBootstrapTheme();
+
+    setSearchParam("family", state.family);
+    setSearchParam("preset", state.preset);
+    setSearchParam("style", state.style);
+    setSearchParam("width", String(state.width));
+
+    updateLabSummary(root, state);
+    renderAllCompositions();
+  }
+
+  function watchThemeClasses() {
+    if (!document.body || typeof MutationObserver === "undefined") return;
+    var observer = new MutationObserver(function (muts) {
+      for (var i = 0; i < muts.length; i++) {
+        if (muts[i].attributeName === "class") {
+          syncBootstrapTheme();
+          renderAllCompositions();
+          break;
+        }
+      }
+    });
+    observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+  }
+
+  function initThemeLab() {
+    var root = document.querySelector("[data-albers-lab]");
+    if (!root) return;
+
+    var controls = {
+      family: root.querySelector("[data-albers-control='family']"),
+      preset: root.querySelector("[data-albers-control='preset']"),
+      style: root.querySelector("[data-albers-control='style']"),
+      width: root.querySelector("[data-albers-control='width']")
+    };
+
+    if (!controls.family || !controls.preset || !controls.style || !controls.width) return;
+
+    var params = new URLSearchParams(window.location.search);
+    var initial = {
+      family: params.get("family") || controls.family.value || "red",
+      preset: params.get("preset") || controls.preset.value || "study",
+      style: params.get("style") || controls.style.value || "minimal",
+      width: Number(params.get("width") || controls.width.value || 78)
+    };
+
+    controls.family.value = initial.family;
+    controls.preset.value = initial.preset;
+    controls.style.value = initial.style;
+    controls.width.value = String(initial.width);
+
+    applyLabState(root, initial);
+
+    Object.keys(controls).forEach(function (key) {
+      controls[key].addEventListener("change", function () {
+        applyLabState(root, {
+          family: controls.family.value,
+          preset: controls.preset.value,
+          style: controls.style.value,
+          width: Number(controls.width.value || "78")
+        });
+      });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    initDefaults();
+    initCopyButtons();
+    initAnchors();
+    initThemeLab();
+    watchThemeClasses();
+    syncBootstrapTheme();
+    renderAllCompositions();
+  });
+})();
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">
+:root {
+
+--ink: #1f1b16;
+--bg: #efe7d6;
+--surface: #fbf7ee;
+--surface-strong: #f4eedf;
+--muted: #7a7264;
+--border: #e0d6c0;
+--code-bg: #fbf7ee;
+--code-fg: #332f28;
+--code-border: #e0d6c0;
+--tok-fun: #1f6f6b;
+--tok-str: #8e2d1c;
+--tok-num: #d98324;
+--tok-com: #9a9078;
+--tok-kw: #c24a2e;
+--shadow-soft: 0 1px 3px rgba(9, 11, 15, 0.045);
+--shadow-card: 0 1px 5px rgba(9, 11, 15, 0.055);
+--content: 78ch;
+--anchor-offset: 76px;
+
+--vig-toc-width: 15rem;
+--vig-gap: clamp(1.5rem, 2.4vw, 2.6rem);
+--vig-pad-block: clamp(1.75rem, 3vw, 3rem);
+--vig-pad-inline: clamp(1.2rem, 3vw, 2.6rem);
+--font-body: "Newsreader", Georgia, "Times New Roman", serif;
+--font-display: "Familjen Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+--font-ui: "Space Grotesk", system-ui, sans-serif;
+--font-mono: "Spline Sans Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+--heading-weight: 700;
+--module: 4px;
+--space-1: 0.25rem;
+--space-2: 0.5rem;
+--space-3: 0.75rem;
+--space-4: 1rem;
+--space-5: 1.5rem;
+--space-6: 2rem;
+--rule-thin: 1px;
+--rule-strong: 2px;
+--ribbon-opacity: 0.62;
+--nav-dash-weight: 650;
+--dash-weight: 600;
+--dash-opacity: 0.82;
+--subdash-opacity: 0.76;
+--overview-dash-weight: 620;
+--overview-dash-opacity: 0.86;
+--hr-opacity: 0.42;
+--table-divider-alpha: 72%;
+--table-hover-alpha: 70%;
+
+--A900: #c22b23;
+--A700: #dc3925;
+--A500: #e44926;
+--A300: #e35b2d;
+--accent-ink-light: var(--A900);
+--accent-ink-dark: var(--A300);
+--accent-ink: var(--accent-ink-light);
+--accent: var(--A500);
+--accent-strong: var(--A700);
+--accent-hover: #a9351f;
+--accent-tint: rgba(228, 73, 38, 0.09);
+--accent-band: rgba(228, 73, 38, 0.14);
+
+--sq-size: 0.46em;
+--sq-ring: 0.12em;
+--sq-outer: #e0a100;
+}
+
+body {
+--accent-ink: var(--A900);
+--accent: var(--A500);
+--accent-strong: var(--A700);
+--sq-core: var(--A900);
+--sq-mid: var(--A500);
+}
+
+
+.style-minimal {
+--rule-strong: 1px;
+--ribbon-opacity: 0.46;
+
+--sq-size: 0.4em;
+--sq-ring: 0.1em;
+--nav-dash-weight: 600;
+--subdash-opacity: 0.64;
+--overview-dash-weight: 560;
+--overview-dash-opacity: 0.74;
+--hr-opacity: 0.3;
+--table-divider-alpha: 58%;
+--table-hover-alpha: 52%;
+}
+.style-assertive {
+--rule-strong: 3px;
+--ribbon-opacity: 0.82;
+
+--sq-size: 0.56em;
+--sq-ring: 0.17em;
+--nav-dash-weight: 720;
+--subdash-opacity: 0.9;
+--overview-dash-weight: 680;
+--overview-dash-opacity: 0.94;
+--hr-opacity: 0.62;
+--table-divider-alpha: 90%;
+--table-hover-alpha: 92%;
+}
+
+
+.palette-red {
+--A900: #C22B23;
+--A700: #DC3925;
+--A500: #E44926;
+--A300: #E35B2D;
+--accent-hover: #A9351F;
+--accent-tint: rgba(228, 73, 38, 0.09);
+--accent-band: rgba(228, 73, 38, 0.14);
+}
+.palette-lapis {
+--A900: #1B2A74;
+--A700: #20399C;
+--A500: #2C4FCC;
+--A300: #4968D6;
+--accent-hover: #1A377F;
+--accent-tint: rgba(44, 79, 204, 0.10);
+--accent-band: rgba(44, 79, 204, 0.15);
+}
+.palette-ochre {
+--A900: #6F5200;
+--A700: #8B6700;
+--A500: #B48900;
+--A300: #D7A700;
+--accent-hover: #7A5C00;
+--accent-tint: rgba(180, 137, 0, 0.10);
+--accent-band: rgba(180, 137, 0, 0.16);
+}
+.palette-teal {
+--A900: #0D4A4A;
+--A700: #0F5E5E;
+--A500: #127373;
+--A300: #2F8C8C;
+--accent-hover: #0F6060;
+--accent-tint: rgba(18, 115, 115, 0.10);
+--accent-band: rgba(18, 115, 115, 0.15);
+}
+.palette-green {
+--A900: #1B5E20;
+--A700: #2E7D32;
+--A500: #388E3C;
+--A300: #66BB6A;
+--accent-hover: #2E7D32;
+--accent-tint: rgba(56, 142, 60, 0.10);
+--accent-band: rgba(56, 142, 60, 0.15);
+}
+.palette-violet {
+--A900: #4A148C;
+--A700: #6A1B9A;
+--A500: #8E24AA;
+--A300: #BA68C8;
+--accent-ink-dark: #D59AE7;
+--accent-hover: #71208D;
+--accent-tint: rgba(142, 36, 170, 0.11);
+--accent-band: rgba(142, 36, 170, 0.16);
+}
+
+
+
+
+.preset-homage {
+--bg: #efe7d6;
+--surface: #fbf7ee;
+--surface-strong: #f4eedf;
+--ink: #1f1b16;
+--muted: #7a7264;
+--border: #e0d6c0;
+--code-bg: #fbf7ee;
+--code-fg: #332f28;
+--code-border: #e0d6c0;
+--tok-fun: #1f6f6b;
+--tok-str: #8e2d1c;
+--tok-num: #d98324;
+--tok-com: #9a9078;
+--tok-kw: #c24a2e;
+--font-body: "Newsreader", Georgia, "Times New Roman", serif;
+--font-display: "Familjen Grotesk", system-ui, sans-serif;
+--font-ui: "Space Grotesk", system-ui, sans-serif;
+--font-mono: "Spline Sans Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+--sq-outer: #e0a100;
+--heading-weight: 700;
+}
+
+.preset-interaction {
+--bg: #f1f2f4;
+--surface: #ffffff;
+--surface-strong: #f7f8fa;
+--ink: #15181e;
+--muted: #7b8494;
+--border: #e3e6eb;
+--code-bg: #15181e;
+--code-fg: #c9d0dc;
+--code-border: #15181e;
+--tok-fun: #7fa6f0;
+--tok-str: #e9904f;
+--tok-num: #9ad0a0;
+--tok-com: #6b7484;
+--tok-kw: #f4b43c;
+--font-body: "Hanken Grotesk", system-ui, sans-serif;
+--font-display: "Space Grotesk", system-ui, sans-serif;
+--font-ui: "Hanken Grotesk", system-ui, sans-serif;
+--font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+--sq-outer: var(--A300);
+--heading-weight: 600;
+}
+
+.preset-study {
+--bg: #f7f9fb;
+--surface: #ffffff;
+--surface-strong: #fbfcfd;
+--ink: #17181a;
+--muted: #68717d;
+--border: #dde2e8;
+--code-bg: #f1f4f8;
+--font-display: "Avenir Next", "Gill Sans", "Trebuchet MS", system-ui, sans-serif;
+--heading-weight: 730;
+}
+
+.preset-structural {
+--bg: #e6e9ed;
+--surface: #f1f3f6;
+--surface-strong: #eceff2;
+--ink: #101214;
+--muted: #4b5360;
+--border: #c1c8d0;
+--code-bg: #e0e5ea;
+--shadow-soft: none;
+--shadow-card: none;
+--font-display: "Franklin Gothic Medium", "Avenir Next", "Gill Sans", sans-serif;
+--heading-weight: 760;
+}
+
+.preset-adobe {
+--bg: #ece9e7;
+--surface: #f3f1ef;
+--surface-strong: #efedeb;
+--ink: #1f1c19;
+--muted: #66615d;
+--border: #ccc7c3;
+--code-bg: #e3dfdc;
+--shadow-soft: 0 2px 7px rgba(0, 0, 0, 0.04);
+--shadow-card: 0 2px 9px rgba(0, 0, 0, 0.05);
+--font-display: "Optima", "Avenir Next", "Gill Sans", sans-serif;
+--heading-weight: 720;
+}
+
+.preset-midnight {
+--bg: #0d1117;
+--surface: #151b24;
+--surface-strong: #1a212d;
+--ink: #e8e6e1;
+--muted: #b2bac7;
+--border: #2c3342;
+--code-bg: #0f1520;
+--shadow-soft: 0 6px 20px rgba(0, 0, 0, 0.4);
+--shadow-card: 0 6px 24px rgba(0, 0, 0, 0.45);
+--font-display: "Avenir Next", "Gill Sans", "Trebuchet MS", sans-serif;
+--heading-weight: 740;
+--accent-ink: var(--accent-ink-dark);
+}
+
+
+@media (prefers-color-scheme: dark) {
+:root {
+--ink: #ece8de;
+--bg: #111315;
+--surface: #171a1e;
+--surface-strong: #1c2025;
+--muted: #a7aeb8;
+--border: #313844;
+--code-bg: #181d24;
+--shadow-soft: 0 6px 20px rgba(0, 0, 0, 0.35);
+--shadow-card: 0 6px 24px rgba(0, 0, 0, 0.4);
+--accent-ink: var(--accent-ink-dark);
+--accent-hover: #f2b2a7;
+--accent-tint: rgba(228, 73, 38, 0.2);
+--accent-band: rgba(228, 73, 38, 0.25);
+}
+}
+[data-bs-theme="dark"] {
+--ink: #ece8de;
+--bg: #111315;
+--surface: #171a1e;
+--surface-strong: #1c2025;
+--muted: #a7aeb8;
+--border: #313844;
+--code-bg: #181d24;
+--shadow-soft: 0 6px 20px rgba(0, 0, 0, 0.35);
+--shadow-card: 0 6px 24px rgba(0, 0, 0, 0.4);
+--accent-ink: var(--accent-ink-dark);
+--accent-hover: #f2b2a7;
+--accent-tint: rgba(228, 73, 38, 0.2);
+--accent-band: rgba(228, 73, 38, 0.25);
+}
+
+body[data-bs-theme="dark"].palette-red,
+[data-bs-theme="dark"] body.palette-red {
+--accent-ink: #FFB8A9;
+--accent-hover: #FFD2C7;
+--accent-tint: rgba(228, 73, 38, 0.24);
+--accent-band: rgba(228, 73, 38, 0.30);
+}
+body[data-bs-theme="dark"].palette-lapis,
+[data-bs-theme="dark"] body.palette-lapis {
+--accent-ink: #AAB9FF;
+--accent-hover: #C6D0FF;
+--accent-tint: rgba(73, 104, 214, 0.24);
+--accent-band: rgba(73, 104, 214, 0.30);
+}
+body[data-bs-theme="dark"].palette-ochre,
+[data-bs-theme="dark"] body.palette-ochre {
+--accent-ink: #FFD46E;
+--accent-hover: #FFE4A7;
+--accent-tint: rgba(180, 137, 0, 0.24);
+--accent-band: rgba(180, 137, 0, 0.31);
+}
+body[data-bs-theme="dark"].palette-teal,
+[data-bs-theme="dark"] body.palette-teal {
+--accent-ink: #9BDCD9;
+--accent-hover: #B8E8E5;
+--accent-tint: rgba(47, 140, 140, 0.24);
+--accent-band: rgba(47, 140, 140, 0.30);
+}
+body[data-bs-theme="dark"].palette-green,
+[data-bs-theme="dark"] body.palette-green {
+--accent-ink: #AFE7B1;
+--accent-hover: #CAF0CB;
+--accent-tint: rgba(102, 187, 106, 0.24);
+--accent-band: rgba(102, 187, 106, 0.30);
+}
+body[data-bs-theme="dark"].palette-violet,
+[data-bs-theme="dark"] body.palette-violet {
+--accent-ink: #DFB3EC;
+--accent-hover: #ECCFF4;
+--accent-tint: rgba(186, 104, 200, 0.24);
+--accent-band: rgba(186, 104, 200, 0.31);
+}
+@media (prefers-color-scheme: dark) {
+body.palette-red {
+--accent-ink: #FFB8A9;
+--accent-hover: #FFD2C7;
+--accent-tint: rgba(228, 73, 38, 0.24);
+--accent-band: rgba(228, 73, 38, 0.30);
+}
+body.palette-lapis {
+--accent-ink: #AAB9FF;
+--accent-hover: #C6D0FF;
+--accent-tint: rgba(73, 104, 214, 0.24);
+--accent-band: rgba(73, 104, 214, 0.30);
+}
+body.palette-ochre {
+--accent-ink: #FFD46E;
+--accent-hover: #FFE4A7;
+--accent-tint: rgba(180, 137, 0, 0.24);
+--accent-band: rgba(180, 137, 0, 0.31);
+}
+body.palette-teal {
+--accent-ink: #9BDCD9;
+--accent-hover: #B8E8E5;
+--accent-tint: rgba(47, 140, 140, 0.24);
+--accent-band: rgba(47, 140, 140, 0.30);
+}
+body.palette-green {
+--accent-ink: #AFE7B1;
+--accent-hover: #CAF0CB;
+--accent-tint: rgba(102, 187, 106, 0.24);
+--accent-band: rgba(102, 187, 106, 0.30);
+}
+body.palette-violet {
+--accent-ink: #DFB3EC;
+--accent-hover: #ECCFF4;
+--accent-tint: rgba(186, 104, 200, 0.24);
+--accent-band: rgba(186, 104, 200, 0.31);
+}
+}
+
+
+:root { scrollbar-gutter: stable both-edges; }
+html,
+body {
+background-color: var(--bg);
+color: var(--ink);
+font-family: var(--font-body);
+font-size: 17.5px;
+line-height: 1.58;
+letter-spacing: 0.01em;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+-moz-osx-font-smoothing: grayscale;
+}
+
+html:has(body.preset-interaction) { --bg: #f1f2f4; }
+html:has(body.preset-study) { --bg: #f7f9fb; }
+html:has(body.preset-structural) { --bg: #e6e9ed; }
+html:has(body.preset-adobe) { --bg: #ece9e7; }
+html:has(body.preset-midnight) { --bg: #0d1117; }
+
+.navbar .nav-link,
+.navbar .navbar-brand,
+.nav-item .nav-link,
+.btn,
+.form-control,
+input[type="search"],
+button.copy-code,
+pre,
+table,
+blockquote,
+.callout,
+.theme-lab__panel,
+.theme-lab__preview,
+.albers-chip,
+#toc > .nav a.nav-link,
+aside,
+.dropdown-menu,
+.popover,
+.page-content,
+.article,
+.reference,
+.template-home,
+.page-header {
+border-radius: 0 !important;
+}
+main,
+.content,
+.page-content,
+.vignette,
+.contents {
+max-width: var(--content);
+margin-inline: auto;
+padding-inline: clamp(16px, 2.4vw, 34px);
+}
+
+body.albers-vignette,
+body:has(> #TOC) {
+box-sizing: border-box;
+max-width: calc(var(--content) + 2 * var(--vig-pad-inline));
+margin-inline: auto;
+padding: var(--vig-pad-block) var(--vig-pad-inline);
+background: var(--surface);
+border: var(--rule-thin) solid var(--border);
+box-shadow: var(--shadow-soft);
+position: relative;
+}
+
+body.albers-vignette::before,
+body:has(> #TOC)::before {
+content: "";
+position: absolute;
+inset-block: 0;
+inset-inline-start: 0;
+width: var(--rule-strong);
+background: var(--A500);
+opacity: var(--ribbon-opacity);
+pointer-events: none;
+}
+body.albers-vignette > h1.title,
+body:has(> #TOC) > h1.title {
+margin-top: 0;
+}
+
+body.albers-vignette > #TOC,
+body:has(> #TOC) > #TOC {
+background: var(--surface-strong);
+border: var(--rule-thin) solid var(--border);
+border-left: var(--rule-strong) solid var(--A500);
+padding: var(--space-4) var(--space-4) var(--space-4) var(--space-5);
+margin-block: var(--space-5) var(--space-6);
+font-size: 0.92em;
+line-height: 1.4;
+}
+body.albers-vignette > #TOC ul,
+body:has(> #TOC) > #TOC ul {
+list-style: none;
+margin: 0;
+padding-left: 0;
+}
+body.albers-vignette > #TOC ul ul,
+body:has(> #TOC) > #TOC ul ul {
+padding-left: 0.95em;
+margin-top: 0.18rem;
+}
+body.albers-vignette > #TOC li,
+body:has(> #TOC) > #TOC li {
+position: relative;
+margin: 0.2rem 0;
+padding-left: 0.95em;
+}
+body.albers-vignette > #TOC li::before,
+body:has(> #TOC) > #TOC li::before {
+content: "–";
+position: absolute;
+left: 0;
+top: 0;
+color: var(--A500);
+opacity: var(--subdash-opacity);
+}
+body.albers-vignette > #TOC a,
+body:has(> #TOC) > #TOC a {
+color: var(--muted) !important;
+text-decoration: none !important;
+border-bottom: none !important;
+}
+body.albers-vignette > #TOC a:hover,
+body.albers-vignette > #TOC a:focus-visible,
+body:has(> #TOC) > #TOC a:hover,
+body:has(> #TOC) > #TOC a:focus-visible {
+color: var(--accent-ink) !important;
+}
+
+@media (min-width: 1080px) {
+body.albers-vignette,
+body:has(> #TOC) {
+max-width: calc(
+var(--content) + var(--vig-toc-width) + var(--vig-gap) +
+2 * var(--vig-pad-inline)
+);
+display: grid;
+grid-template-columns: [toc] var(--vig-toc-width) [main] minmax(0, 1fr);
+column-gap: var(--vig-gap);
+align-items: start;
+}
+body.albers-vignette > *,
+body:has(> #TOC) > * {
+grid-column: main;
+min-width: 0;
+}
+body.albers-vignette > h1.title,
+body:has(> #TOC) > h1.title {
+grid-column: toc / -1;
+}
+body.albers-vignette > #TOC,
+body:has(> #TOC) > #TOC {
+grid-column: toc;
+grid-row: 2 / span 200;
+align-self: start;
+position: sticky;
+top: var(--vig-pad-block);
+max-height: calc(100vh - 2 * var(--vig-pad-block));
+overflow-y: auto;
+margin-block: 0;
+}
+}
+
+@media (max-width: 620px) {
+body.albers-vignette,
+body:has(> #TOC) {
+border: none;
+box-shadow: none;
+padding-inline: 18px;
+}
+body.albers-vignette::before,
+body:has(> #TOC)::before {
+display: none;
+}
+}
+
+.page-content,
+.article,
+.reference,
+.template-home {
+position: relative;
+background: var(--surface);
+border: var(--rule-thin) solid var(--border);
+box-shadow: var(--shadow-soft);
+}
+.page-content::before,
+.article::before,
+.reference::before,
+.template-home::before {
+content: "";
+position: absolute;
+top: calc(-1 * var(--rule-thin));
+bottom: calc(-1 * var(--rule-thin));
+left: calc(-1 * var(--rule-thin));
+width: var(--rule-strong);
+background: var(--A500);
+opacity: var(--ribbon-opacity);
+pointer-events: none;
+}
+.page-header,
+.template-home .page-header {
+background: var(--surface-strong);
+border-top: var(--rule-thin) solid var(--border);
+border-bottom: var(--rule-thin) solid var(--border);
+}
+.navbar {
+background: var(--surface-strong) !important;
+border-top: var(--rule-strong) solid var(--A500);
+border-bottom: var(--rule-thin) solid var(--border);
+backdrop-filter: none;
+box-shadow: none;
+}
+.navbar .navbar-brand,
+.navbar .nav-link {
+color: var(--ink) !important;
+font-weight: 650;
+letter-spacing: 0.045em;
+text-transform: uppercase;
+font-size: 0.85em;
+text-decoration: none !important;
+}
+.navbar .navbar-brand {
+font-weight: 730;
+letter-spacing: 0.055em;
+}
+.navbar .nav-link {
+border-bottom: var(--rule-thin) solid transparent;
+padding-bottom: 0.18rem;
+}
+.navbar .nav-link:hover,
+.navbar .nav-link:focus-visible {
+border-bottom-color: var(--A500);
+}
+.navbar .nav-link.active,
+.navbar .active > a {
+border-bottom-color: var(--A500);
+}
+.navbar .nav-link.active::after,
+.navbar .active > a::after {
+content: " —";
+margin-left: var(--space-1);
+color: var(--A500);
+font-weight: var(--nav-dash-weight);
+}
+.sidebar,
+.toc {
+background: var(--surface);
+border: var(--rule-thin) solid var(--border);
+}
+
+p { margin-block: 0 1.02rem; }
+h1,
+h2,
+h3 {
+font-family: var(--font-display);
+color: var(--ink);
+line-height: 1.18;
+margin-top: var(--space-6);
+margin-bottom: 0.65rem;
+}
+h1 {
+font-size: clamp(2.2rem, 4vw, 3rem);
+letter-spacing: -0.022em;
+text-wrap: balance;
+font-weight: calc(var(--heading-weight) + 40);
+}
+
+h2 {
+font-family: var(--font-ui);
+font-size: 1.04rem;
+letter-spacing: 0.1em;
+text-transform: uppercase;
+font-weight: 700;
+}
+h3 {
+font-family: var(--font-ui);
+font-size: 0.86rem;
+letter-spacing: 0.12em;
+font-weight: 700;
+text-transform: uppercase;
+color: var(--muted);
+}
+h2,
+h3 {
+position: relative;
+display: flex;
+align-items: center;
+gap: 0.7em;
+padding-right: 1.45em;
+scroll-margin-top: var(--anchor-offset);
+}
+
+h2::before,
+h3::before {
+content: "";
+flex: none;
+margin-left: var(--sq-ring);
+width: var(--sq-size);
+height: var(--sq-size);
+background: var(--sq-core);
+box-shadow:
+0 0 0 var(--sq-ring) var(--sq-mid),
+0 0 0 calc(2 * var(--sq-ring)) var(--sq-outer);
+}
+
+a,
+a:visited {
+color: var(--accent-ink) !important;
+text-decoration: underline;
+text-decoration-thickness: 0.09em;
+text-underline-offset: 0.14em;
+text-decoration-skip-ink: auto;
+transition: color 0.15s ease;
+}
+a:hover {
+color: var(--accent-hover) !important;
+}
+a:focus-visible,
+button.copy-code:focus-visible,
+.anchor:focus-visible {
+outline: 2px solid var(--accent-ink);
+outline-offset: 2px;
+box-shadow: 0 0 0 3px var(--accent-tint);
+}
+a:focus { outline: none; }
+
+code,
+pre,
+kbd,
+samp {
+font-family: var(--font-mono);
+font-size: 0.95em;
+line-height: 1.52;
+}
+pre {
+background: var(--code-bg);
+border: var(--rule-thin) solid var(--border);
+border-left: var(--rule-strong) solid var(--A500);
+box-shadow: none;
+padding: var(--space-5) var(--space-4);
+margin-block: 1.35rem;
+overflow: auto;
+position: relative;
+tab-size: 2;
+-moz-tab-size: 2;
+}
+
+pre,
+.sourceCode pre {
+color: var(--code-fg);
+}
+[data-bs-theme="dark"] pre,
+[data-bs-theme="dark"] code {
+background-color: var(--code-bg);
+}
+pre code {
+background: transparent;
+border: none;
+padding: 0;
+word-break: normal;
+overflow-wrap: normal;
+color: var(--code-fg);
+}
+button.copy-code {
+position: absolute;
+top: 8px;
+right: 8px;
+border: var(--rule-thin) solid var(--A500);
+background: var(--surface);
+color: var(--accent-ink);
+padding: 4px 8px;
+font: 650 11px/1 var(--font-display);
+letter-spacing: 0.06em;
+text-transform: uppercase;
+cursor: pointer;
+}
+button.copy-code:hover {
+background: var(--accent-tint);
+}
+button.copy-code:active {
+transform: translateY(1px);
+}
+
+:not(pre) > code {
+background: var(--surface-strong);
+border: var(--rule-thin) solid var(--border);
+color: var(--accent-ink);
+padding: 0.12em 0.36em;
+font-size: 0.86em;
+}
+
+
+.sourceCode .va,
+.sourceCode .op,
+.sourceCode .pp,
+.sourceCode .ot,
+.sourceCode .sc {
+color: var(--code-fg);
+}
+pre code .kw,
+.sourceCode .kw,
+.hljs-keyword {
+color: var(--tok-kw);
+font-weight: 650;
+}
+pre code .fu,
+.sourceCode .fu,
+.hljs-title,
+.hljs-function {
+color: var(--tok-fun);
+}
+pre code .st,
+.sourceCode .st,
+.hljs-string {
+color: var(--tok-str);
+}
+pre code .co,
+.sourceCode .co,
+.hljs-comment {
+color: var(--tok-com);
+font-style: italic;
+}
+pre code .cn,
+.sourceCode .dv,
+.sourceCode .fl,
+.sourceCode .bn,
+.sourceCode .cn,
+.hljs-number,
+.hljs-literal {
+color: var(--tok-num);
+}
+
+pre code a,
+pre code a:visited,
+div.sourceCode a,
+div.sourceCode a:visited {
+color: var(--tok-fun) !important;
+text-decoration: none;
+}
+pre code a:hover,
+div.sourceCode a:hover {
+text-decoration: underline;
+}
+
+table {
+width: 100%;
+border-collapse: collapse;
+font-variant-numeric: tabular-nums;
+border: var(--rule-thin) solid var(--border);
+}
+th,
+td {
+border-bottom: var(--rule-thin) solid var(--border);
+padding: 10px 9px;
+}
+th + th,
+td + td {
+border-left: var(--rule-thin) solid color-mix(in srgb, var(--border) var(--table-divider-alpha), transparent);
+}
+thead th {
+background: var(--surface-strong);
+border-bottom: var(--rule-strong) solid var(--A500);
+font-weight: 700;
+text-transform: uppercase;
+font-size: 0.84em;
+letter-spacing: 0.06em;
+text-align: left;
+}
+tbody tr:nth-child(odd) {
+background: var(--accent-tint);
+}
+tbody tr:hover {
+background: color-mix(in srgb, var(--accent-band) var(--table-hover-alpha), transparent);
+}
+caption {
+caption-side: bottom;
+color: var(--muted);
+padding-top: 0.7rem;
+font-size: 0.94em;
+}
+
+figure {
+margin-block: 1.2rem 1.6rem;
+padding: 0.78rem 0.82rem;
+border: var(--rule-thin) solid var(--border);
+background: var(--surface);
+}
+figure::before {
+content: "";
+display: block;
+height: var(--rule-strong);
+width: clamp(64px, 18%, 160px);
+background: var(--A500);
+opacity: 0.58;
+margin-bottom: 0.68rem;
+}
+figcaption {
+margin-top: 0.58rem;
+font-size: 0.82rem;
+text-transform: uppercase;
+letter-spacing: 0.052em;
+color: var(--muted);
+}
+
+blockquote,
+.callout {
+position: relative;
+border: var(--rule-thin) solid var(--border);
+border-left: 3px solid var(--accent);
+background: var(--surface-strong);
+padding: 16px 22px;
+margin-block: 1.45rem;
+}
+
+blockquote::after,
+.callout::after {
+content: "";
+position: absolute;
+top: 14px;
+right: 14px;
+width: 0.5em;
+height: 0.5em;
+background: var(--sq-mid);
+box-shadow: 0 0 0 0.17em var(--sq-outer);
+}
+blockquote p { margin: 0; }
+.callout-note {
+border-left-color: var(--A500);
+background: var(--accent-band);
+}
+.callout-insight {
+border-left-color: var(--A700);
+background: var(--accent-tint);
+}
+.callout-warning {
+border-left-color: #b48900;
+background: rgba(180, 137, 0, 0.12);
+}
+.callout-experiment {
+border-left-color: color-mix(in srgb, var(--A500) 60%, var(--A900));
+background:
+linear-gradient(90deg, color-mix(in srgb, var(--A300) 22%, transparent) 0 2px, transparent 2px),
+color-mix(in srgb, var(--accent-band) 75%, var(--surface));
+}
+
+h2:hover .anchor,
+h3:hover .anchor,
+h2:focus-within .anchor,
+h3:focus-within .anchor {
+opacity: 1;
+transform: translateY(-50%) translateX(0);
+}
+.anchor {
+opacity: 0;
+position: absolute;
+right: 0;
+top: 50%;
+transform: translateY(-50%) translateX(0.2em);
+text-decoration: none;
+color: var(--A500);
+line-height: 1;
+font-weight: 700;
+letter-spacing: 0.04em;
+transition: opacity 0.15s ease-in-out, transform 0.15s ease-in-out;
+}
+
+.homage-hero {
+aspect-ratio: 8 / 3;
+min-height: clamp(72px, 14vw, 168px);
+margin-block: 1.5rem;
+border: 0;
+border-radius: 0;
+box-shadow: none;
+background:
+linear-gradient(90deg, var(--A900) 0 25%, transparent 25% 100%),
+linear-gradient(90deg, transparent 0 25%, var(--A700) 25% 50%, transparent 50% 100%),
+linear-gradient(90deg, transparent 0 50%, var(--A500) 50% 75%, transparent 75% 100%),
+linear-gradient(90deg, transparent 0 75%, var(--A300) 75% 100%),
+var(--surface);
+}
+.homage-hero--letterbox {
+aspect-ratio: 12 / 1;
+margin-block: 1rem 0.55rem;
+}
+
+.albers-plate {
+position: relative;
+width: min(100%, 560px);
+aspect-ratio: 1 / 1;
+margin: calc(var(--module) * 7) 0 calc(var(--module) * 8);
+border: var(--rule-thin) solid var(--border);
+background: var(--surface);
+overflow: hidden;
+}
+.albers-plate__outer,
+.albers-plate__inner,
+.albers-plate__core {
+position: absolute;
+box-sizing: border-box;
+}
+.albers-plate__outer {
+width: 72%;
+aspect-ratio: 1 / 1;
+left: 50%;
+top: 50%;
+transform: translate(-50%, -50%);
+background: var(--A300);
+}
+.albers-plate__inner {
+width: 50%;
+aspect-ratio: 1 / 1;
+left: 50%;
+top: 50%;
+transform: translate(-50%, -50%);
+background: var(--A700);
+}
+.albers-plate__core {
+width: 28%;
+aspect-ratio: 1 / 1;
+left: 50%;
+top: 50%;
+transform: translate(-50%, -50%);
+background: var(--A900);
+}
+.albers-composition {
+position: relative;
+width: 100%;
+aspect-ratio: 16 / 5;
+min-height: clamp(96px, 18vw, 214px);
+background: var(--surface);
+border: var(--rule-thin) solid var(--border);
+margin-block: 1.2rem 1.5rem;
+overflow: hidden;
+}
+.albers-composition svg {
+width: 100%;
+height: 100%;
+display: block;
+}
+.albers-composition--dense {
+min-height: clamp(120px, 23vw, 270px);
+}
+.hr-notch {
+height: 0;
+border-top: var(--rule-thin) solid var(--border);
+border-bottom: var(--rule-thin) solid var(--A500);
+margin: 1.5rem 0;
+opacity: var(--hr-opacity);
+}
+.overview ul {
+list-style: none;
+margin: 0;
+padding-left: 0;
+}
+.overview li {
+position: relative;
+padding-left: 1.1em;
+margin-bottom: var(--space-2);
+}
+.overview li::before {
+content: "—";
+position: absolute;
+left: 0;
+top: 0.02em;
+color: var(--A500);
+font-weight: var(--overview-dash-weight);
+opacity: var(--overview-dash-opacity);
+}
+
+.theme-lab {
+display: grid;
+gap: var(--space-4);
+}
+.theme-lab__panel {
+border: var(--rule-thin) solid var(--border);
+background: var(--surface-strong);
+padding: var(--space-4);
+}
+.theme-lab__controls {
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+gap: var(--space-3);
+}
+.theme-lab label {
+display: block;
+font-size: 0.78rem;
+text-transform: uppercase;
+letter-spacing: 0.06em;
+color: var(--muted);
+margin-bottom: var(--space-1);
+}
+.theme-lab select,
+.theme-lab input {
+width: 100%;
+border: var(--rule-thin) solid var(--border);
+background: var(--surface);
+color: var(--ink);
+padding: 0.46rem 0.5rem;
+}
+.theme-lab__preview {
+border: var(--rule-thin) solid var(--border);
+background: var(--surface);
+padding: var(--space-4);
+}
+.theme-lab__chips {
+display: flex;
+flex-wrap: wrap;
+gap: 0.4rem;
+}
+.albers-chip {
+border: var(--rule-thin) solid var(--border);
+background: var(--surface-strong);
+color: var(--ink);
+padding: 0.2rem 0.44rem;
+font-size: 0.74rem;
+text-transform: uppercase;
+letter-spacing: 0.05em;
+}
+
+.theme-lab__chips .albers-chip {
+color: #fff;
+border-color: transparent;
+}
+.theme-lab__chips .albers-chip:nth-child(1) { background: var(--A900); }
+.theme-lab__chips .albers-chip:nth-child(2) { background: var(--A700); }
+.theme-lab__chips .albers-chip:nth-child(3) { background: var(--A500); }
+.theme-lab__chips .albers-chip:nth-child(4) {
+background: var(--A300);
+color: var(--ink);
+}
+body.preset-midnight #toc > .nav a.nav-link {
+color: color-mix(in srgb, var(--ink) 84%, var(--A300));
+}
+body.preset-midnight #toc > .nav a.nav-link:hover,
+body.preset-midnight #toc > .nav a.nav-link:focus {
+background-color: color-mix(in srgb, var(--A300) 24%, transparent);
+}
+body.preset-midnight #toc > .nav a.nav-link.active {
+color: var(--accent-ink);
+background-color: color-mix(in srgb, var(--A300) 30%, var(--surface));
+}
+
+body.preset-midnight img.r-plt,
+body.preset-midnight pre .r-plt.img img,
+body.preset-midnight .cell-output-display img,
+body.preset-midnight .html-widget {
+filter: none !important;
+}
+
+@media (max-width: 920px) {
+html,
+body { font-size: 16.8px; }
+:root { --anchor-offset: 64px; }
+h2,
+h3 {
+padding-left: 0.62em;
+padding-right: 1.2em;
+}
+.page-content,
+.article,
+.reference,
+.template-home {
+box-shadow: none;
+border-left: none;
+border-right: none;
+}
+.page-content::before,
+.article::before,
+.reference::before,
+.template-home::before {
+display: none;
+}
+button.copy-code {
+font-size: 10px;
+letter-spacing: 0.05em;
+}
+}
+@media (max-width: 760px) {
+:root {
+--anchor-offset: 58px;
+--content: 74ch;
+}
+main,
+.content,
+.page-content,
+.vignette,
+.contents {
+padding-inline: 14px;
+}
+.navbar .navbar-brand,
+.navbar .nav-link {
+font-size: 0.78em;
+letter-spacing: 0.035em;
+}
+h1 { font-size: clamp(1.72rem, 7.2vw, 2.02rem); }
+h2 {
+font-size: clamp(1.16rem, 5.2vw, 1.35rem);
+letter-spacing: 0.045em;
+}
+h3 { font-size: clamp(1rem, 4.3vw, 1.14rem); }
+pre {
+padding: var(--space-5) var(--space-3);
+font-size: 0.91em;
+}
+button.copy-code {
+min-height: 30px;
+padding: 6px 10px;
+}
+table {
+display: block;
+overflow-x: auto;
+white-space: nowrap;
+-webkit-overflow-scrolling: touch;
+}
+}
+@media (max-width: 520px) {
+:root { --anchor-offset: 54px; }
+main,
+.content,
+.page-content,
+.vignette,
+.contents {
+padding-inline: 12px;
+}
+.navbar { border-top-width: 2px; }
+.navbar .navbar-brand,
+.navbar .nav-link {
+font-size: 0.74em;
+letter-spacing: 0.03em;
+}
+h2,
+h3 {
+padding-right: 1em;
+}
+.anchor { right: -0.08em; }
+pre {
+border-left-width: 2px;
+padding: var(--space-4) var(--space-3);
+}
+button.copy-code {
+top: 6px;
+right: 6px;
+min-height: 28px;
+padding: 5px 8px;
+font-size: 9px;
+}
+}
+@media (prefers-contrast: more) {
+:root {
+--border: #9aa1ad;
+--muted: #4f5661;
+--accent-tint: rgba(228, 73, 38, 0.18);
+--accent-band: rgba(228, 73, 38, 0.24);
+--rule-strong: 3px;
+}
+a { text-decoration-thickness: 0.12em; }
+pre,
+table,
+blockquote,
+.callout {
+border-width: 2px;
+}
+.navbar .nav-link.active::after,
+.navbar .active > a::after { color: var(--A700); }
+}
+@media (prefers-reduced-motion: reduce) {
+*,
+*::before,
+*::after {
+animation-duration: 0.01ms !important;
+animation-iteration-count: 1 !important;
+transition-duration: 0.01ms !important;
+scroll-behavior: auto !important;
+}
+}
+@media print {
+body { background: #fff !important; }
+body.albers-vignette,
+body:has(> #TOC) {
+display: block;
+max-width: none;
+border: none;
+box-shadow: none;
+padding: 0;
+}
+body.albers-vignette::before,
+body:has(> #TOC)::before { display: none; }
+.navbar,
+.sidebar,
+.toc,
+#TOC,
+.page-header,
+.homage-hero,
+.hr-notch,
+button.copy-code,
+.anchor { display: none !important; }
+.page-content,
+.article,
+.reference,
+.template-home {
+border: none;
+box-shadow: none;
+background: #fff;
+}
+.page-content::before,
+.article::before,
+.reference::before,
+.template-home::before {
+display: none;
+}
+pre { page-break-inside: avoid; }
+a {
+color: inherit !important;
+text-decoration: none;
+}
+}
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Large data</h1>
+
+
+<div id="TOC">
+<ul>
+<li><a href="#what-each-backend-costs" id="toc-what-each-backend-costs">What each backend costs</a></li>
+<li><a href="#the-number-that-actually-decides-it" id="toc-the-number-that-actually-decides-it">The number that actually
+decides it</a></li>
+<li><a href="#the-ladder" id="toc-the-ladder">The ladder</a></li>
+<li><a href="#dropping-to-parcels" id="toc-dropping-to-parcels">Dropping
+to parcels</a></li>
+<li><a href="#choosing" id="toc-choosing">Choosing</a></li>
+<li><a href="#where-to-go-next" id="toc-where-to-go-next">Where to go
+next</a></li>
+</ul>
+</div>
+
+<script>document.addEventListener("DOMContentLoaded",function(){document.body.classList.remove("palette-red","palette-lapis","palette-ochre","palette-teal","palette-green","palette-violet","preset-homage","preset-interaction","preset-study","preset-structural","preset-adobe","preset-midnight");document.body.classList.add("palette-red","preset-interaction");});</script>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(neuroim2)</span></code></pre></div>
+<p>Dense is the default because it is the simplest thing that works, not
+because it is the right thing at scale. An R array holds
+<code>double</code>s whatever the file said, so a 56 MB
+<code>int16</code> run is 236 MB the moment you read it, and a session
+of runs will not fit. The two out-of-core routes below are not a
+consolation prize for running out of memory: for the scattered,
+voxel-at-a-time access that searchlight, ROI and connectivity work
+actually perform, they are also <em>faster</em> than loading everything
+first.</p>
+<p>On an ordinary run (64 × 64 × 36 × 200), pulling 5,000 scattered
+voxel time courses measured <strong>44 ms</strong> through
+<code>read_vec(path, mask = brain)</code> and <strong>144 ms</strong>
+through <code>mode = &quot;mmap&quot;</code> including the open, against
+<strong>4.8 s</strong> for reading the whole image and then indexing it.
+So:</p>
+<ul>
+<li><strong>Pass a <code>mask</code></strong> whenever the analysis is
+confined to one — which is nearly always. It is the cheapest option on
+both axes.</li>
+<li><strong>Use <code>mode = &quot;mmap&quot;</code></strong> when the access
+order is scattered and unknown ahead of time.</li>
+<li><strong>Stay dense</strong> when you genuinely need every voxel of a
+small image in memory at once.</li>
+</ul>
+<p>What follows measures each backend so the choice is yours rather than
+a recommendation you have to take on faith. The backends differ
+enormously in <em>which</em> access pattern they make cheap, and picking
+the wrong one is worse than any of the defaults.</p>
+<p>Everything below measures the same dataset, written to an
+uncompressed NIfTI so that every backend can read it:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>mask <span class="ot">&lt;-</span> <span class="fu">demo_mask</span>()</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>brain <span class="ot">&lt;-</span> <span class="fu">as.mask</span>(mask)</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>bold <span class="ot">&lt;-</span> <span class="fu">demo_bold</span>(<span class="at">n_time =</span> <span class="dv">60</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>path <span class="ot">&lt;-</span> <span class="fu">tempfile</span>(<span class="at">fileext =</span> <span class="st">&quot;.nii&quot;</span>)</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="fu">write_vec</span>(bold, path)</span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a></span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a><span class="fu">dim</span>(bold)</span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a><span class="co">#&gt; [1] 64 64 25 60</span></span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">file.size</span>(path) <span class="sc">/</span> <span class="fl">1e6</span>, <span class="dv">1</span>)</span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a><span class="co">#&gt; [1] 24.6</span></span></code></pre></div>
+<p>The file is uncompressed. Every backend can read <code>.nii.gz</code>
+too, but two of them pay for it: memory mapping silently decompresses to
+a temporary uncompressed copy, and file-backed access constructs happily
+and then fails at the first read. Write uncompressed if you intend to
+map.</p>
+<div id="what-each-backend-costs" class="section level2">
+<h2>What each backend costs</h2>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>dense <span class="ot">&lt;-</span> <span class="fu">read_vec</span>(path)</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>sparse <span class="ot">&lt;-</span> <span class="fu">read_vec</span>(path, <span class="at">mask =</span> brain)</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>mapped <span class="ot">&lt;-</span> <span class="fu">read_vec</span>(path, <span class="at">mode =</span> <span class="st">&quot;mmap&quot;</span>)</span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>filebacked <span class="ot">&lt;-</span> <span class="fu">read_vec</span>(path, <span class="at">mode =</span> <span class="st">&quot;filebacked&quot;</span>)</span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a></span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a>mb <span class="ot">&lt;-</span> <span class="cf">function</span>(x) <span class="fu">round</span>(<span class="fu">as.numeric</span>(<span class="fu">object.size</span>(x)) <span class="sc">/</span> <span class="fl">1e6</span>, <span class="dv">1</span>)</span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a></span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="fu">data.frame</span>(</span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a>  <span class="at">backend =</span> <span class="fu">c</span>(<span class="st">&quot;DenseNeuroVec&quot;</span>, <span class="st">&quot;SparseNeuroVec&quot;</span>, <span class="st">&quot;MappedNeuroVec&quot;</span>, <span class="st">&quot;FileBackedNeuroVec&quot;</span>),</span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a>  <span class="at">memory_MB =</span> <span class="fu">c</span>(<span class="fu">mb</span>(dense), <span class="fu">mb</span>(sparse), <span class="fu">mb</span>(mapped), <span class="fu">mb</span>(filebacked))</span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a>)</span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a><span class="co">#&gt;              backend memory_MB</span></span>
+<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a><span class="co">#&gt; 1      DenseNeuroVec      49.2</span></span>
+<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a><span class="co">#&gt; 2     SparseNeuroVec      15.1</span></span>
+<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a><span class="co">#&gt; 3     MappedNeuroVec       0.0</span></span>
+<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a><span class="co">#&gt; 4 FileBackedNeuroVec       0.0</span></span></code></pre></div>
+<p>They all hold the same data:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>ref <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">series</span>(dense, <span class="dv">32</span>, <span class="dv">32</span>, <span class="dv">12</span>))</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a><span class="fu">vapply</span>(</span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>  <span class="fu">list</span>(<span class="at">sparse =</span> sparse, <span class="at">mapped =</span> mapped, <span class="at">filebacked =</span> filebacked),</span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>  <span class="cf">function</span>(x) <span class="fu">isTRUE</span>(<span class="fu">all.equal</span>(<span class="fu">as.numeric</span>(<span class="fu">series</span>(x, <span class="dv">32</span>, <span class="dv">32</span>, <span class="dv">12</span>)), ref)),</span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>  <span class="fu">logical</span>(<span class="dv">1</span>)</span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>)</span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a><span class="co">#&gt;     sparse     mapped filebacked </span></span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a><span class="co">#&gt;       TRUE       TRUE       TRUE</span></span></code></pre></div>
+</div>
+<div id="the-number-that-actually-decides-it" class="section level2">
+<h2>The number that actually decides it</h2>
+<p>Memory is the easy axis. The one that catches people is access
+<em>pattern</em>. Here is the same work — twenty whole volumes, then
+twenty voxel time courses — on each backend:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>per_call <span class="ot">&lt;-</span> <span class="cf">function</span>(f, n) <span class="fu">unname</span>(<span class="fu">system.time</span>(<span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_len</span>(n)) <span class="fu">f</span>(i))[<span class="st">&quot;elapsed&quot;</span>] <span class="sc">/</span> n)</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>bench <span class="ot">&lt;-</span> <span class="cf">function</span>(x, <span class="at">n =</span> <span class="dv">20</span>) {</span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>  <span class="fu">c</span>(</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>    <span class="at">volumes =</span> <span class="fu">per_call</span>(<span class="cf">function</span>(i) <span class="fu">invisible</span>(x[[i]]), n),</span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>    <span class="at">series =</span> <span class="fu">per_call</span>(<span class="cf">function</span>(i) <span class="fu">series</span>(x, <span class="dv">32</span>, <span class="dv">32</span>, <span class="dv">12</span>), n)</span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a>  )</span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a>}</span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a></span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a>timings <span class="ot">&lt;-</span> <span class="fu">rbind</span>(</span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a>  <span class="at">dense =</span> <span class="fu">bench</span>(dense),</span>
+<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a>  <span class="at">sparse =</span> <span class="fu">bench</span>(sparse),</span>
+<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a>  <span class="at">mapped =</span> <span class="fu">bench</span>(mapped),</span>
+<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a>  <span class="at">filebacked =</span> <span class="fu">bench</span>(filebacked, <span class="at">n =</span> <span class="dv">5</span>)</span>
+<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a>)</span>
+<span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a></span>
+<span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a><span class="fu">signif</span>(timings, <span class="dv">2</span>)</span>
+<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a><span class="co">#&gt;            volumes  series</span></span>
+<span id="cb5-19"><a href="#cb5-19" tabindex="-1"></a><span class="co">#&gt; dense       0.0010 0.00000</span></span>
+<span id="cb5-20"><a href="#cb5-20" tabindex="-1"></a><span class="co">#&gt; sparse      0.0013 0.00005</span></span>
+<span id="cb5-21"><a href="#cb5-21" tabindex="-1"></a><span class="co">#&gt; mapped      0.0042 0.00005</span></span>
+<span id="cb5-22"><a href="#cb5-22" tabindex="-1"></a><span class="co">#&gt; filebacked  0.0074 0.00860</span></span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">round</span>(timings[<span class="st">&quot;filebacked&quot;</span>, <span class="st">&quot;series&quot;</span>] <span class="sc">/</span> timings[<span class="fu">c</span>(<span class="st">&quot;dense&quot;</span>, <span class="st">&quot;sparse&quot;</span>, <span class="st">&quot;mapped&quot;</span>), <span class="st">&quot;series&quot;</span>])</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="co">#&gt;  dense sparse mapped </span></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="co">#&gt;    Inf    172    172</span></span></code></pre></div>
+<p>Seconds per call, and the ratio is computed rather than quoted, so it
+stays honest on your machine. Fetching one voxel’s time course from a
+<code>FileBackedNeuroVec</code> costs three to four orders of magnitude
+more than it costs anywhere else, because each query materialises the
+whole 4D array as doubles before discarding all but one row — the disk
+read is a small part of it. <strong>Use it only when you genuinely work
+volume at a time.</strong> <code>MappedNeuroVec</code> is cheap on both
+patterns and is the better default.</p>
+</div>
+<div id="the-ladder" class="section level2">
+<h2>The ladder</h2>
+<p><strong>Dense</strong> is what you get with no arguments. Predictable
+arithmetic, indexing and plotting, and nothing to think about — at the
+cost of holding every voxel as a <code>double</code>. Right for a single
+small image, wrong for a session.</p>
+<p><strong>Sparse</strong> stores only the voxels a mask admits. Here
+the brain is 29% of the grid, and the object is about a third the
+size:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="fu">c</span>(<span class="at">in_mask =</span> <span class="fu">sum</span>(brain), <span class="at">total =</span> <span class="fu">prod</span>(<span class="fu">dim</span>(brain)))</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="co">#&gt; in_mask   total </span></span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="co">#&gt;   29532  102400</span></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="fu">c</span>(<span class="at">dense_MB =</span> <span class="fu">mb</span>(dense), <span class="at">sparse_MB =</span> <span class="fu">mb</span>(sparse))</span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a><span class="co">#&gt;  dense_MB sparse_MB </span></span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a><span class="co">#&gt;      49.2      15.1</span></span></code></pre></div>
+<p>Dimensions are unchanged — sparsity is storage, not shape. Reach for
+it when a mask defines your analysis anyway.</p>
+<p><strong>Memory-mapped</strong> leaves the data on disk and lets the
+operating system page it in. Pointed at a <code>.nii.gz</code> it
+decompresses to a temporary uncompressed copy first, so you pay the disk
+either way — better to store uncompressed deliberately than to have a
+full copy appear in <code>tempdir()</code>.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="fu">class</span>(mapped)[<span class="dv">1</span>]</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="co">#&gt; [1] &quot;MappedNeuroVec&quot;</span></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="fu">dim</span>(mapped)</span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a><span class="co">#&gt; [1] 64 64 25 60</span></span></code></pre></div>
+<p><code>as_mmap()</code> converts an in-memory object, writing an
+uncompressed file if it has to:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a>mmap_path <span class="ot">&lt;-</span> <span class="fu">tempfile</span>(<span class="at">fileext =</span> <span class="st">&quot;.nii&quot;</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a>converted <span class="ot">&lt;-</span> <span class="fu">as_mmap</span>(dense, <span class="at">file =</span> mmap_path, <span class="at">overwrite =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a><span class="fu">class</span>(converted)[<span class="dv">1</span>]</span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a><span class="co">#&gt; [1] &quot;MappedNeuroVec&quot;</span></span>
+<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a><span class="fu">isTRUE</span>(<span class="fu">all.equal</span>(<span class="fu">as.numeric</span>(<span class="fu">series</span>(converted, <span class="dv">32</span>, <span class="dv">32</span>, <span class="dv">12</span>)), ref))</span>
+<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
+<p>Give it an explicit <code>file</code> when you can. Left to itself it
+writes into <code>tempdir()</code> and you have a second full copy of
+the data with no obvious owner.</p>
+<p><strong>BigNeuroVec</strong> backs a masked series with an on-disk
+<code>bigstatsr</code> matrix, which is the option for data larger than
+RAM that still needs voxelwise access:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a>big <span class="ot">&lt;-</span> <span class="fu">read_vec</span>(path, <span class="at">mode =</span> <span class="st">&quot;bigvec&quot;</span>, <span class="at">mask =</span> brain)</span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a><span class="fu">class</span>(big)[<span class="dv">1</span>]</span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a><span class="co">#&gt; [1] &quot;BigNeuroVec&quot;</span></span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">mb</span>(big), <span class="dv">2</span>)</span>
+<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a><span class="co">#&gt; [1] 1</span></span></code></pre></div>
+<div id="what-object.size-does-not-see" class="section level3">
+<h3>What object.size() does not see</h3>
+<p>The two on-disk backends report near-zero above, and that is
+<code>object.size()</code> telling you the <em>R object</em> is a
+handle. It is not telling you the data is free: mapped pages are charged
+to the process as you touch them, and <code>BigNeuroVec</code> keeps a
+backing file — about 14 MB here — beside the original. Measure resident
+memory and disk when the difference matters.</p>
+</div>
+</div>
+<div id="dropping-to-parcels" class="section level2">
+<h2>Dropping to parcels</h2>
+<p>Every backend so far keeps one time course per voxel. The largest
+reduction available comes from deciding you do not need them: a
+<code>ClusteredNeuroVec</code> stores one series per
+<em>parcel</em>.</p>
+<p>Parcels have to be spatially contiguous for any of this to mean
+anything. Assigning labels at random would put all 100 parcels
+everywhere at once and collapse their centroids onto the same point, so
+cluster them by position:</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a>coords_in <span class="ot">&lt;-</span> <span class="fu">index_to_grid</span>(mask, <span class="fu">which</span>(<span class="fu">as.vector</span>(brain)))</span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a>km <span class="ot">&lt;-</span> <span class="fu">kmeans</span>(coords_in, <span class="at">centers =</span> <span class="dv">100</span>, <span class="at">iter.max =</span> <span class="dv">30</span>)</span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a></span>
+<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a>parcels <span class="ot">&lt;-</span> <span class="fu">ClusteredNeuroVol</span>(brain, km<span class="sc">$</span>cluster)</span>
+<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a>cvec <span class="ot">&lt;-</span> <span class="fu">ClusteredNeuroVec</span>(bold, parcels)</span>
+<span id="cb11-7"><a href="#cb11-7" tabindex="-1"></a></span>
+<span id="cb11-8"><a href="#cb11-8" tabindex="-1"></a><span class="fu">num_clusters</span>(cvec)</span>
+<span id="cb11-9"><a href="#cb11-9" tabindex="-1"></a><span class="co">#&gt; [1] 100</span></span>
+<span id="cb11-10"><a href="#cb11-10" tabindex="-1"></a><span class="fu">dim</span>(cvec)</span>
+<span id="cb11-11"><a href="#cb11-11" tabindex="-1"></a><span class="co">#&gt; [1] 64 64 25 60</span></span>
+<span id="cb11-12"><a href="#cb11-12" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">apply</span>(<span class="fu">centroids</span>(cvec), <span class="dv">2</span>, sd), <span class="dv">1</span>)</span>
+<span id="cb11-13"><a href="#cb11-13" tabindex="-1"></a><span class="co">#&gt; [1]  9.3 10.8  6.2</span></span></code></pre></div>
+<p>Those centroid standard deviations are voxels: the parcels are spread
+across the brain, which is what makes centroid distances meaningful
+below.</p>
+<p>It still behaves like a 4D image — <code>dim()</code> is unchanged
+and indexing works — but only 100 time courses exist behind it:</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a><span class="fu">dim</span>(<span class="fu">as.matrix</span>(cvec, <span class="at">by =</span> <span class="st">&quot;cluster&quot;</span>))</span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a><span class="co">#&gt; [1]  60 100</span></span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a></span>
+<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a><span class="fu">c</span>(<span class="at">dense_MB =</span> <span class="fu">mb</span>(dense), <span class="at">clustered_MB =</span> <span class="fu">mb</span>(cvec))</span>
+<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a><span class="co">#&gt;     dense_MB clustered_MB </span></span>
+<span id="cb12-6"><a href="#cb12-6" tabindex="-1"></a><span class="co">#&gt;         49.2          1.3</span></span></code></pre></div>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="fu">length</span>(<span class="fu">series</span>(cvec, <span class="dv">32</span>, <span class="dv">32</span>, <span class="dv">12</span>))</span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a><span class="co">#&gt; [1] 60</span></span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a><span class="fu">dim</span>(cvec[, , , <span class="dv">1</span>])</span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a><span class="co">#&gt; [1] 64 64 25</span></span>
+<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a></span>
+<span id="cb13-6"><a href="#cb13-6" tabindex="-1"></a><span class="fu">c</span>(<span class="at">voxel_series =</span> <span class="fu">sum</span>(brain), <span class="at">stored_series =</span> <span class="fu">num_clusters</span>(cvec),</span>
+<span id="cb13-7"><a href="#cb13-7" tabindex="-1"></a>  <span class="at">fold =</span> <span class="fu">round</span>(<span class="fu">sum</span>(brain) <span class="sc">/</span> <span class="fu">num_clusters</span>(cvec)))</span>
+<span id="cb13-8"><a href="#cb13-8" tabindex="-1"></a><span class="co">#&gt;  voxel_series stored_series          fold </span></span>
+<span id="cb13-9"><a href="#cb13-9" tabindex="-1"></a><span class="co">#&gt;         29532           100           295</span></span></code></pre></div>
+<p>Every voxel in a parcel returns that parcel’s series: roughly a
+300-fold reduction in stored series here, and no within-parcel detail at
+all. For atlas-based connectivity that is exactly right; for anything
+needing voxelwise variation it is not.</p>
+<p>One sharp edge: voxels outside the mask have no parcel, and
+<code>series()</code> returns <code>NA</code> for them rather than zero
+or an error. Restrict to the mask before doing arithmetic over the whole
+grid.</p>
+<p>Cluster-level searchlights come with it, using centroid distances
+rather than voxel neighbourhoods:</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a>windows <span class="ot">&lt;-</span> <span class="fu">cluster_searchlight_series</span>(cvec, <span class="at">k =</span> <span class="dv">3</span>)</span>
+<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a></span>
+<span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a><span class="fu">length</span>(windows)</span>
+<span id="cb14-4"><a href="#cb14-4" tabindex="-1"></a><span class="co">#&gt; [1] 100</span></span>
+<span id="cb14-5"><a href="#cb14-5" tabindex="-1"></a><span class="fu">dim</span>(<span class="fu">values</span>(windows[[<span class="dv">1</span>]]))</span>
+<span id="cb14-6"><a href="#cb14-6" tabindex="-1"></a><span class="co">#&gt; [1] 60  3</span></span></code></pre></div>
+</div>
+<div id="choosing" class="section level2">
+<h2>Choosing</h2>
+<table>
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Situation</th>
+<th align="left">Backend</th>
+<th align="left">Why</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">It fits in memory</td>
+<td align="left"><code>DenseNeuroVec</code></td>
+<td align="left">simplest, fastest, no caveats</td>
+</tr>
+<tr class="even">
+<td align="left">A mask defines the analysis</td>
+<td align="left"><code>SparseNeuroVec</code></td>
+<td align="left">stores only admitted voxels</td>
+</tr>
+<tr class="odd">
+<td align="left">Large uncompressed file, mixed access</td>
+<td align="left"><code>MappedNeuroVec</code></td>
+<td align="left">cheap on both access patterns</td>
+</tr>
+<tr class="even">
+<td align="left">Large file, strictly volume at a time</td>
+<td align="left"><code>FileBackedNeuroVec</code></td>
+<td align="left">never for voxel series</td>
+</tr>
+<tr class="odd">
+<td align="left">Larger than RAM, needs voxel access</td>
+<td align="left"><code>BigNeuroVec</code></td>
+<td align="left">on-disk matrix</td>
+</tr>
+<tr class="even">
+<td align="left">Parcel-level analysis is enough</td>
+<td align="left"><code>ClusteredNeuroVec</code></td>
+<td align="left">orders of magnitude fewer series</td>
+</tr>
+</tbody>
+</table>
+<p>If you are unsure: read with <code>read_vec()</code>, and change only
+when a measurement tells you to. <code>object.size()</code> and
+<code>system.time()</code> will get you most of the way, as long as you
+remember that the first does not see mapped pages or backing files.</p>
+</div>
+<div id="where-to-go-next" class="section level2">
+<h2>Where to go next</h2>
+<ul>
+<li><code>vignette(&quot;volumes-and-vectors&quot;)</code> — the containers these
+all implement</li>
+<li><code>vignette(&quot;regions-and-searchlights&quot;)</code> — parcels and
+searchlights in depth</li>
+<li><code>?read_vec</code>, <code>?as_mmap</code>,
+<code>?ClusteredNeuroVec</code>, <code>?BigNeuroVec</code></li>
+</ul>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

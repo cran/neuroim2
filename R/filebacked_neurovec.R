@@ -144,26 +144,18 @@ setMethod(f = "as.list",
             deflist::deflist(f, D4)
           })
 
-#' Convert FileBackedNeuroVec to Matrix
-#'
-#' @description
-#' This method converts a FileBackedNeuroVec object to a matrix.
-#'
-#' @param from A FileBackedNeuroVec object to be converted.
-#'
-#' @return A matrix representation of the FileBackedNeuroVec object.
-#'
-#' @details
-#' The resulting matrix will have rows representing time points (or the 4th dimension)
-#' and columns representing voxels. The voxels are arranged in a linear order.
-#'
-#'
-#' @keywords internal
-#' @noRd
+#' @rdname as.matrix-methods
+#' @export
+setMethod(f = "as.matrix",
+          signature = signature(x = "FileBackedNeuroVec"),
+          def = function(x, ...) {
+            len <- prod(x@meta@dims[1:3])
+            t(series(x, seq_len(len)))
+          })
+
 setAs(from = "FileBackedNeuroVec", to = "matrix",
       def = function(from) {
-        len <- prod(from@meta@dims[1:3])
-        t(series(from, seq(1, len)))
+        as.matrix(from)
       })
 
 #' Linear Access Method for FileBackedNeuroVec
@@ -208,20 +200,13 @@ setMethod(
     
     # Get unique timepoints to minimize file reads
     unique_timepoints <- sort(unique(timepoints))
-    
-    # Read the required volumes
-    mat <- read_mapped_vols(x@meta, unique_timepoints)  # Returns [time, voxels]
-    
-    # Create lookup table for timepoint indices
+
+    # Read the required volumes: [voxels x volumes], already scaled
+    mat <- read_mapped_vols(x@meta, unique_timepoints)
+
+    # One vectorised gather rather than a scalar loop over the request
     time_lookup <- match(timepoints, unique_timepoints)
-    
-    # Extract values using the computed indices
-    values <- numeric(length(i))
-    for (idx in seq_along(i)) {
-      values[idx] <- mat[time_lookup[idx], spatial_offsets[idx]]
-    }
-    
-    values
+    mat[cbind(spatial_offsets, time_lookup)]
   }
 )
 
@@ -236,4 +221,42 @@ setMethod("mask", "FileBackedNeuroVec",
                            NeuroSpace(spatial_dims,
                                      spacing(x)[1:3],
                                      origin(x)[1:3]))
+          })
+
+#' @rdname apply_mask-methods
+#' @export
+setMethod("apply_mask", signature(x = "FileBackedNeuroVec", mask = "ANY"),
+          function(x, mask) {
+            dense <- sub_vector(x, seq_len(dim(x)[4]))
+            apply_mask(dense, mask)
+          })
+
+#' @rdname clip_level-methods
+#' @export
+setMethod("clip_level", signature(x = "FileBackedNeuroVec"),
+          function(x, mfrac = 0.5, gradual = FALSE, representative = "median") {
+            dense <- sub_vector(x, seq_len(dim(x)[4]))
+            clip_level(dense, mfrac = mfrac, gradual = gradual, representative = representative)
+          })
+
+#' @rdname automask-methods
+#' @export
+setMethod("automask", signature(x = "FileBackedNeuroVec"),
+          function(x,
+                   mfrac = 0.5,
+                   gradual = TRUE,
+                   representative = "mean_abs",
+                   peels = 1L,
+                   peel_threshold = 17L,
+                   connect = c("26-connect", "18-connect", "6-connect")) {
+            dense <- sub_vector(x, seq_len(dim(x)[4]))
+            automask(
+              dense,
+              mfrac = mfrac,
+              gradual = gradual,
+              representative = representative,
+              peels = peels,
+              peel_threshold = peel_threshold,
+              connect = connect
+            )
           })

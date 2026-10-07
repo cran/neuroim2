@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot-montage.R
 \name{plot_montage}
 \alias{plot_montage}
-\title{Plot a montage of axial (or any-plane) slices using facetting}
+\title{Montage of slices through a volume}
 \usage{
 plot_montage(
   x,
@@ -11,23 +11,39 @@ plot_montage(
   cmap = "grays",
   range = c("robust", "data"),
   probs = c(0.02, 0.98),
-  ncol = 6L,
+  ncol = NULL,
   downsample = 1L,
   title = NULL,
   subtitle = NULL,
-  caption = NULL
+  caption = NULL,
+  style = c("light", "dark", "report"),
+  crop = TRUE,
+  interpolate = TRUE,
+  cbar_title = "value",
+  colorbar = NULL,
+  unit = c("index", "mm"),
+  annotate = TRUE,
+  n_slices = 12L,
+  draw = FALSE,
+  canvas = NULL
 )
 }
 \arguments{
-\item{x}{Either a 3D volume object accepted by `slice()` or a list of slices.}
+\item{x}{A 3D volume, or a list of \code{NeuroSlice} objects / matrices.}
 
-\item{zlevels}{Integer indices of slices to plot (if `x` is a volume).}
+\item{zlevels}{Slices to plot when \code{x} is a volume: indices along
+\code{along} (\code{unit = "index"}, the default) or world coordinates
+(\code{unit = "mm"}). \code{NULL} (default) picks \code{n_slices} slices
+spread over the brain.}
 
-\item{along}{Axis along which to slice (1 = sagittal, 2 = coronal, 3 = axial).}
+\item{along}{Native voxel-grid axis along which to slice. For canonically
+ordered images, 1 = sagittal, 2 = coronal, and 3 = axial. Display
+orientation is inferred from the image affine.}
 
 \item{cmap}{Palette name or vector (see [resolve_cmap()]).}
 
-\item{range}{"robust" (quantile-based) or "data" (min/max).}
+\item{range}{"robust" (quantile-based), "data" (min/max), or an explicit
+numeric \code{c(lo, hi)}.}
 
 \item{probs}{Quantiles for `range="robust"`.}
 
@@ -36,8 +52,63 @@ plot_montage(
 \item{downsample}{Integer decimation for speed.}
 
 \item{title, subtitle, caption}{Optional ggplot labels.}
+
+\item{style}{Visual style: \code{"light"}, \code{"dark"}, or \code{"report"}
+(light card, dark cropped tiles, typography, and a colorbar -- matching
+\code{\link{plot_overlay}}'s report look).}
+
+\item{crop, interpolate}{Logical; crop to the head bounding box (volume
+input) / smooth the raster. Both default to \code{TRUE}.}
+
+\item{cbar_title}{Character; the quantity label drawn above the colorbar.
+Supplying it explicitly also turns the colorbar on.}
+
+\item{colorbar}{Logical or \code{NULL}. \code{NULL} (default) shows a slim
+colorbar only for non-grayscale palettes or when \code{cbar_title} is
+supplied; arbitrary structural intensity units carry no information.}
+
+\item{unit}{\code{"index"} (default) or \code{"mm"}: how \code{zlevels} is
+interpreted for volume input. Panels are always labelled in world
+coordinates (mm).}
+
+\item{annotate}{Logical; draw L/R (or A/P) orientation letters on the first
+panel.}
+
+\item{n_slices}{Number of slices chosen automatically when \code{zlevels}
+is \code{NULL}. Automatic slices are spread over the extent of the brain
+(bright tissue), skipping neck, scalp-only and empty planes.}
+
+\item{draw}{Logical; if \code{TRUE}, also print the figure immediately (and
+return it invisibly). By default it is returned visibly, like any ggplot.}
+
+\item{canvas}{Optional \code{c(width, height)} in inches to fit the layout
+to (default: the open device, else 10 x 7.5 in).}
+}
+\value{
+A figure (class \code{neuro_fig}, a \pkg{patchwork} wrapping one
+  faceted ggplot with one facet per slice), returned visibly; invisibly when
+  \code{draw = TRUE}. Its layout is re-fitted to the device it is drawn on,
+  so \code{ggsave()} at any size gives a filled, centred grid.
 }
 \description{
-This avoids extra dependencies by using a single ggplot with facets
-and a shared colorbar. Supply a list of slice objects or a volume + indices.
+Draws a grid of slices through one volume (typically a structural image) in
+the same style as \code{\link{plot_overlay}}: black tiles cropped to the
+head, world-coordinate labels, L/R markers on the first tile, and a grid
+that fills the canvas. Also accepts a list of \code{NeuroSlice} objects or
+plain matrices.
 }
+\examples{
+\donttest{
+bg <- read_vol(system.file("extdata", "mni_downsampled.nii.gz", package = "neuroim2"))
+p <- plot_montage(bg, title = "MNI152 (downsampled)")
+ggplot2::ggsave(tempfile(fileext = ".png"), p, width = 8, height = 6)
+}
+}
+\seealso{
+Other plot_neuro: 
+\code{\link{plot_checkerboard}()},
+\code{\link{plot_edge_overlay}()},
+\code{\link{plot_ortho}()},
+\code{\link{plot_overlay}()}
+}
+\concept{plot_neuro}

@@ -1,0 +1,2373 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Volumes and vectors</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+<link rel="stylesheet" href="albers-fonts.css" data-external="1" />
+<script>(function () {
+  var FAMILY_CLASSES = ["red", "lapis", "ochre", "teal", "green", "violet"];
+  var PRESET_CLASSES = ["homage", "interaction", "study", "structural", "adobe", "midnight"];
+  var STYLE_CLASSES = ["minimal", "assertive"];
+
+  function classes(prefix, values) {
+    return values.map(function (v) { return prefix + v; });
+  }
+
+  function applySingleClass(el, prefix, value, values) {
+    classes(prefix, values).forEach(function (c) { el.classList.remove(c); });
+    if (value) el.classList.add(prefix + value);
+  }
+
+  function inferBootstrapTheme() {
+    if (!document.body) return "light";
+    return document.body.classList.contains("preset-midnight") ? "dark" : "light";
+  }
+
+  function syncBootstrapTheme() {
+    var theme = inferBootstrapTheme();
+    document.documentElement.setAttribute("data-bs-theme", theme);
+    document.body.setAttribute("data-bs-theme", theme);
+    var nav = document.querySelector("nav.navbar");
+    if (nav) nav.setAttribute("data-bs-theme", theme);
+  }
+
+  function hashSeed(seed) {
+    var h = 2166136261;
+    for (var i = 0; i < seed.length; i++) {
+      h ^= seed.charCodeAt(i);
+      h += (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24);
+    }
+    return h >>> 0;
+  }
+
+  function seeded(seed) {
+    var state = hashSeed(seed || "albersdown");
+    return function () {
+      state = (1664525 * state + 1013904223) >>> 0;
+      return state / 4294967296;
+    };
+  }
+
+  function readPalette(el) {
+    var source = el || document.body;
+    var style = getComputedStyle(source);
+    var colors = ["--A900", "--A700", "--A500", "--A300"].map(function (k) {
+      var value = style.getPropertyValue(k).trim();
+      return value || "#666";
+    });
+    return colors;
+  }
+
+  function clearChildren(el) {
+    while (el.firstChild) el.removeChild(el.firstChild);
+  }
+
+  function svgEl(name, attrs) {
+    var el = document.createElementNS("http://www.w3.org/2000/svg", name);
+    Object.keys(attrs || {}).forEach(function (key) {
+      el.setAttribute(key, String(attrs[key]));
+    });
+    return el;
+  }
+
+  function renderComposition(container, idx) {
+    var seed = container.getAttribute("data-seed") || (window.location.pathname + ":" + idx);
+    var density = Number(container.getAttribute("data-density") || "6");
+    var rand = seeded(seed);
+    var palette = readPalette(container);
+    var w = 1600;
+    var h = 500;
+
+    clearChildren(container);
+    var svg = svgEl("svg", {
+      viewBox: "0 0 " + w + " " + h,
+      preserveAspectRatio: "xMidYMid slice",
+      role: "img",
+      "aria-label": "Albers composition"
+    });
+
+    svg.appendChild(svgEl("rect", { x: 0, y: 0, width: w, height: h, fill: "var(--surface)" }));
+
+    var blockCount = Math.max(4, Math.min(16, density * 2));
+    for (var i = 0; i < blockCount; i++) {
+      var side = 90 + rand() * 260;
+      var x = rand() * (w - side);
+      var y = rand() * (h - side);
+      var tone = palette[Math.floor(rand() * palette.length)];
+      svg.appendChild(svgEl("rect", {
+        x: x.toFixed(2),
+        y: y.toFixed(2),
+        width: side.toFixed(2),
+        height: side.toFixed(2),
+        fill: tone,
+        opacity: (0.17 + rand() * 0.72).toFixed(3)
+      }));
+    }
+
+    for (var j = 0; j < 3; j++) {
+      var cx = 80 + rand() * (w - 160);
+      var cy = 60 + rand() * (h - 120);
+      var radius = 26 + rand() * 66;
+      var color = palette[Math.floor(rand() * palette.length)];
+      svg.appendChild(svgEl("circle", {
+        cx: cx.toFixed(2),
+        cy: cy.toFixed(2),
+        r: radius.toFixed(2),
+        fill: color,
+        opacity: (0.16 + rand() * 0.44).toFixed(3)
+      }));
+    }
+
+    svg.appendChild(svgEl("rect", {
+      x: 0,
+      y: 0,
+      width: w,
+      height: h,
+      fill: "none",
+      stroke: "var(--border)",
+      "stroke-width": "4"
+    }));
+
+    container.appendChild(svg);
+  }
+
+  function renderAllCompositions() {
+    Array.from(document.querySelectorAll(".albers-composition")).forEach(function (el, idx) {
+      renderComposition(el, idx);
+    });
+  }
+
+  function initCopyButtons() {
+    var hasPkgdownCopy =
+      document.querySelector(".btn-copy-ex") ||
+      document.querySelector("[data-clipboard-copy]") ||
+      document.querySelector("div.sourceCode.hasCopyButton");
+
+    if (hasPkgdownCopy) return;
+
+    document.querySelectorAll("pre > code").forEach(function (code) {
+      var pre = code.parentElement;
+      if (!pre || pre.querySelector("button.copy-code")) return;
+      if (!code.textContent || !code.textContent.trim()) return;
+      var btn = document.createElement("button");
+      btn.className = "copy-code";
+      btn.type = "button";
+      btn.setAttribute("aria-label", "Copy code");
+      btn.textContent = "Copy";
+      btn.addEventListener("click", async function () {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          btn.textContent = "Copied";
+        } catch (e) {
+          try {
+            var r = document.createRange();
+            r.selectNodeContents(code);
+            var sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(r);
+            document.execCommand("copy");
+            sel.removeAllRanges();
+            btn.textContent = "Copied";
+          } catch (e2) {
+            btn.textContent = "Oops";
+          }
+        } finally {
+          setTimeout(function () { btn.textContent = "Copy"; }, 1400);
+        }
+      });
+      pre.appendChild(btn);
+    });
+  }
+
+  function initAnchors() {
+    Array.from(document.querySelectorAll("h2, h3")).forEach(function (h) {
+      if (!h.id || h.querySelector("a.anchor")) return;
+      var a = document.createElement("a");
+      a.href = "#" + h.id;
+      a.className = "anchor";
+      a.textContent = "—";
+      a.setAttribute("aria-label", "Link to this section");
+      a.setAttribute("title", "Link to this section");
+      h.appendChild(a);
+    });
+  }
+
+  function initDefaults() {
+    if (
+      document.body &&
+      !document.body.classList.contains("style-minimal") &&
+      !document.body.classList.contains("style-assertive")
+    ) {
+      document.body.classList.add("style-minimal");
+    }
+  }
+
+  function setSearchParam(key, value) {
+    try {
+      var url = new URL(window.location.href);
+      if (value === null || value === "") url.searchParams.delete(key);
+      else url.searchParams.set(key, value);
+      window.history.replaceState({}, "", url.toString());
+    } catch (e) {
+      // no-op
+    }
+  }
+
+  function updateLabSummary(root, state) {
+    var target = root.querySelector("[data-albers-lab-summary]");
+    if (!target) return;
+    target.textContent = [
+      "family=" + state.family,
+      "preset=" + state.preset,
+      "style=" + state.style,
+      "width=" + state.width + "ch"
+    ].join(" | ");
+  }
+
+  function applyLabState(root, state) {
+    applySingleClass(document.body, "palette-", state.family, FAMILY_CLASSES);
+    applySingleClass(document.body, "preset-", state.preset, PRESET_CLASSES);
+
+    classes("style-", STYLE_CLASSES).forEach(function (c) {
+      document.body.classList.remove(c);
+    });
+    if (state.style && state.style !== "balanced") {
+      document.body.classList.add("style-" + state.style);
+    }
+
+    document.documentElement.style.setProperty("--content", state.width + "ch");
+
+    syncBootstrapTheme();
+
+    setSearchParam("family", state.family);
+    setSearchParam("preset", state.preset);
+    setSearchParam("style", state.style);
+    setSearchParam("width", String(state.width));
+
+    updateLabSummary(root, state);
+    renderAllCompositions();
+  }
+
+  function watchThemeClasses() {
+    if (!document.body || typeof MutationObserver === "undefined") return;
+    var observer = new MutationObserver(function (muts) {
+      for (var i = 0; i < muts.length; i++) {
+        if (muts[i].attributeName === "class") {
+          syncBootstrapTheme();
+          renderAllCompositions();
+          break;
+        }
+      }
+    });
+    observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+  }
+
+  function initThemeLab() {
+    var root = document.querySelector("[data-albers-lab]");
+    if (!root) return;
+
+    var controls = {
+      family: root.querySelector("[data-albers-control='family']"),
+      preset: root.querySelector("[data-albers-control='preset']"),
+      style: root.querySelector("[data-albers-control='style']"),
+      width: root.querySelector("[data-albers-control='width']")
+    };
+
+    if (!controls.family || !controls.preset || !controls.style || !controls.width) return;
+
+    var params = new URLSearchParams(window.location.search);
+    var initial = {
+      family: params.get("family") || controls.family.value || "red",
+      preset: params.get("preset") || controls.preset.value || "study",
+      style: params.get("style") || controls.style.value || "minimal",
+      width: Number(params.get("width") || controls.width.value || 78)
+    };
+
+    controls.family.value = initial.family;
+    controls.preset.value = initial.preset;
+    controls.style.value = initial.style;
+    controls.width.value = String(initial.width);
+
+    applyLabState(root, initial);
+
+    Object.keys(controls).forEach(function (key) {
+      controls[key].addEventListener("change", function () {
+        applyLabState(root, {
+          family: controls.family.value,
+          preset: controls.preset.value,
+          style: controls.style.value,
+          width: Number(controls.width.value || "78")
+        });
+      });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    initDefaults();
+    initCopyButtons();
+    initAnchors();
+    initThemeLab();
+    watchThemeClasses();
+    syncBootstrapTheme();
+    renderAllCompositions();
+  });
+})();
+</script>
+<script>document.addEventListener('DOMContentLoaded',function(){document.body.classList.add('palette-red');});</script>
+<script>(function () {
+  var FAMILY_CLASSES = ["red", "lapis", "ochre", "teal", "green", "violet"];
+  var PRESET_CLASSES = ["homage", "interaction", "study", "structural", "adobe", "midnight"];
+  var STYLE_CLASSES = ["minimal", "assertive"];
+
+  function classes(prefix, values) {
+    return values.map(function (v) { return prefix + v; });
+  }
+
+  function applySingleClass(el, prefix, value, values) {
+    classes(prefix, values).forEach(function (c) { el.classList.remove(c); });
+    if (value) el.classList.add(prefix + value);
+  }
+
+  function inferBootstrapTheme() {
+    if (!document.body) return "light";
+    return document.body.classList.contains("preset-midnight") ? "dark" : "light";
+  }
+
+  function syncBootstrapTheme() {
+    var theme = inferBootstrapTheme();
+    document.documentElement.setAttribute("data-bs-theme", theme);
+    document.body.setAttribute("data-bs-theme", theme);
+    var nav = document.querySelector("nav.navbar");
+    if (nav) nav.setAttribute("data-bs-theme", theme);
+  }
+
+  function hashSeed(seed) {
+    var h = 2166136261;
+    for (var i = 0; i < seed.length; i++) {
+      h ^= seed.charCodeAt(i);
+      h += (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24);
+    }
+    return h >>> 0;
+  }
+
+  function seeded(seed) {
+    var state = hashSeed(seed || "albersdown");
+    return function () {
+      state = (1664525 * state + 1013904223) >>> 0;
+      return state / 4294967296;
+    };
+  }
+
+  function readPalette(el) {
+    var source = el || document.body;
+    var style = getComputedStyle(source);
+    var colors = ["--A900", "--A700", "--A500", "--A300"].map(function (k) {
+      var value = style.getPropertyValue(k).trim();
+      return value || "#666";
+    });
+    return colors;
+  }
+
+  function clearChildren(el) {
+    while (el.firstChild) el.removeChild(el.firstChild);
+  }
+
+  function svgEl(name, attrs) {
+    var el = document.createElementNS("http://www.w3.org/2000/svg", name);
+    Object.keys(attrs || {}).forEach(function (key) {
+      el.setAttribute(key, String(attrs[key]));
+    });
+    return el;
+  }
+
+  function renderComposition(container, idx) {
+    var seed = container.getAttribute("data-seed") || (window.location.pathname + ":" + idx);
+    var density = Number(container.getAttribute("data-density") || "6");
+    var rand = seeded(seed);
+    var palette = readPalette(container);
+    var w = 1600;
+    var h = 500;
+
+    clearChildren(container);
+    var svg = svgEl("svg", {
+      viewBox: "0 0 " + w + " " + h,
+      preserveAspectRatio: "xMidYMid slice",
+      role: "img",
+      "aria-label": "Albers composition"
+    });
+
+    svg.appendChild(svgEl("rect", { x: 0, y: 0, width: w, height: h, fill: "var(--surface)" }));
+
+    var blockCount = Math.max(4, Math.min(16, density * 2));
+    for (var i = 0; i < blockCount; i++) {
+      var side = 90 + rand() * 260;
+      var x = rand() * (w - side);
+      var y = rand() * (h - side);
+      var tone = palette[Math.floor(rand() * palette.length)];
+      svg.appendChild(svgEl("rect", {
+        x: x.toFixed(2),
+        y: y.toFixed(2),
+        width: side.toFixed(2),
+        height: side.toFixed(2),
+        fill: tone,
+        opacity: (0.17 + rand() * 0.72).toFixed(3)
+      }));
+    }
+
+    for (var j = 0; j < 3; j++) {
+      var cx = 80 + rand() * (w - 160);
+      var cy = 60 + rand() * (h - 120);
+      var radius = 26 + rand() * 66;
+      var color = palette[Math.floor(rand() * palette.length)];
+      svg.appendChild(svgEl("circle", {
+        cx: cx.toFixed(2),
+        cy: cy.toFixed(2),
+        r: radius.toFixed(2),
+        fill: color,
+        opacity: (0.16 + rand() * 0.44).toFixed(3)
+      }));
+    }
+
+    svg.appendChild(svgEl("rect", {
+      x: 0,
+      y: 0,
+      width: w,
+      height: h,
+      fill: "none",
+      stroke: "var(--border)",
+      "stroke-width": "4"
+    }));
+
+    container.appendChild(svg);
+  }
+
+  function renderAllCompositions() {
+    Array.from(document.querySelectorAll(".albers-composition")).forEach(function (el, idx) {
+      renderComposition(el, idx);
+    });
+  }
+
+  function initCopyButtons() {
+    var hasPkgdownCopy =
+      document.querySelector(".btn-copy-ex") ||
+      document.querySelector("[data-clipboard-copy]") ||
+      document.querySelector("div.sourceCode.hasCopyButton");
+
+    if (hasPkgdownCopy) return;
+
+    document.querySelectorAll("pre > code").forEach(function (code) {
+      var pre = code.parentElement;
+      if (!pre || pre.querySelector("button.copy-code")) return;
+      if (!code.textContent || !code.textContent.trim()) return;
+      var btn = document.createElement("button");
+      btn.className = "copy-code";
+      btn.type = "button";
+      btn.setAttribute("aria-label", "Copy code");
+      btn.textContent = "Copy";
+      btn.addEventListener("click", async function () {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          btn.textContent = "Copied";
+        } catch (e) {
+          try {
+            var r = document.createRange();
+            r.selectNodeContents(code);
+            var sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(r);
+            document.execCommand("copy");
+            sel.removeAllRanges();
+            btn.textContent = "Copied";
+          } catch (e2) {
+            btn.textContent = "Oops";
+          }
+        } finally {
+          setTimeout(function () { btn.textContent = "Copy"; }, 1400);
+        }
+      });
+      pre.appendChild(btn);
+    });
+  }
+
+  function initAnchors() {
+    Array.from(document.querySelectorAll("h2, h3")).forEach(function (h) {
+      if (!h.id || h.querySelector("a.anchor")) return;
+      var a = document.createElement("a");
+      a.href = "#" + h.id;
+      a.className = "anchor";
+      a.textContent = "—";
+      a.setAttribute("aria-label", "Link to this section");
+      a.setAttribute("title", "Link to this section");
+      h.appendChild(a);
+    });
+  }
+
+  function initDefaults() {
+    if (
+      document.body &&
+      !document.body.classList.contains("style-minimal") &&
+      !document.body.classList.contains("style-assertive")
+    ) {
+      document.body.classList.add("style-minimal");
+    }
+  }
+
+  function setSearchParam(key, value) {
+    try {
+      var url = new URL(window.location.href);
+      if (value === null || value === "") url.searchParams.delete(key);
+      else url.searchParams.set(key, value);
+      window.history.replaceState({}, "", url.toString());
+    } catch (e) {
+      // no-op
+    }
+  }
+
+  function updateLabSummary(root, state) {
+    var target = root.querySelector("[data-albers-lab-summary]");
+    if (!target) return;
+    target.textContent = [
+      "family=" + state.family,
+      "preset=" + state.preset,
+      "style=" + state.style,
+      "width=" + state.width + "ch"
+    ].join(" | ");
+  }
+
+  function applyLabState(root, state) {
+    applySingleClass(document.body, "palette-", state.family, FAMILY_CLASSES);
+    applySingleClass(document.body, "preset-", state.preset, PRESET_CLASSES);
+
+    classes("style-", STYLE_CLASSES).forEach(function (c) {
+      document.body.classList.remove(c);
+    });
+    if (state.style && state.style !== "balanced") {
+      document.body.classList.add("style-" + state.style);
+    }
+
+    document.documentElement.style.setProperty("--content", state.width + "ch");
+
+    syncBootstrapTheme();
+
+    setSearchParam("family", state.family);
+    setSearchParam("preset", state.preset);
+    setSearchParam("style", state.style);
+    setSearchParam("width", String(state.width));
+
+    updateLabSummary(root, state);
+    renderAllCompositions();
+  }
+
+  function watchThemeClasses() {
+    if (!document.body || typeof MutationObserver === "undefined") return;
+    var observer = new MutationObserver(function (muts) {
+      for (var i = 0; i < muts.length; i++) {
+        if (muts[i].attributeName === "class") {
+          syncBootstrapTheme();
+          renderAllCompositions();
+          break;
+        }
+      }
+    });
+    observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+  }
+
+  function initThemeLab() {
+    var root = document.querySelector("[data-albers-lab]");
+    if (!root) return;
+
+    var controls = {
+      family: root.querySelector("[data-albers-control='family']"),
+      preset: root.querySelector("[data-albers-control='preset']"),
+      style: root.querySelector("[data-albers-control='style']"),
+      width: root.querySelector("[data-albers-control='width']")
+    };
+
+    if (!controls.family || !controls.preset || !controls.style || !controls.width) return;
+
+    var params = new URLSearchParams(window.location.search);
+    var initial = {
+      family: params.get("family") || controls.family.value || "red",
+      preset: params.get("preset") || controls.preset.value || "study",
+      style: params.get("style") || controls.style.value || "minimal",
+      width: Number(params.get("width") || controls.width.value || 78)
+    };
+
+    controls.family.value = initial.family;
+    controls.preset.value = initial.preset;
+    controls.style.value = initial.style;
+    controls.width.value = String(initial.width);
+
+    applyLabState(root, initial);
+
+    Object.keys(controls).forEach(function (key) {
+      controls[key].addEventListener("change", function () {
+        applyLabState(root, {
+          family: controls.family.value,
+          preset: controls.preset.value,
+          style: controls.style.value,
+          width: Number(controls.width.value || "78")
+        });
+      });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    initDefaults();
+    initCopyButtons();
+    initAnchors();
+    initThemeLab();
+    watchThemeClasses();
+    syncBootstrapTheme();
+    renderAllCompositions();
+  });
+})();
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">
+:root {
+
+--ink: #1f1b16;
+--bg: #efe7d6;
+--surface: #fbf7ee;
+--surface-strong: #f4eedf;
+--muted: #7a7264;
+--border: #e0d6c0;
+--code-bg: #fbf7ee;
+--code-fg: #332f28;
+--code-border: #e0d6c0;
+--tok-fun: #1f6f6b;
+--tok-str: #8e2d1c;
+--tok-num: #d98324;
+--tok-com: #9a9078;
+--tok-kw: #c24a2e;
+--shadow-soft: 0 1px 3px rgba(9, 11, 15, 0.045);
+--shadow-card: 0 1px 5px rgba(9, 11, 15, 0.055);
+--content: 78ch;
+--anchor-offset: 76px;
+
+--vig-toc-width: 15rem;
+--vig-gap: clamp(1.5rem, 2.4vw, 2.6rem);
+--vig-pad-block: clamp(1.75rem, 3vw, 3rem);
+--vig-pad-inline: clamp(1.2rem, 3vw, 2.6rem);
+--font-body: "Newsreader", Georgia, "Times New Roman", serif;
+--font-display: "Familjen Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+--font-ui: "Space Grotesk", system-ui, sans-serif;
+--font-mono: "Spline Sans Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+--heading-weight: 700;
+--module: 4px;
+--space-1: 0.25rem;
+--space-2: 0.5rem;
+--space-3: 0.75rem;
+--space-4: 1rem;
+--space-5: 1.5rem;
+--space-6: 2rem;
+--rule-thin: 1px;
+--rule-strong: 2px;
+--ribbon-opacity: 0.62;
+--nav-dash-weight: 650;
+--dash-weight: 600;
+--dash-opacity: 0.82;
+--subdash-opacity: 0.76;
+--overview-dash-weight: 620;
+--overview-dash-opacity: 0.86;
+--hr-opacity: 0.42;
+--table-divider-alpha: 72%;
+--table-hover-alpha: 70%;
+
+--A900: #c22b23;
+--A700: #dc3925;
+--A500: #e44926;
+--A300: #e35b2d;
+--accent-ink-light: var(--A900);
+--accent-ink-dark: var(--A300);
+--accent-ink: var(--accent-ink-light);
+--accent: var(--A500);
+--accent-strong: var(--A700);
+--accent-hover: #a9351f;
+--accent-tint: rgba(228, 73, 38, 0.09);
+--accent-band: rgba(228, 73, 38, 0.14);
+
+--sq-size: 0.46em;
+--sq-ring: 0.12em;
+--sq-outer: #e0a100;
+}
+
+body {
+--accent-ink: var(--A900);
+--accent: var(--A500);
+--accent-strong: var(--A700);
+--sq-core: var(--A900);
+--sq-mid: var(--A500);
+}
+
+
+.style-minimal {
+--rule-strong: 1px;
+--ribbon-opacity: 0.46;
+
+--sq-size: 0.4em;
+--sq-ring: 0.1em;
+--nav-dash-weight: 600;
+--subdash-opacity: 0.64;
+--overview-dash-weight: 560;
+--overview-dash-opacity: 0.74;
+--hr-opacity: 0.3;
+--table-divider-alpha: 58%;
+--table-hover-alpha: 52%;
+}
+.style-assertive {
+--rule-strong: 3px;
+--ribbon-opacity: 0.82;
+
+--sq-size: 0.56em;
+--sq-ring: 0.17em;
+--nav-dash-weight: 720;
+--subdash-opacity: 0.9;
+--overview-dash-weight: 680;
+--overview-dash-opacity: 0.94;
+--hr-opacity: 0.62;
+--table-divider-alpha: 90%;
+--table-hover-alpha: 92%;
+}
+
+
+.palette-red {
+--A900: #C22B23;
+--A700: #DC3925;
+--A500: #E44926;
+--A300: #E35B2D;
+--accent-hover: #A9351F;
+--accent-tint: rgba(228, 73, 38, 0.09);
+--accent-band: rgba(228, 73, 38, 0.14);
+}
+.palette-lapis {
+--A900: #1B2A74;
+--A700: #20399C;
+--A500: #2C4FCC;
+--A300: #4968D6;
+--accent-hover: #1A377F;
+--accent-tint: rgba(44, 79, 204, 0.10);
+--accent-band: rgba(44, 79, 204, 0.15);
+}
+.palette-ochre {
+--A900: #6F5200;
+--A700: #8B6700;
+--A500: #B48900;
+--A300: #D7A700;
+--accent-hover: #7A5C00;
+--accent-tint: rgba(180, 137, 0, 0.10);
+--accent-band: rgba(180, 137, 0, 0.16);
+}
+.palette-teal {
+--A900: #0D4A4A;
+--A700: #0F5E5E;
+--A500: #127373;
+--A300: #2F8C8C;
+--accent-hover: #0F6060;
+--accent-tint: rgba(18, 115, 115, 0.10);
+--accent-band: rgba(18, 115, 115, 0.15);
+}
+.palette-green {
+--A900: #1B5E20;
+--A700: #2E7D32;
+--A500: #388E3C;
+--A300: #66BB6A;
+--accent-hover: #2E7D32;
+--accent-tint: rgba(56, 142, 60, 0.10);
+--accent-band: rgba(56, 142, 60, 0.15);
+}
+.palette-violet {
+--A900: #4A148C;
+--A700: #6A1B9A;
+--A500: #8E24AA;
+--A300: #BA68C8;
+--accent-ink-dark: #D59AE7;
+--accent-hover: #71208D;
+--accent-tint: rgba(142, 36, 170, 0.11);
+--accent-band: rgba(142, 36, 170, 0.16);
+}
+
+
+
+
+.preset-homage {
+--bg: #efe7d6;
+--surface: #fbf7ee;
+--surface-strong: #f4eedf;
+--ink: #1f1b16;
+--muted: #7a7264;
+--border: #e0d6c0;
+--code-bg: #fbf7ee;
+--code-fg: #332f28;
+--code-border: #e0d6c0;
+--tok-fun: #1f6f6b;
+--tok-str: #8e2d1c;
+--tok-num: #d98324;
+--tok-com: #9a9078;
+--tok-kw: #c24a2e;
+--font-body: "Newsreader", Georgia, "Times New Roman", serif;
+--font-display: "Familjen Grotesk", system-ui, sans-serif;
+--font-ui: "Space Grotesk", system-ui, sans-serif;
+--font-mono: "Spline Sans Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+--sq-outer: #e0a100;
+--heading-weight: 700;
+}
+
+.preset-interaction {
+--bg: #f1f2f4;
+--surface: #ffffff;
+--surface-strong: #f7f8fa;
+--ink: #15181e;
+--muted: #7b8494;
+--border: #e3e6eb;
+--code-bg: #15181e;
+--code-fg: #c9d0dc;
+--code-border: #15181e;
+--tok-fun: #7fa6f0;
+--tok-str: #e9904f;
+--tok-num: #9ad0a0;
+--tok-com: #6b7484;
+--tok-kw: #f4b43c;
+--font-body: "Hanken Grotesk", system-ui, sans-serif;
+--font-display: "Space Grotesk", system-ui, sans-serif;
+--font-ui: "Hanken Grotesk", system-ui, sans-serif;
+--font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+--sq-outer: var(--A300);
+--heading-weight: 600;
+}
+
+.preset-study {
+--bg: #f7f9fb;
+--surface: #ffffff;
+--surface-strong: #fbfcfd;
+--ink: #17181a;
+--muted: #68717d;
+--border: #dde2e8;
+--code-bg: #f1f4f8;
+--font-display: "Avenir Next", "Gill Sans", "Trebuchet MS", system-ui, sans-serif;
+--heading-weight: 730;
+}
+
+.preset-structural {
+--bg: #e6e9ed;
+--surface: #f1f3f6;
+--surface-strong: #eceff2;
+--ink: #101214;
+--muted: #4b5360;
+--border: #c1c8d0;
+--code-bg: #e0e5ea;
+--shadow-soft: none;
+--shadow-card: none;
+--font-display: "Franklin Gothic Medium", "Avenir Next", "Gill Sans", sans-serif;
+--heading-weight: 760;
+}
+
+.preset-adobe {
+--bg: #ece9e7;
+--surface: #f3f1ef;
+--surface-strong: #efedeb;
+--ink: #1f1c19;
+--muted: #66615d;
+--border: #ccc7c3;
+--code-bg: #e3dfdc;
+--shadow-soft: 0 2px 7px rgba(0, 0, 0, 0.04);
+--shadow-card: 0 2px 9px rgba(0, 0, 0, 0.05);
+--font-display: "Optima", "Avenir Next", "Gill Sans", sans-serif;
+--heading-weight: 720;
+}
+
+.preset-midnight {
+--bg: #0d1117;
+--surface: #151b24;
+--surface-strong: #1a212d;
+--ink: #e8e6e1;
+--muted: #b2bac7;
+--border: #2c3342;
+--code-bg: #0f1520;
+--shadow-soft: 0 6px 20px rgba(0, 0, 0, 0.4);
+--shadow-card: 0 6px 24px rgba(0, 0, 0, 0.45);
+--font-display: "Avenir Next", "Gill Sans", "Trebuchet MS", sans-serif;
+--heading-weight: 740;
+--accent-ink: var(--accent-ink-dark);
+}
+
+
+@media (prefers-color-scheme: dark) {
+:root {
+--ink: #ece8de;
+--bg: #111315;
+--surface: #171a1e;
+--surface-strong: #1c2025;
+--muted: #a7aeb8;
+--border: #313844;
+--code-bg: #181d24;
+--shadow-soft: 0 6px 20px rgba(0, 0, 0, 0.35);
+--shadow-card: 0 6px 24px rgba(0, 0, 0, 0.4);
+--accent-ink: var(--accent-ink-dark);
+--accent-hover: #f2b2a7;
+--accent-tint: rgba(228, 73, 38, 0.2);
+--accent-band: rgba(228, 73, 38, 0.25);
+}
+}
+[data-bs-theme="dark"] {
+--ink: #ece8de;
+--bg: #111315;
+--surface: #171a1e;
+--surface-strong: #1c2025;
+--muted: #a7aeb8;
+--border: #313844;
+--code-bg: #181d24;
+--shadow-soft: 0 6px 20px rgba(0, 0, 0, 0.35);
+--shadow-card: 0 6px 24px rgba(0, 0, 0, 0.4);
+--accent-ink: var(--accent-ink-dark);
+--accent-hover: #f2b2a7;
+--accent-tint: rgba(228, 73, 38, 0.2);
+--accent-band: rgba(228, 73, 38, 0.25);
+}
+
+body[data-bs-theme="dark"].palette-red,
+[data-bs-theme="dark"] body.palette-red {
+--accent-ink: #FFB8A9;
+--accent-hover: #FFD2C7;
+--accent-tint: rgba(228, 73, 38, 0.24);
+--accent-band: rgba(228, 73, 38, 0.30);
+}
+body[data-bs-theme="dark"].palette-lapis,
+[data-bs-theme="dark"] body.palette-lapis {
+--accent-ink: #AAB9FF;
+--accent-hover: #C6D0FF;
+--accent-tint: rgba(73, 104, 214, 0.24);
+--accent-band: rgba(73, 104, 214, 0.30);
+}
+body[data-bs-theme="dark"].palette-ochre,
+[data-bs-theme="dark"] body.palette-ochre {
+--accent-ink: #FFD46E;
+--accent-hover: #FFE4A7;
+--accent-tint: rgba(180, 137, 0, 0.24);
+--accent-band: rgba(180, 137, 0, 0.31);
+}
+body[data-bs-theme="dark"].palette-teal,
+[data-bs-theme="dark"] body.palette-teal {
+--accent-ink: #9BDCD9;
+--accent-hover: #B8E8E5;
+--accent-tint: rgba(47, 140, 140, 0.24);
+--accent-band: rgba(47, 140, 140, 0.30);
+}
+body[data-bs-theme="dark"].palette-green,
+[data-bs-theme="dark"] body.palette-green {
+--accent-ink: #AFE7B1;
+--accent-hover: #CAF0CB;
+--accent-tint: rgba(102, 187, 106, 0.24);
+--accent-band: rgba(102, 187, 106, 0.30);
+}
+body[data-bs-theme="dark"].palette-violet,
+[data-bs-theme="dark"] body.palette-violet {
+--accent-ink: #DFB3EC;
+--accent-hover: #ECCFF4;
+--accent-tint: rgba(186, 104, 200, 0.24);
+--accent-band: rgba(186, 104, 200, 0.31);
+}
+@media (prefers-color-scheme: dark) {
+body.palette-red {
+--accent-ink: #FFB8A9;
+--accent-hover: #FFD2C7;
+--accent-tint: rgba(228, 73, 38, 0.24);
+--accent-band: rgba(228, 73, 38, 0.30);
+}
+body.palette-lapis {
+--accent-ink: #AAB9FF;
+--accent-hover: #C6D0FF;
+--accent-tint: rgba(73, 104, 214, 0.24);
+--accent-band: rgba(73, 104, 214, 0.30);
+}
+body.palette-ochre {
+--accent-ink: #FFD46E;
+--accent-hover: #FFE4A7;
+--accent-tint: rgba(180, 137, 0, 0.24);
+--accent-band: rgba(180, 137, 0, 0.31);
+}
+body.palette-teal {
+--accent-ink: #9BDCD9;
+--accent-hover: #B8E8E5;
+--accent-tint: rgba(47, 140, 140, 0.24);
+--accent-band: rgba(47, 140, 140, 0.30);
+}
+body.palette-green {
+--accent-ink: #AFE7B1;
+--accent-hover: #CAF0CB;
+--accent-tint: rgba(102, 187, 106, 0.24);
+--accent-band: rgba(102, 187, 106, 0.30);
+}
+body.palette-violet {
+--accent-ink: #DFB3EC;
+--accent-hover: #ECCFF4;
+--accent-tint: rgba(186, 104, 200, 0.24);
+--accent-band: rgba(186, 104, 200, 0.31);
+}
+}
+
+
+:root { scrollbar-gutter: stable both-edges; }
+html,
+body {
+background-color: var(--bg);
+color: var(--ink);
+font-family: var(--font-body);
+font-size: 17.5px;
+line-height: 1.58;
+letter-spacing: 0.01em;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+-moz-osx-font-smoothing: grayscale;
+}
+
+html:has(body.preset-interaction) { --bg: #f1f2f4; }
+html:has(body.preset-study) { --bg: #f7f9fb; }
+html:has(body.preset-structural) { --bg: #e6e9ed; }
+html:has(body.preset-adobe) { --bg: #ece9e7; }
+html:has(body.preset-midnight) { --bg: #0d1117; }
+
+.navbar .nav-link,
+.navbar .navbar-brand,
+.nav-item .nav-link,
+.btn,
+.form-control,
+input[type="search"],
+button.copy-code,
+pre,
+table,
+blockquote,
+.callout,
+.theme-lab__panel,
+.theme-lab__preview,
+.albers-chip,
+#toc > .nav a.nav-link,
+aside,
+.dropdown-menu,
+.popover,
+.page-content,
+.article,
+.reference,
+.template-home,
+.page-header {
+border-radius: 0 !important;
+}
+main,
+.content,
+.page-content,
+.vignette,
+.contents {
+max-width: var(--content);
+margin-inline: auto;
+padding-inline: clamp(16px, 2.4vw, 34px);
+}
+
+body.albers-vignette,
+body:has(> #TOC) {
+box-sizing: border-box;
+max-width: calc(var(--content) + 2 * var(--vig-pad-inline));
+margin-inline: auto;
+padding: var(--vig-pad-block) var(--vig-pad-inline);
+background: var(--surface);
+border: var(--rule-thin) solid var(--border);
+box-shadow: var(--shadow-soft);
+position: relative;
+}
+
+body.albers-vignette::before,
+body:has(> #TOC)::before {
+content: "";
+position: absolute;
+inset-block: 0;
+inset-inline-start: 0;
+width: var(--rule-strong);
+background: var(--A500);
+opacity: var(--ribbon-opacity);
+pointer-events: none;
+}
+body.albers-vignette > h1.title,
+body:has(> #TOC) > h1.title {
+margin-top: 0;
+}
+
+body.albers-vignette > #TOC,
+body:has(> #TOC) > #TOC {
+background: var(--surface-strong);
+border: var(--rule-thin) solid var(--border);
+border-left: var(--rule-strong) solid var(--A500);
+padding: var(--space-4) var(--space-4) var(--space-4) var(--space-5);
+margin-block: var(--space-5) var(--space-6);
+font-size: 0.92em;
+line-height: 1.4;
+}
+body.albers-vignette > #TOC ul,
+body:has(> #TOC) > #TOC ul {
+list-style: none;
+margin: 0;
+padding-left: 0;
+}
+body.albers-vignette > #TOC ul ul,
+body:has(> #TOC) > #TOC ul ul {
+padding-left: 0.95em;
+margin-top: 0.18rem;
+}
+body.albers-vignette > #TOC li,
+body:has(> #TOC) > #TOC li {
+position: relative;
+margin: 0.2rem 0;
+padding-left: 0.95em;
+}
+body.albers-vignette > #TOC li::before,
+body:has(> #TOC) > #TOC li::before {
+content: "–";
+position: absolute;
+left: 0;
+top: 0;
+color: var(--A500);
+opacity: var(--subdash-opacity);
+}
+body.albers-vignette > #TOC a,
+body:has(> #TOC) > #TOC a {
+color: var(--muted) !important;
+text-decoration: none !important;
+border-bottom: none !important;
+}
+body.albers-vignette > #TOC a:hover,
+body.albers-vignette > #TOC a:focus-visible,
+body:has(> #TOC) > #TOC a:hover,
+body:has(> #TOC) > #TOC a:focus-visible {
+color: var(--accent-ink) !important;
+}
+
+@media (min-width: 1080px) {
+body.albers-vignette,
+body:has(> #TOC) {
+max-width: calc(
+var(--content) + var(--vig-toc-width) + var(--vig-gap) +
+2 * var(--vig-pad-inline)
+);
+display: grid;
+grid-template-columns: [toc] var(--vig-toc-width) [main] minmax(0, 1fr);
+column-gap: var(--vig-gap);
+align-items: start;
+}
+body.albers-vignette > *,
+body:has(> #TOC) > * {
+grid-column: main;
+min-width: 0;
+}
+body.albers-vignette > h1.title,
+body:has(> #TOC) > h1.title {
+grid-column: toc / -1;
+}
+body.albers-vignette > #TOC,
+body:has(> #TOC) > #TOC {
+grid-column: toc;
+grid-row: 2 / span 200;
+align-self: start;
+position: sticky;
+top: var(--vig-pad-block);
+max-height: calc(100vh - 2 * var(--vig-pad-block));
+overflow-y: auto;
+margin-block: 0;
+}
+}
+
+@media (max-width: 620px) {
+body.albers-vignette,
+body:has(> #TOC) {
+border: none;
+box-shadow: none;
+padding-inline: 18px;
+}
+body.albers-vignette::before,
+body:has(> #TOC)::before {
+display: none;
+}
+}
+
+.page-content,
+.article,
+.reference,
+.template-home {
+position: relative;
+background: var(--surface);
+border: var(--rule-thin) solid var(--border);
+box-shadow: var(--shadow-soft);
+}
+.page-content::before,
+.article::before,
+.reference::before,
+.template-home::before {
+content: "";
+position: absolute;
+top: calc(-1 * var(--rule-thin));
+bottom: calc(-1 * var(--rule-thin));
+left: calc(-1 * var(--rule-thin));
+width: var(--rule-strong);
+background: var(--A500);
+opacity: var(--ribbon-opacity);
+pointer-events: none;
+}
+.page-header,
+.template-home .page-header {
+background: var(--surface-strong);
+border-top: var(--rule-thin) solid var(--border);
+border-bottom: var(--rule-thin) solid var(--border);
+}
+.navbar {
+background: var(--surface-strong) !important;
+border-top: var(--rule-strong) solid var(--A500);
+border-bottom: var(--rule-thin) solid var(--border);
+backdrop-filter: none;
+box-shadow: none;
+}
+.navbar .navbar-brand,
+.navbar .nav-link {
+color: var(--ink) !important;
+font-weight: 650;
+letter-spacing: 0.045em;
+text-transform: uppercase;
+font-size: 0.85em;
+text-decoration: none !important;
+}
+.navbar .navbar-brand {
+font-weight: 730;
+letter-spacing: 0.055em;
+}
+.navbar .nav-link {
+border-bottom: var(--rule-thin) solid transparent;
+padding-bottom: 0.18rem;
+}
+.navbar .nav-link:hover,
+.navbar .nav-link:focus-visible {
+border-bottom-color: var(--A500);
+}
+.navbar .nav-link.active,
+.navbar .active > a {
+border-bottom-color: var(--A500);
+}
+.navbar .nav-link.active::after,
+.navbar .active > a::after {
+content: " —";
+margin-left: var(--space-1);
+color: var(--A500);
+font-weight: var(--nav-dash-weight);
+}
+.sidebar,
+.toc {
+background: var(--surface);
+border: var(--rule-thin) solid var(--border);
+}
+
+p { margin-block: 0 1.02rem; }
+h1,
+h2,
+h3 {
+font-family: var(--font-display);
+color: var(--ink);
+line-height: 1.18;
+margin-top: var(--space-6);
+margin-bottom: 0.65rem;
+}
+h1 {
+font-size: clamp(2.2rem, 4vw, 3rem);
+letter-spacing: -0.022em;
+text-wrap: balance;
+font-weight: calc(var(--heading-weight) + 40);
+}
+
+h2 {
+font-family: var(--font-ui);
+font-size: 1.04rem;
+letter-spacing: 0.1em;
+text-transform: uppercase;
+font-weight: 700;
+}
+h3 {
+font-family: var(--font-ui);
+font-size: 0.86rem;
+letter-spacing: 0.12em;
+font-weight: 700;
+text-transform: uppercase;
+color: var(--muted);
+}
+h2,
+h3 {
+position: relative;
+display: flex;
+align-items: center;
+gap: 0.7em;
+padding-right: 1.45em;
+scroll-margin-top: var(--anchor-offset);
+}
+
+h2::before,
+h3::before {
+content: "";
+flex: none;
+margin-left: var(--sq-ring);
+width: var(--sq-size);
+height: var(--sq-size);
+background: var(--sq-core);
+box-shadow:
+0 0 0 var(--sq-ring) var(--sq-mid),
+0 0 0 calc(2 * var(--sq-ring)) var(--sq-outer);
+}
+
+a,
+a:visited {
+color: var(--accent-ink) !important;
+text-decoration: underline;
+text-decoration-thickness: 0.09em;
+text-underline-offset: 0.14em;
+text-decoration-skip-ink: auto;
+transition: color 0.15s ease;
+}
+a:hover {
+color: var(--accent-hover) !important;
+}
+a:focus-visible,
+button.copy-code:focus-visible,
+.anchor:focus-visible {
+outline: 2px solid var(--accent-ink);
+outline-offset: 2px;
+box-shadow: 0 0 0 3px var(--accent-tint);
+}
+a:focus { outline: none; }
+
+code,
+pre,
+kbd,
+samp {
+font-family: var(--font-mono);
+font-size: 0.95em;
+line-height: 1.52;
+}
+pre {
+background: var(--code-bg);
+border: var(--rule-thin) solid var(--border);
+border-left: var(--rule-strong) solid var(--A500);
+box-shadow: none;
+padding: var(--space-5) var(--space-4);
+margin-block: 1.35rem;
+overflow: auto;
+position: relative;
+tab-size: 2;
+-moz-tab-size: 2;
+}
+
+pre,
+.sourceCode pre {
+color: var(--code-fg);
+}
+[data-bs-theme="dark"] pre,
+[data-bs-theme="dark"] code {
+background-color: var(--code-bg);
+}
+pre code {
+background: transparent;
+border: none;
+padding: 0;
+word-break: normal;
+overflow-wrap: normal;
+color: var(--code-fg);
+}
+button.copy-code {
+position: absolute;
+top: 8px;
+right: 8px;
+border: var(--rule-thin) solid var(--A500);
+background: var(--surface);
+color: var(--accent-ink);
+padding: 4px 8px;
+font: 650 11px/1 var(--font-display);
+letter-spacing: 0.06em;
+text-transform: uppercase;
+cursor: pointer;
+}
+button.copy-code:hover {
+background: var(--accent-tint);
+}
+button.copy-code:active {
+transform: translateY(1px);
+}
+
+:not(pre) > code {
+background: var(--surface-strong);
+border: var(--rule-thin) solid var(--border);
+color: var(--accent-ink);
+padding: 0.12em 0.36em;
+font-size: 0.86em;
+}
+
+
+.sourceCode .va,
+.sourceCode .op,
+.sourceCode .pp,
+.sourceCode .ot,
+.sourceCode .sc {
+color: var(--code-fg);
+}
+pre code .kw,
+.sourceCode .kw,
+.hljs-keyword {
+color: var(--tok-kw);
+font-weight: 650;
+}
+pre code .fu,
+.sourceCode .fu,
+.hljs-title,
+.hljs-function {
+color: var(--tok-fun);
+}
+pre code .st,
+.sourceCode .st,
+.hljs-string {
+color: var(--tok-str);
+}
+pre code .co,
+.sourceCode .co,
+.hljs-comment {
+color: var(--tok-com);
+font-style: italic;
+}
+pre code .cn,
+.sourceCode .dv,
+.sourceCode .fl,
+.sourceCode .bn,
+.sourceCode .cn,
+.hljs-number,
+.hljs-literal {
+color: var(--tok-num);
+}
+
+pre code a,
+pre code a:visited,
+div.sourceCode a,
+div.sourceCode a:visited {
+color: var(--tok-fun) !important;
+text-decoration: none;
+}
+pre code a:hover,
+div.sourceCode a:hover {
+text-decoration: underline;
+}
+
+table {
+width: 100%;
+border-collapse: collapse;
+font-variant-numeric: tabular-nums;
+border: var(--rule-thin) solid var(--border);
+}
+th,
+td {
+border-bottom: var(--rule-thin) solid var(--border);
+padding: 10px 9px;
+}
+th + th,
+td + td {
+border-left: var(--rule-thin) solid color-mix(in srgb, var(--border) var(--table-divider-alpha), transparent);
+}
+thead th {
+background: var(--surface-strong);
+border-bottom: var(--rule-strong) solid var(--A500);
+font-weight: 700;
+text-transform: uppercase;
+font-size: 0.84em;
+letter-spacing: 0.06em;
+text-align: left;
+}
+tbody tr:nth-child(odd) {
+background: var(--accent-tint);
+}
+tbody tr:hover {
+background: color-mix(in srgb, var(--accent-band) var(--table-hover-alpha), transparent);
+}
+caption {
+caption-side: bottom;
+color: var(--muted);
+padding-top: 0.7rem;
+font-size: 0.94em;
+}
+
+figure {
+margin-block: 1.2rem 1.6rem;
+padding: 0.78rem 0.82rem;
+border: var(--rule-thin) solid var(--border);
+background: var(--surface);
+}
+figure::before {
+content: "";
+display: block;
+height: var(--rule-strong);
+width: clamp(64px, 18%, 160px);
+background: var(--A500);
+opacity: 0.58;
+margin-bottom: 0.68rem;
+}
+figcaption {
+margin-top: 0.58rem;
+font-size: 0.82rem;
+text-transform: uppercase;
+letter-spacing: 0.052em;
+color: var(--muted);
+}
+
+blockquote,
+.callout {
+position: relative;
+border: var(--rule-thin) solid var(--border);
+border-left: 3px solid var(--accent);
+background: var(--surface-strong);
+padding: 16px 22px;
+margin-block: 1.45rem;
+}
+
+blockquote::after,
+.callout::after {
+content: "";
+position: absolute;
+top: 14px;
+right: 14px;
+width: 0.5em;
+height: 0.5em;
+background: var(--sq-mid);
+box-shadow: 0 0 0 0.17em var(--sq-outer);
+}
+blockquote p { margin: 0; }
+.callout-note {
+border-left-color: var(--A500);
+background: var(--accent-band);
+}
+.callout-insight {
+border-left-color: var(--A700);
+background: var(--accent-tint);
+}
+.callout-warning {
+border-left-color: #b48900;
+background: rgba(180, 137, 0, 0.12);
+}
+.callout-experiment {
+border-left-color: color-mix(in srgb, var(--A500) 60%, var(--A900));
+background:
+linear-gradient(90deg, color-mix(in srgb, var(--A300) 22%, transparent) 0 2px, transparent 2px),
+color-mix(in srgb, var(--accent-band) 75%, var(--surface));
+}
+
+h2:hover .anchor,
+h3:hover .anchor,
+h2:focus-within .anchor,
+h3:focus-within .anchor {
+opacity: 1;
+transform: translateY(-50%) translateX(0);
+}
+.anchor {
+opacity: 0;
+position: absolute;
+right: 0;
+top: 50%;
+transform: translateY(-50%) translateX(0.2em);
+text-decoration: none;
+color: var(--A500);
+line-height: 1;
+font-weight: 700;
+letter-spacing: 0.04em;
+transition: opacity 0.15s ease-in-out, transform 0.15s ease-in-out;
+}
+
+.homage-hero {
+aspect-ratio: 8 / 3;
+min-height: clamp(72px, 14vw, 168px);
+margin-block: 1.5rem;
+border: 0;
+border-radius: 0;
+box-shadow: none;
+background:
+linear-gradient(90deg, var(--A900) 0 25%, transparent 25% 100%),
+linear-gradient(90deg, transparent 0 25%, var(--A700) 25% 50%, transparent 50% 100%),
+linear-gradient(90deg, transparent 0 50%, var(--A500) 50% 75%, transparent 75% 100%),
+linear-gradient(90deg, transparent 0 75%, var(--A300) 75% 100%),
+var(--surface);
+}
+.homage-hero--letterbox {
+aspect-ratio: 12 / 1;
+margin-block: 1rem 0.55rem;
+}
+
+.albers-plate {
+position: relative;
+width: min(100%, 560px);
+aspect-ratio: 1 / 1;
+margin: calc(var(--module) * 7) 0 calc(var(--module) * 8);
+border: var(--rule-thin) solid var(--border);
+background: var(--surface);
+overflow: hidden;
+}
+.albers-plate__outer,
+.albers-plate__inner,
+.albers-plate__core {
+position: absolute;
+box-sizing: border-box;
+}
+.albers-plate__outer {
+width: 72%;
+aspect-ratio: 1 / 1;
+left: 50%;
+top: 50%;
+transform: translate(-50%, -50%);
+background: var(--A300);
+}
+.albers-plate__inner {
+width: 50%;
+aspect-ratio: 1 / 1;
+left: 50%;
+top: 50%;
+transform: translate(-50%, -50%);
+background: var(--A700);
+}
+.albers-plate__core {
+width: 28%;
+aspect-ratio: 1 / 1;
+left: 50%;
+top: 50%;
+transform: translate(-50%, -50%);
+background: var(--A900);
+}
+.albers-composition {
+position: relative;
+width: 100%;
+aspect-ratio: 16 / 5;
+min-height: clamp(96px, 18vw, 214px);
+background: var(--surface);
+border: var(--rule-thin) solid var(--border);
+margin-block: 1.2rem 1.5rem;
+overflow: hidden;
+}
+.albers-composition svg {
+width: 100%;
+height: 100%;
+display: block;
+}
+.albers-composition--dense {
+min-height: clamp(120px, 23vw, 270px);
+}
+.hr-notch {
+height: 0;
+border-top: var(--rule-thin) solid var(--border);
+border-bottom: var(--rule-thin) solid var(--A500);
+margin: 1.5rem 0;
+opacity: var(--hr-opacity);
+}
+.overview ul {
+list-style: none;
+margin: 0;
+padding-left: 0;
+}
+.overview li {
+position: relative;
+padding-left: 1.1em;
+margin-bottom: var(--space-2);
+}
+.overview li::before {
+content: "—";
+position: absolute;
+left: 0;
+top: 0.02em;
+color: var(--A500);
+font-weight: var(--overview-dash-weight);
+opacity: var(--overview-dash-opacity);
+}
+
+.theme-lab {
+display: grid;
+gap: var(--space-4);
+}
+.theme-lab__panel {
+border: var(--rule-thin) solid var(--border);
+background: var(--surface-strong);
+padding: var(--space-4);
+}
+.theme-lab__controls {
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+gap: var(--space-3);
+}
+.theme-lab label {
+display: block;
+font-size: 0.78rem;
+text-transform: uppercase;
+letter-spacing: 0.06em;
+color: var(--muted);
+margin-bottom: var(--space-1);
+}
+.theme-lab select,
+.theme-lab input {
+width: 100%;
+border: var(--rule-thin) solid var(--border);
+background: var(--surface);
+color: var(--ink);
+padding: 0.46rem 0.5rem;
+}
+.theme-lab__preview {
+border: var(--rule-thin) solid var(--border);
+background: var(--surface);
+padding: var(--space-4);
+}
+.theme-lab__chips {
+display: flex;
+flex-wrap: wrap;
+gap: 0.4rem;
+}
+.albers-chip {
+border: var(--rule-thin) solid var(--border);
+background: var(--surface-strong);
+color: var(--ink);
+padding: 0.2rem 0.44rem;
+font-size: 0.74rem;
+text-transform: uppercase;
+letter-spacing: 0.05em;
+}
+
+.theme-lab__chips .albers-chip {
+color: #fff;
+border-color: transparent;
+}
+.theme-lab__chips .albers-chip:nth-child(1) { background: var(--A900); }
+.theme-lab__chips .albers-chip:nth-child(2) { background: var(--A700); }
+.theme-lab__chips .albers-chip:nth-child(3) { background: var(--A500); }
+.theme-lab__chips .albers-chip:nth-child(4) {
+background: var(--A300);
+color: var(--ink);
+}
+body.preset-midnight #toc > .nav a.nav-link {
+color: color-mix(in srgb, var(--ink) 84%, var(--A300));
+}
+body.preset-midnight #toc > .nav a.nav-link:hover,
+body.preset-midnight #toc > .nav a.nav-link:focus {
+background-color: color-mix(in srgb, var(--A300) 24%, transparent);
+}
+body.preset-midnight #toc > .nav a.nav-link.active {
+color: var(--accent-ink);
+background-color: color-mix(in srgb, var(--A300) 30%, var(--surface));
+}
+
+body.preset-midnight img.r-plt,
+body.preset-midnight pre .r-plt.img img,
+body.preset-midnight .cell-output-display img,
+body.preset-midnight .html-widget {
+filter: none !important;
+}
+
+@media (max-width: 920px) {
+html,
+body { font-size: 16.8px; }
+:root { --anchor-offset: 64px; }
+h2,
+h3 {
+padding-left: 0.62em;
+padding-right: 1.2em;
+}
+.page-content,
+.article,
+.reference,
+.template-home {
+box-shadow: none;
+border-left: none;
+border-right: none;
+}
+.page-content::before,
+.article::before,
+.reference::before,
+.template-home::before {
+display: none;
+}
+button.copy-code {
+font-size: 10px;
+letter-spacing: 0.05em;
+}
+}
+@media (max-width: 760px) {
+:root {
+--anchor-offset: 58px;
+--content: 74ch;
+}
+main,
+.content,
+.page-content,
+.vignette,
+.contents {
+padding-inline: 14px;
+}
+.navbar .navbar-brand,
+.navbar .nav-link {
+font-size: 0.78em;
+letter-spacing: 0.035em;
+}
+h1 { font-size: clamp(1.72rem, 7.2vw, 2.02rem); }
+h2 {
+font-size: clamp(1.16rem, 5.2vw, 1.35rem);
+letter-spacing: 0.045em;
+}
+h3 { font-size: clamp(1rem, 4.3vw, 1.14rem); }
+pre {
+padding: var(--space-5) var(--space-3);
+font-size: 0.91em;
+}
+button.copy-code {
+min-height: 30px;
+padding: 6px 10px;
+}
+table {
+display: block;
+overflow-x: auto;
+white-space: nowrap;
+-webkit-overflow-scrolling: touch;
+}
+}
+@media (max-width: 520px) {
+:root { --anchor-offset: 54px; }
+main,
+.content,
+.page-content,
+.vignette,
+.contents {
+padding-inline: 12px;
+}
+.navbar { border-top-width: 2px; }
+.navbar .navbar-brand,
+.navbar .nav-link {
+font-size: 0.74em;
+letter-spacing: 0.03em;
+}
+h2,
+h3 {
+padding-right: 1em;
+}
+.anchor { right: -0.08em; }
+pre {
+border-left-width: 2px;
+padding: var(--space-4) var(--space-3);
+}
+button.copy-code {
+top: 6px;
+right: 6px;
+min-height: 28px;
+padding: 5px 8px;
+font-size: 9px;
+}
+}
+@media (prefers-contrast: more) {
+:root {
+--border: #9aa1ad;
+--muted: #4f5661;
+--accent-tint: rgba(228, 73, 38, 0.18);
+--accent-band: rgba(228, 73, 38, 0.24);
+--rule-strong: 3px;
+}
+a { text-decoration-thickness: 0.12em; }
+pre,
+table,
+blockquote,
+.callout {
+border-width: 2px;
+}
+.navbar .nav-link.active::after,
+.navbar .active > a::after { color: var(--A700); }
+}
+@media (prefers-reduced-motion: reduce) {
+*,
+*::before,
+*::after {
+animation-duration: 0.01ms !important;
+animation-iteration-count: 1 !important;
+transition-duration: 0.01ms !important;
+scroll-behavior: auto !important;
+}
+}
+@media print {
+body { background: #fff !important; }
+body.albers-vignette,
+body:has(> #TOC) {
+display: block;
+max-width: none;
+border: none;
+box-shadow: none;
+padding: 0;
+}
+body.albers-vignette::before,
+body:has(> #TOC)::before { display: none; }
+.navbar,
+.sidebar,
+.toc,
+#TOC,
+.page-header,
+.homage-hero,
+.hr-notch,
+button.copy-code,
+.anchor { display: none !important; }
+.page-content,
+.article,
+.reference,
+.template-home {
+border: none;
+box-shadow: none;
+background: #fff;
+}
+.page-content::before,
+.article::before,
+.reference::before,
+.template-home::before {
+display: none;
+}
+pre { page-break-inside: avoid; }
+a {
+color: inherit !important;
+text-decoration: none;
+}
+}
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Volumes and vectors</h1>
+
+
+<div id="TOC">
+<ul>
+<li><a href="#what-survives-an-operation" id="toc-what-survives-an-operation">What survives an operation</a></li>
+<li><a href="#masks" id="toc-masks">Masks</a></li>
+<li><a href="#building-one-by-hand" id="toc-building-one-by-hand">Building one by hand</a></li>
+<li><a href="#taking-an-object-apart" id="toc-taking-an-object-apart">Taking an object apart</a></li>
+<li><a href="#the-matrix-view" id="toc-the-matrix-view">The matrix
+view</a></li>
+<li><a href="#putting-objects-together" id="toc-putting-objects-together">Putting objects together</a></li>
+<li><a href="#dense-and-sparse" id="toc-dense-and-sparse">Dense and
+sparse</a></li>
+<li><a href="#where-to-go-next" id="toc-where-to-go-next">Where to go
+next</a></li>
+</ul>
+</div>
+
+<script>document.addEventListener("DOMContentLoaded",function(){document.body.classList.remove("palette-red","palette-lapis","palette-ochre","palette-teal","palette-green","palette-violet","preset-homage","preset-interaction","preset-study","preset-structural","preset-adobe","preset-midnight");document.body.classList.add("palette-red","preset-interaction");});</script>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(neuroim2)</span></code></pre></div>
+<p>Two containers carry almost everything in neuroim2:
+<code>NeuroVol</code> for one 3D image and <code>NeuroVec</code> for a
+stack of them sharing a spatial frame. This article covers how to build
+them, take them apart, and put them back together.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>anat <span class="ot">&lt;-</span> <span class="fu">demo_anatomy</span>()</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>mask <span class="ot">&lt;-</span> <span class="fu">demo_mask</span>()</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>bold <span class="ot">&lt;-</span> <span class="fu">demo_bold</span>(<span class="at">n_time =</span> <span class="dv">20</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="fu">class</span>(anat)[<span class="dv">1</span>]</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="co">#&gt; [1] &quot;DenseNeuroVol&quot;</span></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a><span class="fu">class</span>(bold)[<span class="dv">1</span>]</span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a><span class="co">#&gt; [1] &quot;DenseNeuroVec&quot;</span></span></code></pre></div>
+<p><code>demo_anatomy()</code> and friends are shorthand this article
+set defines for the shipped example data; behind them are
+<code>read_vol()</code> for a 3D file, <code>read_vec()</code> for a 4D
+one, and <code>simulate_fmri()</code> for the functional series, which
+is simulated rather than read so its time courses have realistic
+temporal structure.</p>
+<p>Note the classes: <code>NeuroVol</code> and <code>NeuroVec</code> are
+the generic constructors, and what you get back is a concrete
+implementation — <code>DenseNeuroVol</code> here, with the sparse and
+on-disk alternatives covered in <code>vignette(&quot;large-data&quot;)</code>.</p>
+<div id="what-survives-an-operation" class="section level2">
+<h2>What survives an operation</h2>
+<p>These objects behave like arrays, but not every operation returns one
+that still knows where it is. The rule is worth learning early, because
+it decides when you have to reattach a space by hand.</p>
+<p>Arithmetic and comparison preserve geometry — <code>Arith</code>,
+<code>Compare</code> and <code>Logic</code> group generics are all
+defined:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">class</span>(anat <span class="sc">*</span> <span class="dv">2</span>)[<span class="dv">1</span>]</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="co">#&gt; [1] &quot;DenseNeuroVol&quot;</span></span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="fu">class</span>(anat <span class="sc">&gt;</span> <span class="dv">100</span>)[<span class="dv">1</span>]</span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="co">#&gt; [1] &quot;LogicalNeuroVol&quot;</span></span></code></pre></div>
+<p>Extraction deliberately does not. <code>[</code> gives you plain R
+data:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">dim</span>(anat)</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="co">#&gt; [1] 48 57 48</span></span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>anat[<span class="dv">24</span>, <span class="dv">28</span>, <span class="dv">24</span>]</span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a><span class="co">#&gt; [1] 5033.67</span></span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a><span class="fu">class</span>(anat[, , <span class="dv">24</span>])[<span class="dv">1</span>]</span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a><span class="co">#&gt; [1] &quot;matrix&quot;</span></span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a><span class="fu">class</span>(anat[anat <span class="sc">&gt;</span> <span class="dv">100</span>])[<span class="dv">1</span>]</span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a><span class="co">#&gt; [1] &quot;numeric&quot;</span></span></code></pre></div>
+<p>That is the right default — you usually want a matrix or a vector to
+compute on — but it means anything you build from extracted values has
+to be given a space again, which is the subject of the next section but
+one.</p>
+</div>
+<div id="masks" class="section level2">
+<h2>Masks</h2>
+<p>A comparison produces a <code>LogicalNeuroVol</code> — a mask that
+knows where it is:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>brain <span class="ot">&lt;-</span> anat <span class="sc">&gt;</span> <span class="dv">100</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="fu">class</span>(brain)[<span class="dv">1</span>]</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="co">#&gt; [1] &quot;LogicalNeuroVol&quot;</span></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="fu">sum</span>(brain)</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="co">#&gt; [1] 32125</span></span></code></pre></div>
+<p><code>as.mask()</code> is the explicit constructor, and takes either
+a logical volume or a set of indices:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>from_logical <span class="ot">&lt;-</span> <span class="fu">as.mask</span>(anat <span class="sc">&gt;</span> <span class="dv">100</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>from_indices <span class="ot">&lt;-</span> <span class="fu">as.mask</span>(anat, <span class="fu">which</span>(anat <span class="sc">&gt;</span> <span class="dv">6000</span>))</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="fu">c</span>(<span class="at">brain =</span> <span class="fu">sum</span>(from_logical), <span class="at">bright =</span> <span class="fu">sum</span>(from_indices))</span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="co">#&gt;  brain bright </span></span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a><span class="co">#&gt;  32125  23161</span></span></code></pre></div>
+<p>Masks index volumes directly, which is the usual way to pull out the
+voxels you care about:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>vals <span class="ot">&lt;-</span> anat[brain]</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a></span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="fu">length</span>(vals)</span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="co">#&gt; [1] 32125</span></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a><span class="fu">mean</span>(vals)</span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a><span class="co">#&gt; [1] 6472.492</span></span></code></pre></div>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>op <span class="ot">&lt;-</span> <span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>), <span class="at">mar =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">1</span>))</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="fu">image</span>(anat[, , <span class="dv">24</span>], <span class="at">main =</span> <span class="st">&quot;anat&quot;</span>, <span class="at">col =</span> <span class="fu">gray.colors</span>(<span class="dv">256</span>), <span class="at">axes =</span> <span class="cn">FALSE</span>, <span class="at">asp =</span> <span class="dv">1</span>)</span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="fu">image</span>(brain[, , <span class="dv">24</span>], <span class="at">main =</span> <span class="st">&quot;anat &gt; 100&quot;</span>, <span class="at">col =</span> <span class="fu">gray.colors</span>(<span class="dv">2</span>), <span class="at">axes =</span> <span class="cn">FALSE</span>, <span class="at">asp =</span> <span class="dv">1</span>)</span></code></pre></div>
+<div class="figure">
+<img role="img" aria-label="Two axial slices side by side: an anatomical slice and its binary mask." src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAwIAAAF2CAIAAABS8rgRAAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAABDqAAAQ6gGC0wqYAAAfQUlEQVR4nO3dW4xeVfUA8NNOO+1c2+mN0nJroYEAFuRiLaKCaIgoKJrIJWoMhlRjfEFR44PhwQdQEpT4YI0hQcTEiKJAlACxxCIkBS9tEQpIwIIUOm1pO2Uundv/YZLB/14bejq0M1/Zv9/TZHWf8+1zvvFzcWatb00bHR2tAADKM32qNwAAMDWkQQBAoaRBAEChpEEAQKGkQQBAoaRBAEChpEEAQKGkQQBAoaRBAEChpEEAQKGkQQBAoaRBAEChpEEAQKGkQQBAoaRBTLbR0dH9+/fv379/eHh4qvcCNKLJ/JR46qmnbr755p/85CfZfx0ZGbnzzjs//OEPt7W1LVmy5Mtf/vLzzz8/gTU0rGmjo6NTvQfK8tprry1evLiqqm9/+9s33njjVG8HaDiT+Slx8cUXP/DAA11dXbt27Ur+aXR09FOf+tS9996bxNevX3/++efXX0Mj8zQIgOIMDw93d3dfd911DzzwwFut+dOf/jSW39x4441DQ0Pd3d3Lli2rqurSSy8df0xVZw2NTBoEQFluu+22GTNmLFq06JZbbnmbZT/84Q+rqmpqavrmN7/Z1NS0YMGCm266qaqq3bt3b9iwof4aGpk0iGrLli1f+9rXTjnllJaWlqOOOurqq6/+7W9/OzQ0NL7gvvvuu+qqq6666qq9e/fef//9F154YVtb22mnnXbzzTcPDAwc1NmuuOKKpUuXjv180003NTc3/+EPf5icywQmrAE/Jb73ve/dfvvtu3fvPjxXXA0NDT388MNVVa1ataqpqWkseMYZZ4z9sG7duppraHSjlO1//4e6bNmytra2sZ9Xr149PDw8tmbsP3eqqvrKV76S/P6cc845IyMj9c/2mc98JjnD3XffPTVXDtTTmJ8SV1555di/XnTRRffee29fX98ELm089+rq6kr+adu2bWP/9KUvfWk8uH379rHg5ZdfXnMNDU4aVLpVq1ZVVdXU1LRt27axyLe+9a2x/w1v3LhxLDL+ATd//vxnn312ZGRk+/bty5cvHwtu2rTpoM72yiuvjEWuv/76SbxQYIIa81PiBz/4wfTp/+8PGldfffX69esHBwfrX9p4+U5Mg7Zs2TL2T9/5znfGg2+88cZY8L3vfW/NNTQ4fxQr3Y033rhu3bonnnhirC9jZGRk//79Y/80/kk07tZbb12xYsW0adMWLlz4jW98Yyz4v62hdc42/smVfIQBjakxPyWuv/76vr6+devWffGLXxz7g9SvfvWrD37wgx0dHdddd93mzZtH31kf9Pjf8mbNmjUeHN/Pvn37aq6hwfn/odJdcMEFp5566pNPPnnttdeee+65zc3NP/rRj95q8cqVK8d/XrBgwdgPg4ODEzsbcERo2E+J5ubmCy644Pbbb+/r61u/fv0111zT1NTU399/yy23rFy5ctGiReN/tJrYyePmR0ZGxn4Y+1tenTU0uBlTvQGm2K9//evxP7FXVTVz5szTTjtt06ZN2cX/+18806ZNe4dnA44Ijf8pMXPmzPPPP//888+/9dZbv/rVr95xxx1VVe3YsWPPnj1HH330xM45Z86csR/Ga32qqurr6xv74fjjj6+5hgbnaVDRenp6xj6Pmpub77jjjpdffrm/v//73/9+I5wNaARHxKfE0NDQ448//vWvf33BggVjOVBVVW1tbe3t7RM+5/ijrGeffXY8uHPnzrEfzjrrrJpraHCeBhXtmWeeGfvhhhtu+PznPz/28wsvvNAIZwMaQSN/SoxlP7/4xS9uu+228QKjpqama6655tprrz377LPfSQHizJkzzzvvvEcffXTDhg0jIyNjpxqvib7wwgtrrqHBeRpUtPE/XXd3d4/9sHv37vGvrj/YAsODPdt///vfg98yMKka9lPi1ltvbW1tPe+8837605+O5UCXX375Qw891Nvb+7Of/ezcc899500YYy1s/f39v/nNb6qqGhwcvOGGG6qq6ujoWL16df01NDJpUNFOPvnkk08+uaqqW2655eKLL/7kJz/Z1dU1Fqmqavy/rg7t2To7O8d++OUvfzljxow4iwdoHA37KfHYY4+NFSafd955d9111759+373u99ddNFF42XL79yll1760Y9+tKqqK6+8cvny5V1dXf/4xz+qqrr77rtnzJhRfw2NTBpUtOnTpz/++OPf/e53Fy1a9Mgjj7S0tGzcuPHOO+8c+9cf//jHB/WfejXP1tLSctddd61YsaKqquHhYWN3oJE17KfE8uXLf/7zn+/YseOvf/3rZz/72cPRljV9+vT777//tttuW7169csv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" alt="Two axial slices side by side: an anatomical slice and its binary mask." />
+<p class="caption">
+A volume and the mask derived from it, same grid, same geometry.
+</p>
+</div>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="fu">par</span>(op)</span></code></pre></div>
+</div>
+<div id="building-one-by-hand" class="section level2">
+<h2>Building one by hand</h2>
+<p>A <code>NeuroVol</code> is an array plus a
+<code>NeuroSpace</code>:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a>sp <span class="ot">&lt;-</span> <span class="fu">NeuroSpace</span>(<span class="at">dim =</span> <span class="fu">c</span>(<span class="dv">16</span><span class="dt">L</span>, <span class="dv">16</span><span class="dt">L</span>, <span class="dv">8</span><span class="dt">L</span>), <span class="at">spacing =</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">2</span>))</span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a>vol <span class="ot">&lt;-</span> <span class="fu">NeuroVol</span>(<span class="fu">array</span>(<span class="fu">rnorm</span>(<span class="dv">16</span> <span class="sc">*</span> <span class="dv">16</span> <span class="sc">*</span> <span class="dv">8</span>), <span class="fu">c</span>(<span class="dv">16</span>, <span class="dv">16</span>, <span class="dv">8</span>)), sp)</span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a></span>
+<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a>vol</span>
+<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a><span class="co">#&gt; &lt;DenseNeuroVol&gt; [22.8 Kb] </span></span>
+<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a><span class="co">#&gt; ── Spatial ───────────────────────────────────────────────────────────────────── </span></span>
+<span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a><span class="co">#&gt;   Dimensions    : 16 x 16 x 8</span></span>
+<span id="cb10-10"><a href="#cb10-10" tabindex="-1"></a><span class="co">#&gt;   Spacing       : 2 x 2 x 2 mm</span></span>
+<span id="cb10-11"><a href="#cb10-11" tabindex="-1"></a><span class="co">#&gt;   Origin        : 0, 0, 0</span></span>
+<span id="cb10-12"><a href="#cb10-12" tabindex="-1"></a><span class="co">#&gt;   Orientation   : RAS</span></span>
+<span id="cb10-13"><a href="#cb10-13" tabindex="-1"></a><span class="co">#&gt; ── Data ──────────────────────────────────────────────────────────────────────── </span></span>
+<span id="cb10-14"><a href="#cb10-14" tabindex="-1"></a><span class="co">#&gt;   Range         : [-3.253, 3.810]</span></span></code></pre></div>
+<p>In practice you rarely write a space out. Arithmetic keeps the one it
+has, so the case that matters is rebuilding an image from values that
+have <em>lost</em> their geometry — anything that has been through
+<code>[</code>, <code>as.matrix()</code> or <code>apply()</code>:</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a>values <span class="ot">&lt;-</span> <span class="fu">as.array</span>(anat)[]        <span class="co"># a plain numeric vector: no space</span></span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a><span class="fu">class</span>(values)</span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a><span class="co">#&gt; [1] &quot;array&quot;</span></span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a></span>
+<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a>derived <span class="ot">&lt;-</span> <span class="fu">NeuroVol</span>(values, <span class="fu">space</span>(anat))</span>
+<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a><span class="fu">identical</span>(<span class="fu">space</span>(derived), <span class="fu">space</span>(anat))</span>
+<span id="cb11-7"><a href="#cb11-7" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
+<p>The same for 4D, from either an array or a voxels-by-time matrix:</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a>sp4 <span class="ot">&lt;-</span> <span class="fu">NeuroSpace</span>(<span class="fu">c</span>(<span class="dv">16</span><span class="dt">L</span>, <span class="dv">16</span><span class="dt">L</span>, <span class="dv">8</span><span class="dt">L</span>, <span class="dv">5</span><span class="dt">L</span>), <span class="at">spacing =</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">2</span>))</span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="dv">16</span> <span class="sc">*</span> <span class="dv">16</span> <span class="sc">*</span> <span class="dv">8</span> <span class="sc">*</span> <span class="dv">5</span>)</span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a></span>
+<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a>v_arr <span class="ot">&lt;-</span> <span class="fu">NeuroVec</span>(<span class="fu">array</span>(d, <span class="fu">c</span>(<span class="dv">16</span>, <span class="dv">16</span>, <span class="dv">8</span>, <span class="dv">5</span>)), sp4)</span>
+<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a>v_mat <span class="ot">&lt;-</span> <span class="fu">NeuroVec</span>(<span class="fu">matrix</span>(d, <span class="at">nrow =</span> <span class="dv">16</span> <span class="sc">*</span> <span class="dv">16</span> <span class="sc">*</span> <span class="dv">8</span>), sp4)</span>
+<span id="cb12-6"><a href="#cb12-6" tabindex="-1"></a></span>
+<span id="cb12-7"><a href="#cb12-7" tabindex="-1"></a><span class="fu">dim</span>(v_arr)</span>
+<span id="cb12-8"><a href="#cb12-8" tabindex="-1"></a><span class="co">#&gt; [1] 16 16  8  5</span></span>
+<span id="cb12-9"><a href="#cb12-9" tabindex="-1"></a><span class="fu">all.equal</span>(<span class="fu">as.array</span>(v_arr), <span class="fu">as.array</span>(v_mat))</span>
+<span id="cb12-10"><a href="#cb12-10" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
+</div>
+<div id="taking-an-object-apart" class="section level2">
+<h2>Taking an object apart</h2>
+<p>A few ways, depending on what you want back.</p>
+<p>A single volume, by position:</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="fu">dim</span>(bold[[<span class="dv">3</span>]])</span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a><span class="co">#&gt; [1] 64 64 25</span></span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a><span class="fu">class</span>(bold[[<span class="dv">3</span>]])[<span class="dv">1</span>]</span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a><span class="co">#&gt; [1] &quot;DenseNeuroVol&quot;</span></span></code></pre></div>
+<p>A shorter series, keeping it 4D:</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a><span class="fu">dim</span>(<span class="fu">sub_vector</span>(bold, <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>))</span>
+<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a><span class="co">#&gt; [1] 64 64 25  5</span></span></code></pre></div>
+<p>Every volume as a list, for iteration:</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a><span class="fu">length</span>(<span class="fu">vols</span>(bold))</span>
+<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a><span class="co">#&gt; [1] 20</span></span></code></pre></div>
+<p>For a 3D image the equivalent is <code>slices()</code> along the
+third axis, with <code>slice()</code> pulling one out as a
+<code>NeuroSlice</code>:</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a><span class="fu">length</span>(<span class="fu">slices</span>(anat))</span>
+<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a><span class="co">#&gt; [1] 48</span></span>
+<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a><span class="fu">class</span>(<span class="fu">slice</span>(anat, <span class="dv">24</span>, <span class="at">along =</span> <span class="dv">3</span>))[<span class="dv">1</span>]</span>
+<span id="cb16-4"><a href="#cb16-4" tabindex="-1"></a><span class="co">#&gt; [1] &quot;NeuroSlice&quot;</span></span></code></pre></div>
+</div>
+<div id="the-matrix-view" class="section level2">
+<h2>The matrix view</h2>
+<p><code>as.matrix()</code> flattens a <code>NeuroVec</code> to
+<strong>voxels by time</strong>, which is the shape most modelling code
+wants:</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a>mat <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(bold)</span>
+<span id="cb17-2"><a href="#cb17-2" tabindex="-1"></a><span class="fu">dim</span>(mat)</span>
+<span id="cb17-3"><a href="#cb17-3" tabindex="-1"></a><span class="co">#&gt; [1] 102400     20</span></span></code></pre></div>
+<p>Most of those rows are outside the brain and constant, so reduce over
+the mask and scatter the answers back. This masked form is the pattern
+you will use most often, and it is what the rest of these articles
+assume:</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a>inside <span class="ot">&lt;-</span> <span class="fu">which</span>(<span class="fu">as.vector</span>(mask) <span class="sc">&gt;</span> <span class="dv">0</span>)</span>
+<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a></span>
+<span id="cb18-3"><a href="#cb18-3" tabindex="-1"></a>ar1 <span class="ot">&lt;-</span> <span class="fu">numeric</span>(<span class="fu">nrow</span>(mat))</span>
+<span id="cb18-4"><a href="#cb18-4" tabindex="-1"></a>ar1[inside] <span class="ot">&lt;-</span> <span class="fu">apply</span>(mat[inside, ], <span class="dv">1</span>, <span class="cf">function</span>(x) <span class="fu">cor</span>(x[<span class="sc">-</span><span class="dv">1</span>], x[<span class="sc">-</span><span class="fu">length</span>(x)]))</span>
+<span id="cb18-5"><a href="#cb18-5" tabindex="-1"></a></span>
+<span id="cb18-6"><a href="#cb18-6" tabindex="-1"></a>ar1_map <span class="ot">&lt;-</span> <span class="fu">NeuroVol</span>(ar1, <span class="fu">drop_dim</span>(<span class="fu">space</span>(bold)))</span>
+<span id="cb18-7"><a href="#cb18-7" tabindex="-1"></a></span>
+<span id="cb18-8"><a href="#cb18-8" tabindex="-1"></a><span class="fu">c</span>(<span class="at">voxels =</span> <span class="fu">nrow</span>(mat), <span class="at">reduced =</span> <span class="fu">length</span>(inside))</span>
+<span id="cb18-9"><a href="#cb18-9" tabindex="-1"></a><span class="co">#&gt;  voxels reduced </span></span>
+<span id="cb18-10"><a href="#cb18-10" tabindex="-1"></a><span class="co">#&gt;  102400   29532</span></span>
+<span id="cb18-11"><a href="#cb18-11" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">range</span>(ar1[inside]), <span class="dv">3</span>)</span>
+<span id="cb18-12"><a href="#cb18-12" tabindex="-1"></a><span class="co">#&gt; [1] -0.609  0.915</span></span></code></pre></div>
+<p><code>drop_dim()</code> supplies the matching 3D space, which is what
+keeps the result aligned with its source. The reduction itself is a
+lag-1 autocorrelation — one number per voxel — and any vector-to-scalar
+function works in its place.</p>
+<p><code>vectors()</code> is the iterator form of the same idea,
+yielding one voxel time course at a time:</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a><span class="fu">length</span>(<span class="fu">vectors</span>(bold))</span>
+<span id="cb19-2"><a href="#cb19-2" tabindex="-1"></a><span class="co">#&gt; [1] 102400</span></span></code></pre></div>
+</div>
+<div id="putting-objects-together" class="section level2">
+<h2>Putting objects together</h2>
+<p><code>concat()</code> stacks along time. Volumes become a series:</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" tabindex="-1"></a><span class="fu">dim</span>(<span class="fu">concat</span>(anat, anat, anat))</span>
+<span id="cb20-2"><a href="#cb20-2" tabindex="-1"></a><span class="co">#&gt; [1] 48 57 48  3</span></span></code></pre></div>
+<p>and series extend each other, which is how runs get joined:</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" tabindex="-1"></a>run1 <span class="ot">&lt;-</span> <span class="fu">sub_vector</span>(bold, <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>)</span>
+<span id="cb21-2"><a href="#cb21-2" tabindex="-1"></a>run2 <span class="ot">&lt;-</span> <span class="fu">sub_vector</span>(bold, <span class="dv">6</span><span class="sc">:</span><span class="dv">12</span>)</span>
+<span id="cb21-3"><a href="#cb21-3" tabindex="-1"></a></span>
+<span id="cb21-4"><a href="#cb21-4" tabindex="-1"></a><span class="fu">dim</span>(<span class="fu">concat</span>(run1, run2))</span>
+<span id="cb21-5"><a href="#cb21-5" tabindex="-1"></a><span class="co">#&gt; [1] 64 64 25 12</span></span></code></pre></div>
+<p><code>concat()</code> takes the <strong>first</strong> argument’s
+<code>NeuroSpace</code> for the result and does not check that the
+others agree — a mismatched run is silently absorbed rather than
+rejected. Check before you concatenate:</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" tabindex="-1"></a><span class="fu">identical</span>(<span class="fu">space</span>(run1), <span class="fu">space</span>(run2))</span>
+<span id="cb22-2"><a href="#cb22-2" tabindex="-1"></a><span class="co">#&gt; [1] FALSE</span></span></code></pre></div>
+<p><code>split_blocks()</code> is the inverse, cutting a concatenated
+series back into runs given a block label per timepoint:</p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" tabindex="-1"></a>joined <span class="ot">&lt;-</span> <span class="fu">concat</span>(run1, run2)</span>
+<span id="cb23-2"><a href="#cb23-2" tabindex="-1"></a>blocks <span class="ot">&lt;-</span> <span class="fu">split_blocks</span>(joined, <span class="fu">rep</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>, <span class="fu">c</span>(<span class="dv">5</span>, <span class="dv">7</span>)))</span>
+<span id="cb23-3"><a href="#cb23-3" tabindex="-1"></a></span>
+<span id="cb23-4"><a href="#cb23-4" tabindex="-1"></a><span class="fu">length</span>(blocks)</span>
+<span id="cb23-5"><a href="#cb23-5" tabindex="-1"></a><span class="co">#&gt; [1] 2</span></span>
+<span id="cb23-6"><a href="#cb23-6" tabindex="-1"></a><span class="fu">vapply</span>(blocks, <span class="cf">function</span>(b) <span class="fu">dim</span>(b)[<span class="dv">4</span>], <span class="fu">integer</span>(<span class="dv">1</span>))</span>
+<span id="cb23-7"><a href="#cb23-7" tabindex="-1"></a><span class="co">#&gt; [1] 5 7</span></span></code></pre></div>
+<p><code>series()</code> pulls one voxel’s time course directly, and
+<code>series_roi()</code> a whole region’s; regions, parcels and
+searchlights are the subject of
+<code>vignette(&quot;regions-and-searchlights&quot;)</code>.</p>
+</div>
+<div id="dense-and-sparse" class="section level2">
+<h2>Dense and sparse</h2>
+<p>When a mask defines which voxels count, a sparse representation
+stores only those:</p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" tabindex="-1"></a>sparse <span class="ot">&lt;-</span> <span class="fu">as.sparse</span>(bold, <span class="fu">as.mask</span>(mask))</span>
+<span id="cb24-2"><a href="#cb24-2" tabindex="-1"></a></span>
+<span id="cb24-3"><a href="#cb24-3" tabindex="-1"></a><span class="fu">class</span>(sparse)[<span class="dv">1</span>]</span>
+<span id="cb24-4"><a href="#cb24-4" tabindex="-1"></a><span class="co">#&gt; [1] &quot;SparseNeuroVec&quot;</span></span>
+<span id="cb24-5"><a href="#cb24-5" tabindex="-1"></a><span class="fu">dim</span>(sparse)</span>
+<span id="cb24-6"><a href="#cb24-6" tabindex="-1"></a><span class="co">#&gt; [1] 64 64 25 20</span></span>
+<span id="cb24-7"><a href="#cb24-7" tabindex="-1"></a></span>
+<span id="cb24-8"><a href="#cb24-8" tabindex="-1"></a><span class="fu">c</span>(<span class="at">dense_MB =</span> <span class="fu">as.numeric</span>(<span class="fu">object.size</span>(bold)) <span class="sc">/</span> <span class="fl">1e6</span>,</span>
+<span id="cb24-9"><a href="#cb24-9" tabindex="-1"></a>  <span class="at">sparse_MB =</span> <span class="fu">as.numeric</span>(<span class="fu">object.size</span>(sparse)) <span class="sc">/</span> <span class="fl">1e6</span>)</span>
+<span id="cb24-10"><a href="#cb24-10" tabindex="-1"></a><span class="co">#&gt;  dense_MB sparse_MB </span></span>
+<span id="cb24-11"><a href="#cb24-11" tabindex="-1"></a><span class="co">#&gt; 16.391504  5.684224</span></span></code></pre></div>
+<p>Dimensions are unchanged — sparsity is about storage, not shape — and
+<code>as.dense()</code> reverses it.
+<code>read_vec(file, mask = ...)</code> reads straight into the sparse
+form without materialising the dense one first.</p>
+<div class="sourceCode" id="cb25"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" tabindex="-1"></a><span class="fu">class</span>(<span class="fu">as.dense</span>(sparse))[<span class="dv">1</span>]</span>
+<span id="cb25-2"><a href="#cb25-2" tabindex="-1"></a><span class="co">#&gt; [1] &quot;DenseNeuroVec&quot;</span></span></code></pre></div>
+<p>When that trade is worth making, and the other backends available
+when data outgrows memory, is the subject of
+<code>vignette(&quot;large-data&quot;)</code>.</p>
+</div>
+<div id="where-to-go-next" class="section level2">
+<h2>Where to go next</h2>
+<ul>
+<li><code>vignette(&quot;reading-and-writing&quot;)</code> — getting these objects
+to and from disk</li>
+<li><code>vignette(&quot;regions-and-searchlights&quot;)</code> — ROIs, parcels,
+searchlights</li>
+<li><code>vignette(&quot;large-data&quot;)</code> — sparse, mapped and file-backed
+storage</li>
+</ul>
+<p>Reference: <code>?NeuroVol</code>, <code>?NeuroVec</code>,
+<code>?concat</code>, <code>?sub_vector</code>,
+<code>?as.mask</code>.</p>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

@@ -48,11 +48,12 @@ namespace indexfuns {
                                             double sigma, 
                                             Rcpp::NumericVector spacing);
     
-    Rcpp::NumericVector gaussian_blur_cpp_impl(Rcpp::NumericVector arr, 
-                                             Rcpp::IntegerVector mask_idx, 
-                                             int window, 
-                                             double sigma, 
-                                             Rcpp::NumericVector spacing);
+    Rcpp::NumericVector gaussian_blur_cpp_impl(Rcpp::NumericVector arr,
+                                             Rcpp::IntegerVector mask_idx,
+                                             int window,
+                                             double sigma,
+                                             Rcpp::NumericVector spacing,
+                                             bool normalize);
     
     Rcpp::NumericVector box_blur_impl(Rcpp::NumericVector arr, 
                                      Rcpp::IntegerVector mask_idx, 
@@ -63,10 +64,6 @@ namespace indexfuns {
                                          Rcpp::NumericVector spacing, 
                                          Rcpp::IntegerVector dim);
     
-    Rcpp::List local_spheres_impl(Rcpp::NumericMatrix centers, 
-                                 double radius, 
-                                 Rcpp::NumericVector spacing, 
-                                 Rcpp::IntegerVector dim);
 
     // Helper functions
     inline double masked_sd(Rcpp::NumericVector arr, Rcpp::IntegerVector mask_idx) {

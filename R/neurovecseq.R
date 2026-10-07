@@ -261,12 +261,6 @@ setAs(from="NeuroVecSeq", to="DenseNeuroVec",
         as.dense(from)
       })
 
-# Coerce NeuroVecSeq to the plain in-memory NeuroVec representation.
-setAs(from="NeuroVecSeq", to="NeuroVec",
-      function(from) {
-        as.dense(from)
-      })
-
 #' Convert a NeuroVecSeq to a matrix
 #'
 #' @description
@@ -310,14 +304,9 @@ setMethod("series", signature(x="NeuroVecSeq", i="integer"),
               # i is a vector of linear voxel indices
 
               ts_list <- lapply(x@vecs, function(v) {
-                m <- series(v, i, drop=FALSE)  # This might be [voxels x time]
-
-                # If we want [time x voxels], transpose if needed
-                # (assuming length(i) = # of voxels, and dim(v)[4] = # of timepoints)
-                if (nrow(m) == length(i) && ncol(m) == dim(v)[4]) {
-                  m <- t(m)  # now [time x voxels]
-                }
-                m
+                # All NeuroVec series methods return time-by-voxel data.
+                # Inferring orientation from shape corrupts square results.
+                series(v, i, drop=FALSE)
               })
 
               # Now row-bind them, so total rows = sum of all time

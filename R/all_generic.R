@@ -34,17 +34,6 @@ setGeneric("as.array", function(x, ...) standardGeneric("as.array"),
 #' @export
 setGeneric("as.matrix", function(x, ...) standardGeneric("as.matrix"))
 
-#' Generic Scale Method
-#'
-#' Scales an object by (typically) subtracting the mean and dividing by the standard deviation.
-#'
-#' @param x The object to be scaled.
-#' @param ... Additional arguments for scaling methods.
-#' @return An object of the same class as \code{x}, scaled by the specified method.
-#'
-#' @export
-setGeneric("scale", function(x, ...) standardGeneric("scale"))
-
 #' Resample an Image to Match the Space of Another Image
 #'
 #' This function resamples a source image to match the spatial properties (dimensions, resolution, and orientation) of a target image.
@@ -798,8 +787,13 @@ setGeneric(name="write_elements", def=function(x, els) standardGeneric("write_el
 #' @param x an image object, typically a \code{\linkS4class{NeuroVol}} instance.
 #' @param file_name output file name
 #' @param format file format string. Since "NIFTI" is the only currently supported format, this parameter can be safely ignored and omitted.
-#' @param data_type output data type, If specified should be a \code{character} vector of: "BINARY", "UBYTE", "SHORT", "INT", "FLOAT", "DOUBLE".
+#' @param data_type output data type, If specified should be one of "UBYTE", "BYTE", "SHORT", "USHORT", "INT", "UINT", "LONG",
+#'   "ULONG", "FLOAT" or "DOUBLE". Defaults to the datatype of the file the image
+#'   was read from when its values are still exactly representable in it, and to
+#'   "FLOAT" otherwise; integer targets are fitted with \code{scl_slope} /
+#'   \code{scl_inter} rather than truncated.
 #' Otherwise output format will be inferred from R the datatype of the image.
+#' @param ... additional arguments passed to the format-specific writer.
 #' @return Invisibly returns \code{NULL} after writing the volume to disk.
 #' @export
 #' @details
@@ -820,7 +814,7 @@ setGeneric(name="write_elements", def=function(x, els) standardGeneric("write_el
 #' unlink(tmp1)
 #' }
 #' @rdname write_vol-methods
-setGeneric(name="write_vol",  def=function(x, file_name, format, data_type) standardGeneric("write_vol"))
+setGeneric(name="write_vol",  def=function(x, file_name, format, data_type, ...) standardGeneric("write_vol"))
 
 
 #' Write a 4d image vector to disk
@@ -828,7 +822,11 @@ setGeneric(name="write_vol",  def=function(x, file_name, format, data_type) stan
 #' @param x an image object, typically a \code{NeuroVec} instance.
 #' @param file_name output file name.
 #' @param format file format string. Since "NIFTI" is the only currently supported format, this parameter can be safely ignored and omitted.
-#' @param data_type the numeric data type. If specified should be a \code{character} vector of: "BINARY", "UBYTE", "SHORT", "INT", "FLOAT", "DOUBLE".
+#' @param data_type the numeric data type. If specified should be one of "UBYTE", "BYTE", "SHORT", "USHORT", "INT", "UINT", "LONG",
+#'   "ULONG", "FLOAT" or "DOUBLE". Defaults to the datatype of the file the image
+#'   was read from when its values are still exactly representable in it, and to
+#'   "FLOAT" otherwise; integer targets are fitted with \code{scl_slope} /
+#'   \code{scl_inter} rather than truncated.
 #' Otherwise output format will be inferred from R the datatype of the image.
 #' @param ... extra args
 #' @return Invisibly returns \code{NULL} after writing the vector to disk.
@@ -860,8 +858,8 @@ setGeneric(name="write_vec",  def=function(x, file_name, format, data_type, ...)
 #' @param file Optional output file name for the backing image. If \code{NULL},
 #'   a temporary \code{.nii} file is created.
 #' @param data_type Character string specifying the output data type for the
-#'   NIfTI file. Should be one of: "BINARY", "UBYTE", "SHORT", "INT", "FLOAT",
-#'   "DOUBLE". Default is "FLOAT".
+#'   NIfTI file. Should be one of "UBYTE", "BYTE", "SHORT", "USHORT", "INT",
+#'   "UINT", "LONG", "ULONG", "FLOAT" or "DOUBLE". Default is "FLOAT".
 #' @param overwrite Logical; if \code{TRUE}, overwrite an existing file at the
 #'   specified path. Default is \code{FALSE}.
 #' @param ... Additional arguments passed to methods.
@@ -1147,6 +1145,95 @@ setGeneric(name="as.dense", def=function(x) standardGeneric("as.dense"))
 #' identical(class(mask1), class(mask2))
 #' @export
 setGeneric("as.mask", function(x, indices) standardGeneric("as.mask"))
+
+#' Apply a spatial mask to an image
+#'
+#' Zeroes voxels outside a 3D spatial mask while preserving the geometry of the
+#' input object. Unlike \code{\link{mask}}, which returns an object's spatial
+#' domain, \code{apply_mask()} modifies image values.
+#'
+#' @param x A neuroimaging object.
+#' @param mask A 3D mask supplied as a \code{LogicalNeuroVol}, numeric
+#'   \code{NeuroVol} (thresholded at \code{> 0}), logical array/vector, integer
+#'   voxel indices, or \code{NULL} for no masking.
+#' @return A masked neuroimaging object. Dense inputs remain dense; sparse
+#'   inputs return a sparse object with the intersected mask.
+#' @rdname apply_mask-methods
+#' @examples
+#' sp <- NeuroSpace(c(4, 4, 4), spacing = c(1, 1, 1))
+#' vol <- NeuroVol(array(rnorm(64), c(4, 4, 4)), sp)
+#' msk <- LogicalNeuroVol(array(runif(64) > 0.5, c(4, 4, 4)), sp)
+#' masked <- apply_mask(vol, msk)
+#' @export
+setGeneric("apply_mask", function(x, mask) standardGeneric("apply_mask"))
+
+#' Estimate an image clip level
+#'
+#' Computes an AFNI-inspired clip threshold for separating foreground from
+#' low-intensity background. For 4D images, the threshold is computed from a
+#' representative 3D volume, typically the voxelwise median across time.
+#'
+#' @param x A neuroimaging object.
+#' @param mfrac Fraction used in the median-update step. Values outside
+#'   \code{(0, 0.99)} fall back to \code{0.5}.
+#' @param gradual If \code{FALSE}, return a scalar clip level. If \code{TRUE},
+#'   return a 3D clip map interpolated across image octants.
+#' @param representative For multi-volume inputs, the 3D summary image used for
+#'   thresholding. Supported values are \code{"median"} and \code{"mean_abs"}.
+#' @return If \code{gradual = FALSE}, a numeric scalar clip level. If
+#'   \code{gradual = TRUE}, a \code{DenseNeuroVol} with voxelwise clip levels.
+#' @rdname clip_level-methods
+#' @examples
+#' sp <- NeuroSpace(c(8, 8, 8), spacing = c(1, 1, 1))
+#' vol <- NeuroVol(array(abs(rnorm(512)), c(8, 8, 8)), sp)
+#' clip_level(vol)
+#' @export
+setGeneric(
+  "clip_level",
+  function(x, mfrac = 0.5, gradual = FALSE, representative = "median") {
+    standardGeneric("clip_level")
+  }
+)
+
+#' Compute a brain-like mask from image intensities
+#'
+#' Builds a spatial mask from image content rather than requiring an external
+#' mask. The implementation is AFNI-inspired: it computes a clip level, applies
+#' thresholding to a representative 3D image, retains the largest connected
+#' component, and optionally applies peel/unpeel cleanup.
+#'
+#' @param x A neuroimaging object.
+#' @param mfrac Fraction used in the clip-level update step.
+#' @param gradual If \code{TRUE}, use a spatially varying clip map across
+#'   octants. If \code{FALSE}, use a single global clip threshold.
+#' @param representative For multi-volume inputs, the 3D summary image used for
+#'   thresholding. Supported values are \code{"mean_abs"} and \code{"median"}.
+#' @param peels Number of AFNI-style peel/unpeel iterations. Use \code{0} to
+#'   disable.
+#' @param peel_threshold Minimum number of 18-neighbors required for a voxel to
+#'   survive peeling.
+#' @param connect Connectivity used when retaining the largest component.
+#' @return A \code{LogicalNeuroVol}.
+#' @rdname automask-methods
+#' @examples
+#' sp <- NeuroSpace(c(8, 8, 8), spacing = c(1, 1, 1))
+#' arr <- array(abs(rnorm(512)), c(8, 8, 8))
+#' arr[3:6, 3:6, 3:6] <- arr[3:6, 3:6, 3:6] + 10
+#' vol <- NeuroVol(arr, sp)
+#' mask <- automask(vol, gradual = FALSE, peels = 0)
+#' @export
+setGeneric(
+  "automask",
+  function(x,
+           mfrac = 0.5,
+           gradual = TRUE,
+           representative = "mean_abs",
+           peels = 1L,
+           peel_threshold = 17L,
+           connect = c("26-connect", "18-connect", "6-connect")) {
+    standardGeneric("automask")
+  }
+)
 
 
 
@@ -1511,6 +1598,7 @@ setGeneric(name="voxels", def=function(x, ...) standardGeneric("voxels"))
 #' @title Generic Image Method for Creating Visual Representations
 #'
 #' @description Creates a visual representation (or image) from an object.
+#' @usage image(x, ...)
 #'
 #' @param x An object to be rendered as an image.
 #' @param ... Additional arguments passed to methods.
@@ -1524,10 +1612,12 @@ if (!isGeneric("image"))
 #' @title Generic Method for Converting Objects to Raster Format
 #'
 #' @description Converts an object to a raster (bitmap) representation.
+#' @usage as.raster(x, ...)
 #'
 #' @param x An object to be converted.
 #' @param ... Additional arguments passed to the conversion methods.
 #' @return A \code{raster} object representing \code{x}.
+#' @export
 #' @rdname as.raster
 if (!isGeneric("as.raster"))
   setGeneric("as.raster", function(x, ...) standardGeneric("as.raster"))

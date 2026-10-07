@@ -56,6 +56,376 @@ normalize_mask <- function(mask, target_dim) {
                class(mask)[1], length(mask), paste(D, collapse = "x")))
 }
 
+#' @keywords internal
+#' @noRd
+.same_spatial_space <- function(x, y) {
+  identical(as.integer(dim(x)), as.integer(dim(y))) &&
+    isTRUE(all.equal(as.numeric(spacing(x)),
+                     as.numeric(spacing(y)),
+                     check.attributes = FALSE)) &&
+    isTRUE(all.equal(as.numeric(origin(x)),
+                     as.numeric(origin(y)),
+                     check.attributes = FALSE)) &&
+    isTRUE(all.equal(unname(as.matrix(trans(x))),
+                     unname(as.matrix(trans(y))),
+                     check.attributes = FALSE))
+}
+
+#' @keywords internal
+#' @noRd
+.coerce_spatial_mask <- function(mask, target_space) {
+  if (!inherits(target_space, "NeuroSpace") || ndim(target_space) != 3L) {
+    cli::cli_abort("{.arg target_space} must be a 3D {.cls NeuroSpace}.")
+  }
+
+  if (inherits(mask, "NeuroVol")) {
+    if (!.same_spatial_space(space(mask), target_space)) {
+      cli::cli_abort("Spatial geometry of {.arg mask} must match the target image space.")
+    }
+  }
+
+  LogicalNeuroVol(normalize_mask(mask, dim(target_space)), target_space)
+}
+
+#' @keywords internal
+#' @noRd
+.representative_volume_from_matrix <- function(mat, dims3, representative = c("median", "mean_abs")) {
+  representative <- match.arg(representative)
+  vals <- representative_volume_cpp(unname(as.matrix(mat)), representative)
+
+  array(as.numeric(vals), dim = as.integer(dims3))
+}
+
+#' @keywords internal
+#' @noRd
+.afni_clip_level_numeric <- function(x, mfrac = 0.5, nhist = 10000L) {
+  vals <- as.numeric(x)
+  vals <- vals[is.finite(vals) & vals > 0]
+
+  if (length(vals) <= 222L) {
+    return(0)
+  }
+
+  if (!is.finite(mfrac) || mfrac <= 0 || mfrac >= 0.99) {
+    mfrac <- 0.5
+  }
+
+  vmax <- max(vals)
+  if (!is.finite(vmax) || vmax < 1e-100) {
+    return(0)
+  }
+
+  is_integerish <- all(abs(vals - round(vals)) < 1e-8)
+  use_integer_hist <- is_integerish && vmax <= 32767
+
+  if (use_integer_hist) {
+    nhist_eff <- if (vmax <= 255) 255L else 32767L
+    sfac <- 1
+    bins <- as.integer(round(vals))
+    bins <- bins[bins >= 0L & bins <= nhist_eff]
+  } else {
+    nhist_eff <- as.integer(nhist)
+    sfac <- nhist_eff / vmax
+    bins <- as.integer(floor(sfac * vals + 0.499))
+    bins <- bins[bins >= 0L & bins <= nhist_eff]
+  }
+
+  if (length(bins) <= 222L) {
+    return(0)
+  }
+
+  hist <- tabulate(bins + 1L, nbins = nhist_eff + 1L)
+  npos <- sum(hist)
+  dsum <- sum(as.double(bins) * as.double(bins))
+
+  qq <- as.integer(0.65 * npos)
+  ib <- as.integer(round(0.5 * sqrt(dsum / npos)))
+  acc <- 0L
+  ii <- nhist_eff - 1L
+
+  while (ii >= ib && acc < qq) {
+    acc <- acc + hist[ii + 1L]
+    ii <- ii - 1L
+  }
+
+  ncut <- max(ii, 0L)
+  iter <- 0L
+
+  repeat {
+    start <- max(ncut, 0L) + 1L
+    npos_cut <- if (start <= nhist_eff) sum(hist[start:nhist_eff]) else 0L
+    nhalf <- npos_cut %/% 2L
+
+    acc <- 0L
+    ii <- max(ncut, 0L)
+    while (ii < nhist_eff && acc < nhalf) {
+      acc <- acc + hist[ii + 1L]
+      ii <- ii + 1L
+    }
+
+    nold <- ncut
+    ncut <- as.integer(mfrac * ii)
+    iter <- iter + 1L
+
+    if (iter >= 66L || ncut == nold) {
+      break
+    }
+  }
+
+  out <- as.numeric(ncut) / sfac
+  min(out, 1e38)
+}
+
+#' @keywords internal
+#' @noRd
+.cmass_3d_zero_based <- function(arr) {
+  dims <- dim(arr)
+  w <- as.numeric(arr)
+  w[!is.finite(w) | w < 0] <- 0
+
+  if (!any(w > 0)) {
+    return((as.numeric(dims) - 1) / 2)
+  }
+
+  idx <- arrayInd(seq_along(w), dims)
+  c(
+    stats::weighted.mean(idx[, 1] - 1, w),
+    stats::weighted.mean(idx[, 2] - 1, w),
+    stats::weighted.mean(idx[, 3] - 1, w)
+  )
+}
+
+#' @keywords internal
+#' @noRd
+.afni_gradual_clip_array <- function(arr, mfrac = 0.5) {
+  dims <- as.integer(dim(arr))
+  stopifnot(length(dims) == 3L)
+
+  nx <- dims[1]
+  ny <- dims[2]
+  nz <- dims[3]
+
+  cm <- .cmass_3d_zero_based(arr)
+  ic <- min(max(as.integer(round(cm[1])), 0L), nx - 1L)
+  jc <- min(max(as.integer(round(cm[2])), 0L), ny - 1L)
+  kc <- min(max(as.integer(round(cm[3])), 0L), nz - 1L)
+
+  it <- nx - 1L
+  jt <- ny - 1L
+  kt <- nz - 1L
+
+  val_floor <- 0.333 * .afni_clip_level_numeric(arr, mfrac)
+
+  ox <- max(1L, as.integer(round(0.01 * nx)))
+  oy <- max(1L, as.integer(round(0.01 * ny)))
+  oz <- max(1L, as.integer(round(0.01 * nz)))
+
+  icm <- max(ic - ox, 0L)
+  icp <- min(ic + ox, it)
+  jcm <- max(jc - oy, 0L)
+  jcp <- min(jc + oy, jt)
+  kcm <- max(kc - oz, 0L)
+  kcp <- min(kc + oz, kt)
+
+  octclip <- function(xa, xb, ya, yb, za, zb) {
+    max(
+      .afni_clip_level_numeric(
+        arr[(xa + 1L):(xb + 1L), (ya + 1L):(yb + 1L), (za + 1L):(zb + 1L)],
+        mfrac = mfrac
+      ),
+      val_floor
+    )
+  }
+
+  c000 <- octclip(0L,  icp, 0L,  jcp, 0L,  kcp)
+  c100 <- octclip(icm, it,  0L,  jcp, 0L,  kcp)
+  c010 <- octclip(0L,  icp, jcm, jt,  0L,  kcp)
+  c110 <- octclip(icm, it,  jcm, jt,  0L,  kcp)
+  c001 <- octclip(0L,  icp, 0L,  jcp, kcm, kt)
+  c101 <- octclip(icm, it,  0L,  jcp, kcm, kt)
+  c011 <- octclip(0L,  icp, jcm, jt,  kcm, kt)
+  c111 <- octclip(icm, it,  jcm, jt,  kcm, kt)
+
+  x0 <- 0.5 * ic
+  x1 <- 0.5 * (ic + it)
+  y0 <- 0.5 * jc
+  y1 <- 0.5 * (jc + jt)
+  z0 <- 0.5 * kc
+  z1 <- 0.5 * (kc + kt)
+
+  dxi <- if (x1 > x0) 1 / (x1 - x0) else 0
+  dyi <- if (y1 > y0) 1 / (y1 - y0) else 0
+  dzi <- if (z1 > z0) 1 / (z1 - z0) else 0
+
+  xw1 <- pmin(1, pmax(0, ((0:(nx - 1L)) - x0) * dxi))
+  yw1 <- pmin(1, pmax(0, ((0:(ny - 1L)) - y0) * dyi))
+  zw1 <- pmin(1, pmax(0, ((0:(nz - 1L)) - z0) * dzi))
+  xw0 <- 1 - xw1
+  yw0 <- 1 - yw1
+  zw0 <- 1 - zw1
+
+  outer3 <- function(x, y, z) {
+    xy <- outer(x, y)
+    array(rep(as.vector(xy), times = length(z)), dim = c(length(x), length(y), length(z))) *
+      array(rep(z, each = length(x) * length(y)), dim = c(length(x), length(y), length(z)))
+  }
+
+  c000 * outer3(xw0, yw0, zw0) +
+    c100 * outer3(xw1, yw0, zw0) +
+    c010 * outer3(xw0, yw1, zw0) +
+    c110 * outer3(xw1, yw1, zw0) +
+    c001 * outer3(xw0, yw0, zw1) +
+    c101 * outer3(xw1, yw0, zw1) +
+    c011 * outer3(xw0, yw1, zw1) +
+    c111 * outer3(xw1, yw1, zw1)
+}
+
+#' @keywords internal
+#' @noRd
+.shift_array_clamp <- function(arr, dx = 0L, dy = 0L, dz = 0L) {
+  dims <- dim(arr)
+  ix <- pmin(pmax(seq_len(dims[1]) + dx, 1L), dims[1])
+  iy <- pmin(pmax(seq_len(dims[2]) + dy, 1L), dims[2])
+  iz <- pmin(pmax(seq_len(dims[3]) + dz, 1L), dims[3])
+  arr[ix, iy, iz, drop = FALSE]
+}
+
+#' @keywords internal
+#' @noRd
+.neighbor_count_18 <- function(mask) {
+  offsets <- as.matrix(expand.grid(dx = -1:1, dy = -1:1, dz = -1:1))
+  shell <- rowSums(abs(offsets))
+  offsets <- offsets[shell > 0 & shell <= 2, , drop = FALSE]
+
+  counts <- array(0L, dim(mask))
+  for (ii in seq_len(nrow(offsets))) {
+    counts <- counts + .shift_array_clamp(mask, offsets[ii, 1], offsets[ii, 2], offsets[ii, 3])
+  }
+  counts
+}
+
+#' @keywords internal
+#' @noRd
+.largest_component_mask <- function(mask, connect = c("26-connect", "18-connect", "6-connect")) {
+  connect <- match.arg(connect)
+  if (!any(mask)) {
+    return(array(FALSE, dim(mask)))
+  }
+
+  cc <- conn_comp_3D(mask, connect = connect)
+  labs <- cc$index
+  ids <- labs[labs > 0]
+
+  if (length(ids) == 0L) {
+    return(array(FALSE, dim(mask)))
+  }
+
+  keep <- which.max(tabulate(ids))
+  array(labs == keep, dim = dim(mask))
+}
+
+#' @keywords internal
+#' @noRd
+.fill_holes_mask <- function(mask) {
+  if (!any(mask)) {
+    return(mask)
+  }
+
+  outside <- !mask
+  if (!any(outside)) {
+    return(mask)
+  }
+
+  cc <- conn_comp_3D(outside, connect = "6-connect")
+  labs <- cc$index
+  dims <- dim(mask)
+  edge_ids <- unique(c(
+    labs[1, , ], labs[dims[1], , ],
+    labs[, 1, ], labs[, dims[2], ],
+    labs[, , 1], labs[, , dims[3]]
+  ))
+  edge_ids <- edge_ids[edge_ids > 0]
+
+  outside_keep <- array(labs %in% edge_ids, dim = dim(mask))
+  array(!outside_keep, dim = dim(mask))
+}
+
+#' @keywords internal
+#' @noRd
+.peel_restore_mask <- function(mask, peels = 1L, peel_threshold = 17L) {
+  peels <- as.integer(peels)
+  peel_threshold <- as.integer(peel_threshold)
+
+  if (peels < 1L || !any(mask)) {
+    return(mask)
+  }
+
+  real_peel_threshold <- min(18L, max(1L, peel_threshold))
+  marks <- array(0L, dim(mask))
+  out <- mask
+
+  for (pp in seq_len(peels)) {
+    counts <- .neighbor_count_18(out)
+    to_erode <- out & (counts < real_peel_threshold)
+    marks[to_erode] <- pp
+    out[to_erode] <- FALSE
+  }
+
+  for (pp in seq.int(peels, 1L)) {
+    counts <- .neighbor_count_18(out)
+    bth <- if (pp == peels) 0L else 1L
+    to_restore <- (marks >= pp) & !out & (counts > bth)
+    out[to_restore] <- TRUE
+  }
+
+  out
+}
+
+#' @keywords internal
+#' @noRd
+.automask_array <- function(arr,
+                            mfrac = 0.5,
+                            gradual = TRUE,
+                            peels = 1L,
+                            peel_threshold = 17L,
+                            connect = c("26-connect", "18-connect", "6-connect")) {
+  connect <- match.arg(connect)
+  arr <- as.array(arr)
+  dims <- dim(arr)
+
+  if (length(dims) != 3L) {
+    cli::cli_abort("{.arg arr} must be a 3D array.")
+  }
+
+  clip <- .afni_clip_level_numeric(arr, mfrac = mfrac)
+  if (!is.finite(clip) || clip <= 0) {
+    return(array(FALSE, dims))
+  }
+
+  thr <- if (isTRUE(gradual)) .afni_gradual_clip_array(arr, mfrac = mfrac) else array(clip, dims)
+  mask <- arr >= thr
+
+  if (!any(mask)) {
+    return(mask)
+  }
+
+  mask <- .largest_component_mask(mask, connect = connect)
+
+  if (peels > 0L && any(mask)) {
+    mask <- .peel_restore_mask(mask, peels = peels, peel_threshold = peel_threshold)
+    if (any(mask)) {
+      mask <- .largest_component_mask(mask, connect = connect)
+    }
+  }
+
+  if (any(mask)) {
+    mask <- .fill_holes_mask(mask)
+    mask <- .largest_component_mask(mask, connect = connect)
+  }
+
+  mask
+}
+
 
 #' @export
 #' @rdname read_columns-methods
@@ -229,8 +599,11 @@ setMethod(f="scale_series", signature=signature(x="DenseNeuroVec", center="logic
             d <- dim(x)
             nv <- prod(d[1:3])
             nt <- d[4]
-            # Reshape directly to voxels x time — no transpose needed
-            M <- matrix(x@.Data, nrow = nv, ncol = nt)
+            # Reshape directly to voxels x time -- no transpose, and no copy:
+            # setting `dim` on the data part is free, and R duplicates on the
+            # first write below rather than here.
+            M <- x@.Data
+            dim(M) <- c(nv, nt)
             if (center) {
               M <- M - rowMeans(M)
             }
@@ -268,7 +641,7 @@ setMethod(f="scale_series", signature=signature(x="SparseNeuroVec", center="logi
               M <- sweep(M, 2, sds, "/")
             }
             M <- unname(as.matrix(M))
-            SparseNeuroVec(M, space(x), mask(x))
+            SparseNeuroVec(M, space(x), mask(x), orientation = "time_x_voxels")
           })
 
 #' @export
@@ -382,6 +755,20 @@ setMethod(f="scale_series", signature=signature(x="NeuroVec", center="missing", 
   if (ncol(voxmat) != 3) {
     cli::cli_abort("{.arg voxmat} matrix must have 3 columns, not {ncol(voxmat)}.")
   }
+
+  # The C++ path truncates, and NeuroSpace stores affines to 7 significant
+  # figures, so a coordinate that is arithmetically an exact voxel centre can
+  # arrive as 2.9999985 and truncate to the voxel below. The size of that error
+  # grows with the magnitude of the world coordinates -- on the shipped EPI mask
+  # (origin 112mm, 3.5mm voxels) it reaches 1.6e-6 grid units -- so the
+  # tolerance has to sit above the affine's own precision.
+  #
+  # 1e-4 of a voxel is four orders of magnitude finer than any spatial intent a
+  # caller could have, so genuinely fractional input (2.6) is untouched and
+  # still truncates, matching R's own array-indexing behaviour.
+  near <- abs(voxmat - round(voxmat)) < 1e-4
+  voxmat[near] <- round(voxmat[near])
+
   gridToIndex3DCpp(dimensions, voxmat)
 
 }
@@ -419,7 +806,8 @@ setMethod(f="scale_series", signature=signature(x="NeuroVec", center="missing", 
 #' @noRd
 .getRStorage <- function(data_type) {
   dtype_upper <- toupper(data_type)
-  if (any(dtype_upper == c("BINARY", "BYTE", "UBYTE", "SHORT", "INTEGER", "INT", "LONG"))) {
+  if (any(dtype_upper == c("BINARY", "BYTE", "UBYTE", "SHORT", "USHORT",
+                           "INTEGER", "INT", "UINT", "LONG", "ULONG"))) {
     "integer"
   } else if (any(dtype_upper == c("FLOAT", "DOUBLE"))) {
     "double"
@@ -431,11 +819,7 @@ setMethod(f="scale_series", signature=signature(x="NeuroVec", center="missing", 
 
 #' @noRd
 .isSigned <- function(data_type) {
-  if (data_type == "UBYTE") {
-    FALSE
-  } else {
-    TRUE
-  }
+  !(toupper(data_type) %in% c("UBYTE", "USHORT", "UINT", "ULONG"))
 }
 
 
@@ -445,45 +829,83 @@ setMethod(f="scale_series", signature=signature(x="NeuroVec", center="missing", 
 #' @importFrom mmap mmap char mmapFlags munmap
 #' @noRd
 .getMMapMode <- function(code) {
-	if (code == "UNKNOWN") {
-		stop(paste(".getMMapMode: no memory map mode for UNKNOWN data type: ", code))
-	} else if (code == "BINARY") {
-		mmap::int8()
-	} else if (code == "UBYTE") {
-	  mmap::uint8()
-	} else if(code == "SHORT") {
-	  mmap::int16()
-	} else if(code == "INT") {
-	  mmap::int32()
-	} else if (code == "FLOAT") {
-	  mmap::real32()
-	} else if (code == "DOUBLE") {
-	  mmap::real64()
-	} else {
-		stop(paste(".getMMapMode: unsupported data type: ", code))
-	}
+  code <- toupper(code)
+  switch(code,
+    BYTE   = mmap::int8(),
+    UBYTE  = mmap::uint8(),
+    SHORT  = mmap::int16(),
+    INT    = mmap::int32(),
+    FLOAT  = mmap::real32(),
+    DOUBLE = mmap::real64(),
+    # `mmap` has no vector type for the remaining widths, so memory mapping is
+    # simply unavailable for them; the compiled reader handles them all.
+    cli::cli_abort(c(
+      "Memory mapping is not available for {.val {code}} data.",
+      "i" = "Read the image normally instead (drop {.code mode = \"mmap\"});
+             every NIfTI data type is supported on that path."
+    ))
+  )
+}
+
+#' Can this image be memory mapped at all?
+#' @keywords internal
+#' @noRd
+.can_mmap <- function(meta) {
+  identical(.Platform$endian, meta@endian) &&
+    !endsWith(meta@data_file, ".gz") &&
+    !identical(meta@descriptor@data_encoding, "gzip") &&
+    toupper(meta@data_type) %in% c("BYTE", "UBYTE", "SHORT", "INT", "FLOAT", "DOUBLE")
 }
 
 
 # ---- Data-type lookup tables ------------------------------------------------
 
 #' Named vectors mapping between NIfTI data-type codes, names, and byte sizes.
+#'
+#' Every fixed-width real datatype in the NIfTI-1/2 standard is here. The names
+#' are neuroim2's own labels, not the NIfTI macro names: the historical spellings
+#' \code{BYTE}/\code{UBYTE}/\code{SHORT}/\code{INT}/\code{LONG} are signed,
+#' unsigned, 16-, 32- and 64-bit respectively, and the \code{U}-prefixed forms
+#' are their unsigned counterparts.
 #' @keywords internal
 #' @noRd
 .DATA_CODE_TO_STORAGE <- c(
-  "0"  = "UNKNOWN", "1"  = "BINARY", "2"  = "UBYTE",
-  "4"  = "SHORT",   "8"  = "INT",    "16" = "FLOAT",
-  "64" = "DOUBLE"
+  "0"    = "UNKNOWN", "1"    = "BINARY", "2"   = "UBYTE",
+  "4"    = "SHORT",   "8"    = "INT",    "16"  = "FLOAT",
+  "64"   = "DOUBLE",  "256"  = "BYTE",   "512" = "USHORT",
+  "768"  = "UINT",    "1024" = "LONG",   "1280" = "ULONG"
 )
 
+# BINARY (code 1) is deliberately absent: 1-bit packed data is not read, so
+# offering it as an output type would produce files this package cannot open.
 .DATA_STORAGE_TO_CODE <- c(
-  UNKNOWN = 0L, BINARY = 1L, UBYTE = 2L, SHORT = 4L,
-  INT = 8L,     FLOAT = 16L, DOUBLE = 64L
+  UNKNOWN = 0L,   UBYTE = 2L,   SHORT  = 4L,
+  INT     = 8L,   FLOAT = 16L,  DOUBLE = 64L, BYTE = 256L,
+  USHORT  = 512L, UINT  = 768L, LONG   = 1024L, ULONG = 1280L
 )
 
 .DATA_TYPE_SIZE <- c(
-  BINARY = 1L, BYTE = 1L, UBYTE = 1L, SHORT = 2L,
-  INTEGER = 4L, INT = 4L, FLOAT = 4L, DOUBLE = 8L, LONG = 8L
+  BINARY = 1L, BYTE = 1L, UBYTE = 1L, SHORT = 2L, USHORT = 2L,
+  INTEGER = 4L, INT = 4L, UINT = 4L, FLOAT = 4L, DOUBLE = 8L,
+  LONG = 8L, ULONG = 8L
+)
+
+#' Datatype codes the standard defines but neuroim2 deliberately does not read.
+#'
+#' A \code{NeuroVol} is an array of doubles, so there is nowhere to put a complex
+#' or a multi-channel voxel without changing what the class means. Erroring with
+#' the reason is better than inventing a projection (a modulus, a luminance) that
+#' the caller did not ask for.
+#' @keywords internal
+#' @noRd
+.DATA_CODE_UNSUPPORTED <- c(
+  "32"   = "complex-valued (DT_COMPLEX64, two float32 per voxel)",
+  "1792" = "complex-valued (DT_COMPLEX128, two float64 per voxel)",
+  "2048" = "complex-valued (DT_COMPLEX256, two float128 per voxel)",
+  "128"  = "three-channel colour (DT_RGB24)",
+  "2304" = "four-channel colour (DT_RGBA32)",
+  "1536" = "128-bit floating point (DT_FLOAT128)",
+  "1"    = "1-bit packed (DT_BINARY)"
 )
 
 #' .getDataStorage
@@ -491,6 +913,16 @@ setMethod(f="scale_series", signature=signature(x="NeuroVec", center="missing", 
 #' @noRd
 .getDataStorage <- function(code) {
   key <- as.character(code)
+  reason <- .DATA_CODE_UNSUPPORTED[key]
+  if (!is.na(reason)) {
+    cli::cli_abort(c(
+      "NIfTI data-type code {.val {code}} is {unname(reason)}.",
+      "x" = "neuroim2 images hold real-valued voxels, so there is no faithful
+             representation for this type.",
+      "i" = "Convert the file first, e.g. with {.code nibabel} or
+             {.code 3dcalc}, and read the result."
+    ))
+  }
   res <- .DATA_CODE_TO_STORAGE[key]
   if (is.na(res)) {
     cli::cli_abort("Unsupported NIfTI data-type code: {.val {code}}.")
@@ -502,9 +934,13 @@ setMethod(f="scale_series", signature=signature(x="NeuroVec", center="missing", 
 #' @keywords internal
 #' @noRd
 .getDataCode <- function(data_type) {
-  res <- .DATA_STORAGE_TO_CODE[data_type]
+  res <- .DATA_STORAGE_TO_CODE[toupper(data_type)]
   if (is.na(res)) {
-    cli::cli_abort("Unsupported data type: {.val {data_type}}.")
+    cli::cli_abort(c(
+      "Unsupported data type: {.val {data_type}}.",
+      "i" = "Supported types are
+             {.val {setdiff(names(.DATA_STORAGE_TO_CODE), 'UNKNOWN')}}."
+    ))
   }
   unname(res)
 }

@@ -1,0 +1,2520 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Spaces and coordinates</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+<link rel="stylesheet" href="albers-fonts.css" data-external="1" />
+<script>(function () {
+  var FAMILY_CLASSES = ["red", "lapis", "ochre", "teal", "green", "violet"];
+  var PRESET_CLASSES = ["homage", "interaction", "study", "structural", "adobe", "midnight"];
+  var STYLE_CLASSES = ["minimal", "assertive"];
+
+  function classes(prefix, values) {
+    return values.map(function (v) { return prefix + v; });
+  }
+
+  function applySingleClass(el, prefix, value, values) {
+    classes(prefix, values).forEach(function (c) { el.classList.remove(c); });
+    if (value) el.classList.add(prefix + value);
+  }
+
+  function inferBootstrapTheme() {
+    if (!document.body) return "light";
+    return document.body.classList.contains("preset-midnight") ? "dark" : "light";
+  }
+
+  function syncBootstrapTheme() {
+    var theme = inferBootstrapTheme();
+    document.documentElement.setAttribute("data-bs-theme", theme);
+    document.body.setAttribute("data-bs-theme", theme);
+    var nav = document.querySelector("nav.navbar");
+    if (nav) nav.setAttribute("data-bs-theme", theme);
+  }
+
+  function hashSeed(seed) {
+    var h = 2166136261;
+    for (var i = 0; i < seed.length; i++) {
+      h ^= seed.charCodeAt(i);
+      h += (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24);
+    }
+    return h >>> 0;
+  }
+
+  function seeded(seed) {
+    var state = hashSeed(seed || "albersdown");
+    return function () {
+      state = (1664525 * state + 1013904223) >>> 0;
+      return state / 4294967296;
+    };
+  }
+
+  function readPalette(el) {
+    var source = el || document.body;
+    var style = getComputedStyle(source);
+    var colors = ["--A900", "--A700", "--A500", "--A300"].map(function (k) {
+      var value = style.getPropertyValue(k).trim();
+      return value || "#666";
+    });
+    return colors;
+  }
+
+  function clearChildren(el) {
+    while (el.firstChild) el.removeChild(el.firstChild);
+  }
+
+  function svgEl(name, attrs) {
+    var el = document.createElementNS("http://www.w3.org/2000/svg", name);
+    Object.keys(attrs || {}).forEach(function (key) {
+      el.setAttribute(key, String(attrs[key]));
+    });
+    return el;
+  }
+
+  function renderComposition(container, idx) {
+    var seed = container.getAttribute("data-seed") || (window.location.pathname + ":" + idx);
+    var density = Number(container.getAttribute("data-density") || "6");
+    var rand = seeded(seed);
+    var palette = readPalette(container);
+    var w = 1600;
+    var h = 500;
+
+    clearChildren(container);
+    var svg = svgEl("svg", {
+      viewBox: "0 0 " + w + " " + h,
+      preserveAspectRatio: "xMidYMid slice",
+      role: "img",
+      "aria-label": "Albers composition"
+    });
+
+    svg.appendChild(svgEl("rect", { x: 0, y: 0, width: w, height: h, fill: "var(--surface)" }));
+
+    var blockCount = Math.max(4, Math.min(16, density * 2));
+    for (var i = 0; i < blockCount; i++) {
+      var side = 90 + rand() * 260;
+      var x = rand() * (w - side);
+      var y = rand() * (h - side);
+      var tone = palette[Math.floor(rand() * palette.length)];
+      svg.appendChild(svgEl("rect", {
+        x: x.toFixed(2),
+        y: y.toFixed(2),
+        width: side.toFixed(2),
+        height: side.toFixed(2),
+        fill: tone,
+        opacity: (0.17 + rand() * 0.72).toFixed(3)
+      }));
+    }
+
+    for (var j = 0; j < 3; j++) {
+      var cx = 80 + rand() * (w - 160);
+      var cy = 60 + rand() * (h - 120);
+      var radius = 26 + rand() * 66;
+      var color = palette[Math.floor(rand() * palette.length)];
+      svg.appendChild(svgEl("circle", {
+        cx: cx.toFixed(2),
+        cy: cy.toFixed(2),
+        r: radius.toFixed(2),
+        fill: color,
+        opacity: (0.16 + rand() * 0.44).toFixed(3)
+      }));
+    }
+
+    svg.appendChild(svgEl("rect", {
+      x: 0,
+      y: 0,
+      width: w,
+      height: h,
+      fill: "none",
+      stroke: "var(--border)",
+      "stroke-width": "4"
+    }));
+
+    container.appendChild(svg);
+  }
+
+  function renderAllCompositions() {
+    Array.from(document.querySelectorAll(".albers-composition")).forEach(function (el, idx) {
+      renderComposition(el, idx);
+    });
+  }
+
+  function initCopyButtons() {
+    var hasPkgdownCopy =
+      document.querySelector(".btn-copy-ex") ||
+      document.querySelector("[data-clipboard-copy]") ||
+      document.querySelector("div.sourceCode.hasCopyButton");
+
+    if (hasPkgdownCopy) return;
+
+    document.querySelectorAll("pre > code").forEach(function (code) {
+      var pre = code.parentElement;
+      if (!pre || pre.querySelector("button.copy-code")) return;
+      if (!code.textContent || !code.textContent.trim()) return;
+      var btn = document.createElement("button");
+      btn.className = "copy-code";
+      btn.type = "button";
+      btn.setAttribute("aria-label", "Copy code");
+      btn.textContent = "Copy";
+      btn.addEventListener("click", async function () {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          btn.textContent = "Copied";
+        } catch (e) {
+          try {
+            var r = document.createRange();
+            r.selectNodeContents(code);
+            var sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(r);
+            document.execCommand("copy");
+            sel.removeAllRanges();
+            btn.textContent = "Copied";
+          } catch (e2) {
+            btn.textContent = "Oops";
+          }
+        } finally {
+          setTimeout(function () { btn.textContent = "Copy"; }, 1400);
+        }
+      });
+      pre.appendChild(btn);
+    });
+  }
+
+  function initAnchors() {
+    Array.from(document.querySelectorAll("h2, h3")).forEach(function (h) {
+      if (!h.id || h.querySelector("a.anchor")) return;
+      var a = document.createElement("a");
+      a.href = "#" + h.id;
+      a.className = "anchor";
+      a.textContent = "—";
+      a.setAttribute("aria-label", "Link to this section");
+      a.setAttribute("title", "Link to this section");
+      h.appendChild(a);
+    });
+  }
+
+  function initDefaults() {
+    if (
+      document.body &&
+      !document.body.classList.contains("style-minimal") &&
+      !document.body.classList.contains("style-assertive")
+    ) {
+      document.body.classList.add("style-minimal");
+    }
+  }
+
+  function setSearchParam(key, value) {
+    try {
+      var url = new URL(window.location.href);
+      if (value === null || value === "") url.searchParams.delete(key);
+      else url.searchParams.set(key, value);
+      window.history.replaceState({}, "", url.toString());
+    } catch (e) {
+      // no-op
+    }
+  }
+
+  function updateLabSummary(root, state) {
+    var target = root.querySelector("[data-albers-lab-summary]");
+    if (!target) return;
+    target.textContent = [
+      "family=" + state.family,
+      "preset=" + state.preset,
+      "style=" + state.style,
+      "width=" + state.width + "ch"
+    ].join(" | ");
+  }
+
+  function applyLabState(root, state) {
+    applySingleClass(document.body, "palette-", state.family, FAMILY_CLASSES);
+    applySingleClass(document.body, "preset-", state.preset, PRESET_CLASSES);
+
+    classes("style-", STYLE_CLASSES).forEach(function (c) {
+      document.body.classList.remove(c);
+    });
+    if (state.style && state.style !== "balanced") {
+      document.body.classList.add("style-" + state.style);
+    }
+
+    document.documentElement.style.setProperty("--content", state.width + "ch");
+
+    syncBootstrapTheme();
+
+    setSearchParam("family", state.family);
+    setSearchParam("preset", state.preset);
+    setSearchParam("style", state.style);
+    setSearchParam("width", String(state.width));
+
+    updateLabSummary(root, state);
+    renderAllCompositions();
+  }
+
+  function watchThemeClasses() {
+    if (!document.body || typeof MutationObserver === "undefined") return;
+    var observer = new MutationObserver(function (muts) {
+      for (var i = 0; i < muts.length; i++) {
+        if (muts[i].attributeName === "class") {
+          syncBootstrapTheme();
+          renderAllCompositions();
+          break;
+        }
+      }
+    });
+    observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+  }
+
+  function initThemeLab() {
+    var root = document.querySelector("[data-albers-lab]");
+    if (!root) return;
+
+    var controls = {
+      family: root.querySelector("[data-albers-control='family']"),
+      preset: root.querySelector("[data-albers-control='preset']"),
+      style: root.querySelector("[data-albers-control='style']"),
+      width: root.querySelector("[data-albers-control='width']")
+    };
+
+    if (!controls.family || !controls.preset || !controls.style || !controls.width) return;
+
+    var params = new URLSearchParams(window.location.search);
+    var initial = {
+      family: params.get("family") || controls.family.value || "red",
+      preset: params.get("preset") || controls.preset.value || "study",
+      style: params.get("style") || controls.style.value || "minimal",
+      width: Number(params.get("width") || controls.width.value || 78)
+    };
+
+    controls.family.value = initial.family;
+    controls.preset.value = initial.preset;
+    controls.style.value = initial.style;
+    controls.width.value = String(initial.width);
+
+    applyLabState(root, initial);
+
+    Object.keys(controls).forEach(function (key) {
+      controls[key].addEventListener("change", function () {
+        applyLabState(root, {
+          family: controls.family.value,
+          preset: controls.preset.value,
+          style: controls.style.value,
+          width: Number(controls.width.value || "78")
+        });
+      });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    initDefaults();
+    initCopyButtons();
+    initAnchors();
+    initThemeLab();
+    watchThemeClasses();
+    syncBootstrapTheme();
+    renderAllCompositions();
+  });
+})();
+</script>
+<script>document.addEventListener('DOMContentLoaded',function(){document.body.classList.add('palette-red');});</script>
+<script>(function () {
+  var FAMILY_CLASSES = ["red", "lapis", "ochre", "teal", "green", "violet"];
+  var PRESET_CLASSES = ["homage", "interaction", "study", "structural", "adobe", "midnight"];
+  var STYLE_CLASSES = ["minimal", "assertive"];
+
+  function classes(prefix, values) {
+    return values.map(function (v) { return prefix + v; });
+  }
+
+  function applySingleClass(el, prefix, value, values) {
+    classes(prefix, values).forEach(function (c) { el.classList.remove(c); });
+    if (value) el.classList.add(prefix + value);
+  }
+
+  function inferBootstrapTheme() {
+    if (!document.body) return "light";
+    return document.body.classList.contains("preset-midnight") ? "dark" : "light";
+  }
+
+  function syncBootstrapTheme() {
+    var theme = inferBootstrapTheme();
+    document.documentElement.setAttribute("data-bs-theme", theme);
+    document.body.setAttribute("data-bs-theme", theme);
+    var nav = document.querySelector("nav.navbar");
+    if (nav) nav.setAttribute("data-bs-theme", theme);
+  }
+
+  function hashSeed(seed) {
+    var h = 2166136261;
+    for (var i = 0; i < seed.length; i++) {
+      h ^= seed.charCodeAt(i);
+      h += (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24);
+    }
+    return h >>> 0;
+  }
+
+  function seeded(seed) {
+    var state = hashSeed(seed || "albersdown");
+    return function () {
+      state = (1664525 * state + 1013904223) >>> 0;
+      return state / 4294967296;
+    };
+  }
+
+  function readPalette(el) {
+    var source = el || document.body;
+    var style = getComputedStyle(source);
+    var colors = ["--A900", "--A700", "--A500", "--A300"].map(function (k) {
+      var value = style.getPropertyValue(k).trim();
+      return value || "#666";
+    });
+    return colors;
+  }
+
+  function clearChildren(el) {
+    while (el.firstChild) el.removeChild(el.firstChild);
+  }
+
+  function svgEl(name, attrs) {
+    var el = document.createElementNS("http://www.w3.org/2000/svg", name);
+    Object.keys(attrs || {}).forEach(function (key) {
+      el.setAttribute(key, String(attrs[key]));
+    });
+    return el;
+  }
+
+  function renderComposition(container, idx) {
+    var seed = container.getAttribute("data-seed") || (window.location.pathname + ":" + idx);
+    var density = Number(container.getAttribute("data-density") || "6");
+    var rand = seeded(seed);
+    var palette = readPalette(container);
+    var w = 1600;
+    var h = 500;
+
+    clearChildren(container);
+    var svg = svgEl("svg", {
+      viewBox: "0 0 " + w + " " + h,
+      preserveAspectRatio: "xMidYMid slice",
+      role: "img",
+      "aria-label": "Albers composition"
+    });
+
+    svg.appendChild(svgEl("rect", { x: 0, y: 0, width: w, height: h, fill: "var(--surface)" }));
+
+    var blockCount = Math.max(4, Math.min(16, density * 2));
+    for (var i = 0; i < blockCount; i++) {
+      var side = 90 + rand() * 260;
+      var x = rand() * (w - side);
+      var y = rand() * (h - side);
+      var tone = palette[Math.floor(rand() * palette.length)];
+      svg.appendChild(svgEl("rect", {
+        x: x.toFixed(2),
+        y: y.toFixed(2),
+        width: side.toFixed(2),
+        height: side.toFixed(2),
+        fill: tone,
+        opacity: (0.17 + rand() * 0.72).toFixed(3)
+      }));
+    }
+
+    for (var j = 0; j < 3; j++) {
+      var cx = 80 + rand() * (w - 160);
+      var cy = 60 + rand() * (h - 120);
+      var radius = 26 + rand() * 66;
+      var color = palette[Math.floor(rand() * palette.length)];
+      svg.appendChild(svgEl("circle", {
+        cx: cx.toFixed(2),
+        cy: cy.toFixed(2),
+        r: radius.toFixed(2),
+        fill: color,
+        opacity: (0.16 + rand() * 0.44).toFixed(3)
+      }));
+    }
+
+    svg.appendChild(svgEl("rect", {
+      x: 0,
+      y: 0,
+      width: w,
+      height: h,
+      fill: "none",
+      stroke: "var(--border)",
+      "stroke-width": "4"
+    }));
+
+    container.appendChild(svg);
+  }
+
+  function renderAllCompositions() {
+    Array.from(document.querySelectorAll(".albers-composition")).forEach(function (el, idx) {
+      renderComposition(el, idx);
+    });
+  }
+
+  function initCopyButtons() {
+    var hasPkgdownCopy =
+      document.querySelector(".btn-copy-ex") ||
+      document.querySelector("[data-clipboard-copy]") ||
+      document.querySelector("div.sourceCode.hasCopyButton");
+
+    if (hasPkgdownCopy) return;
+
+    document.querySelectorAll("pre > code").forEach(function (code) {
+      var pre = code.parentElement;
+      if (!pre || pre.querySelector("button.copy-code")) return;
+      if (!code.textContent || !code.textContent.trim()) return;
+      var btn = document.createElement("button");
+      btn.className = "copy-code";
+      btn.type = "button";
+      btn.setAttribute("aria-label", "Copy code");
+      btn.textContent = "Copy";
+      btn.addEventListener("click", async function () {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          btn.textContent = "Copied";
+        } catch (e) {
+          try {
+            var r = document.createRange();
+            r.selectNodeContents(code);
+            var sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(r);
+            document.execCommand("copy");
+            sel.removeAllRanges();
+            btn.textContent = "Copied";
+          } catch (e2) {
+            btn.textContent = "Oops";
+          }
+        } finally {
+          setTimeout(function () { btn.textContent = "Copy"; }, 1400);
+        }
+      });
+      pre.appendChild(btn);
+    });
+  }
+
+  function initAnchors() {
+    Array.from(document.querySelectorAll("h2, h3")).forEach(function (h) {
+      if (!h.id || h.querySelector("a.anchor")) return;
+      var a = document.createElement("a");
+      a.href = "#" + h.id;
+      a.className = "anchor";
+      a.textContent = "—";
+      a.setAttribute("aria-label", "Link to this section");
+      a.setAttribute("title", "Link to this section");
+      h.appendChild(a);
+    });
+  }
+
+  function initDefaults() {
+    if (
+      document.body &&
+      !document.body.classList.contains("style-minimal") &&
+      !document.body.classList.contains("style-assertive")
+    ) {
+      document.body.classList.add("style-minimal");
+    }
+  }
+
+  function setSearchParam(key, value) {
+    try {
+      var url = new URL(window.location.href);
+      if (value === null || value === "") url.searchParams.delete(key);
+      else url.searchParams.set(key, value);
+      window.history.replaceState({}, "", url.toString());
+    } catch (e) {
+      // no-op
+    }
+  }
+
+  function updateLabSummary(root, state) {
+    var target = root.querySelector("[data-albers-lab-summary]");
+    if (!target) return;
+    target.textContent = [
+      "family=" + state.family,
+      "preset=" + state.preset,
+      "style=" + state.style,
+      "width=" + state.width + "ch"
+    ].join(" | ");
+  }
+
+  function applyLabState(root, state) {
+    applySingleClass(document.body, "palette-", state.family, FAMILY_CLASSES);
+    applySingleClass(document.body, "preset-", state.preset, PRESET_CLASSES);
+
+    classes("style-", STYLE_CLASSES).forEach(function (c) {
+      document.body.classList.remove(c);
+    });
+    if (state.style && state.style !== "balanced") {
+      document.body.classList.add("style-" + state.style);
+    }
+
+    document.documentElement.style.setProperty("--content", state.width + "ch");
+
+    syncBootstrapTheme();
+
+    setSearchParam("family", state.family);
+    setSearchParam("preset", state.preset);
+    setSearchParam("style", state.style);
+    setSearchParam("width", String(state.width));
+
+    updateLabSummary(root, state);
+    renderAllCompositions();
+  }
+
+  function watchThemeClasses() {
+    if (!document.body || typeof MutationObserver === "undefined") return;
+    var observer = new MutationObserver(function (muts) {
+      for (var i = 0; i < muts.length; i++) {
+        if (muts[i].attributeName === "class") {
+          syncBootstrapTheme();
+          renderAllCompositions();
+          break;
+        }
+      }
+    });
+    observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+  }
+
+  function initThemeLab() {
+    var root = document.querySelector("[data-albers-lab]");
+    if (!root) return;
+
+    var controls = {
+      family: root.querySelector("[data-albers-control='family']"),
+      preset: root.querySelector("[data-albers-control='preset']"),
+      style: root.querySelector("[data-albers-control='style']"),
+      width: root.querySelector("[data-albers-control='width']")
+    };
+
+    if (!controls.family || !controls.preset || !controls.style || !controls.width) return;
+
+    var params = new URLSearchParams(window.location.search);
+    var initial = {
+      family: params.get("family") || controls.family.value || "red",
+      preset: params.get("preset") || controls.preset.value || "study",
+      style: params.get("style") || controls.style.value || "minimal",
+      width: Number(params.get("width") || controls.width.value || 78)
+    };
+
+    controls.family.value = initial.family;
+    controls.preset.value = initial.preset;
+    controls.style.value = initial.style;
+    controls.width.value = String(initial.width);
+
+    applyLabState(root, initial);
+
+    Object.keys(controls).forEach(function (key) {
+      controls[key].addEventListener("change", function () {
+        applyLabState(root, {
+          family: controls.family.value,
+          preset: controls.preset.value,
+          style: controls.style.value,
+          width: Number(controls.width.value || "78")
+        });
+      });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    initDefaults();
+    initCopyButtons();
+    initAnchors();
+    initThemeLab();
+    watchThemeClasses();
+    syncBootstrapTheme();
+    renderAllCompositions();
+  });
+})();
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">
+:root {
+
+--ink: #1f1b16;
+--bg: #efe7d6;
+--surface: #fbf7ee;
+--surface-strong: #f4eedf;
+--muted: #7a7264;
+--border: #e0d6c0;
+--code-bg: #fbf7ee;
+--code-fg: #332f28;
+--code-border: #e0d6c0;
+--tok-fun: #1f6f6b;
+--tok-str: #8e2d1c;
+--tok-num: #d98324;
+--tok-com: #9a9078;
+--tok-kw: #c24a2e;
+--shadow-soft: 0 1px 3px rgba(9, 11, 15, 0.045);
+--shadow-card: 0 1px 5px rgba(9, 11, 15, 0.055);
+--content: 78ch;
+--anchor-offset: 76px;
+
+--vig-toc-width: 15rem;
+--vig-gap: clamp(1.5rem, 2.4vw, 2.6rem);
+--vig-pad-block: clamp(1.75rem, 3vw, 3rem);
+--vig-pad-inline: clamp(1.2rem, 3vw, 2.6rem);
+--font-body: "Newsreader", Georgia, "Times New Roman", serif;
+--font-display: "Familjen Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+--font-ui: "Space Grotesk", system-ui, sans-serif;
+--font-mono: "Spline Sans Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+--heading-weight: 700;
+--module: 4px;
+--space-1: 0.25rem;
+--space-2: 0.5rem;
+--space-3: 0.75rem;
+--space-4: 1rem;
+--space-5: 1.5rem;
+--space-6: 2rem;
+--rule-thin: 1px;
+--rule-strong: 2px;
+--ribbon-opacity: 0.62;
+--nav-dash-weight: 650;
+--dash-weight: 600;
+--dash-opacity: 0.82;
+--subdash-opacity: 0.76;
+--overview-dash-weight: 620;
+--overview-dash-opacity: 0.86;
+--hr-opacity: 0.42;
+--table-divider-alpha: 72%;
+--table-hover-alpha: 70%;
+
+--A900: #c22b23;
+--A700: #dc3925;
+--A500: #e44926;
+--A300: #e35b2d;
+--accent-ink-light: var(--A900);
+--accent-ink-dark: var(--A300);
+--accent-ink: var(--accent-ink-light);
+--accent: var(--A500);
+--accent-strong: var(--A700);
+--accent-hover: #a9351f;
+--accent-tint: rgba(228, 73, 38, 0.09);
+--accent-band: rgba(228, 73, 38, 0.14);
+
+--sq-size: 0.46em;
+--sq-ring: 0.12em;
+--sq-outer: #e0a100;
+}
+
+body {
+--accent-ink: var(--A900);
+--accent: var(--A500);
+--accent-strong: var(--A700);
+--sq-core: var(--A900);
+--sq-mid: var(--A500);
+}
+
+
+.style-minimal {
+--rule-strong: 1px;
+--ribbon-opacity: 0.46;
+
+--sq-size: 0.4em;
+--sq-ring: 0.1em;
+--nav-dash-weight: 600;
+--subdash-opacity: 0.64;
+--overview-dash-weight: 560;
+--overview-dash-opacity: 0.74;
+--hr-opacity: 0.3;
+--table-divider-alpha: 58%;
+--table-hover-alpha: 52%;
+}
+.style-assertive {
+--rule-strong: 3px;
+--ribbon-opacity: 0.82;
+
+--sq-size: 0.56em;
+--sq-ring: 0.17em;
+--nav-dash-weight: 720;
+--subdash-opacity: 0.9;
+--overview-dash-weight: 680;
+--overview-dash-opacity: 0.94;
+--hr-opacity: 0.62;
+--table-divider-alpha: 90%;
+--table-hover-alpha: 92%;
+}
+
+
+.palette-red {
+--A900: #C22B23;
+--A700: #DC3925;
+--A500: #E44926;
+--A300: #E35B2D;
+--accent-hover: #A9351F;
+--accent-tint: rgba(228, 73, 38, 0.09);
+--accent-band: rgba(228, 73, 38, 0.14);
+}
+.palette-lapis {
+--A900: #1B2A74;
+--A700: #20399C;
+--A500: #2C4FCC;
+--A300: #4968D6;
+--accent-hover: #1A377F;
+--accent-tint: rgba(44, 79, 204, 0.10);
+--accent-band: rgba(44, 79, 204, 0.15);
+}
+.palette-ochre {
+--A900: #6F5200;
+--A700: #8B6700;
+--A500: #B48900;
+--A300: #D7A700;
+--accent-hover: #7A5C00;
+--accent-tint: rgba(180, 137, 0, 0.10);
+--accent-band: rgba(180, 137, 0, 0.16);
+}
+.palette-teal {
+--A900: #0D4A4A;
+--A700: #0F5E5E;
+--A500: #127373;
+--A300: #2F8C8C;
+--accent-hover: #0F6060;
+--accent-tint: rgba(18, 115, 115, 0.10);
+--accent-band: rgba(18, 115, 115, 0.15);
+}
+.palette-green {
+--A900: #1B5E20;
+--A700: #2E7D32;
+--A500: #388E3C;
+--A300: #66BB6A;
+--accent-hover: #2E7D32;
+--accent-tint: rgba(56, 142, 60, 0.10);
+--accent-band: rgba(56, 142, 60, 0.15);
+}
+.palette-violet {
+--A900: #4A148C;
+--A700: #6A1B9A;
+--A500: #8E24AA;
+--A300: #BA68C8;
+--accent-ink-dark: #D59AE7;
+--accent-hover: #71208D;
+--accent-tint: rgba(142, 36, 170, 0.11);
+--accent-band: rgba(142, 36, 170, 0.16);
+}
+
+
+
+
+.preset-homage {
+--bg: #efe7d6;
+--surface: #fbf7ee;
+--surface-strong: #f4eedf;
+--ink: #1f1b16;
+--muted: #7a7264;
+--border: #e0d6c0;
+--code-bg: #fbf7ee;
+--code-fg: #332f28;
+--code-border: #e0d6c0;
+--tok-fun: #1f6f6b;
+--tok-str: #8e2d1c;
+--tok-num: #d98324;
+--tok-com: #9a9078;
+--tok-kw: #c24a2e;
+--font-body: "Newsreader", Georgia, "Times New Roman", serif;
+--font-display: "Familjen Grotesk", system-ui, sans-serif;
+--font-ui: "Space Grotesk", system-ui, sans-serif;
+--font-mono: "Spline Sans Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+--sq-outer: #e0a100;
+--heading-weight: 700;
+}
+
+.preset-interaction {
+--bg: #f1f2f4;
+--surface: #ffffff;
+--surface-strong: #f7f8fa;
+--ink: #15181e;
+--muted: #7b8494;
+--border: #e3e6eb;
+--code-bg: #15181e;
+--code-fg: #c9d0dc;
+--code-border: #15181e;
+--tok-fun: #7fa6f0;
+--tok-str: #e9904f;
+--tok-num: #9ad0a0;
+--tok-com: #6b7484;
+--tok-kw: #f4b43c;
+--font-body: "Hanken Grotesk", system-ui, sans-serif;
+--font-display: "Space Grotesk", system-ui, sans-serif;
+--font-ui: "Hanken Grotesk", system-ui, sans-serif;
+--font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+--sq-outer: var(--A300);
+--heading-weight: 600;
+}
+
+.preset-study {
+--bg: #f7f9fb;
+--surface: #ffffff;
+--surface-strong: #fbfcfd;
+--ink: #17181a;
+--muted: #68717d;
+--border: #dde2e8;
+--code-bg: #f1f4f8;
+--font-display: "Avenir Next", "Gill Sans", "Trebuchet MS", system-ui, sans-serif;
+--heading-weight: 730;
+}
+
+.preset-structural {
+--bg: #e6e9ed;
+--surface: #f1f3f6;
+--surface-strong: #eceff2;
+--ink: #101214;
+--muted: #4b5360;
+--border: #c1c8d0;
+--code-bg: #e0e5ea;
+--shadow-soft: none;
+--shadow-card: none;
+--font-display: "Franklin Gothic Medium", "Avenir Next", "Gill Sans", sans-serif;
+--heading-weight: 760;
+}
+
+.preset-adobe {
+--bg: #ece9e7;
+--surface: #f3f1ef;
+--surface-strong: #efedeb;
+--ink: #1f1c19;
+--muted: #66615d;
+--border: #ccc7c3;
+--code-bg: #e3dfdc;
+--shadow-soft: 0 2px 7px rgba(0, 0, 0, 0.04);
+--shadow-card: 0 2px 9px rgba(0, 0, 0, 0.05);
+--font-display: "Optima", "Avenir Next", "Gill Sans", sans-serif;
+--heading-weight: 720;
+}
+
+.preset-midnight {
+--bg: #0d1117;
+--surface: #151b24;
+--surface-strong: #1a212d;
+--ink: #e8e6e1;
+--muted: #b2bac7;
+--border: #2c3342;
+--code-bg: #0f1520;
+--shadow-soft: 0 6px 20px rgba(0, 0, 0, 0.4);
+--shadow-card: 0 6px 24px rgba(0, 0, 0, 0.45);
+--font-display: "Avenir Next", "Gill Sans", "Trebuchet MS", sans-serif;
+--heading-weight: 740;
+--accent-ink: var(--accent-ink-dark);
+}
+
+
+@media (prefers-color-scheme: dark) {
+:root {
+--ink: #ece8de;
+--bg: #111315;
+--surface: #171a1e;
+--surface-strong: #1c2025;
+--muted: #a7aeb8;
+--border: #313844;
+--code-bg: #181d24;
+--shadow-soft: 0 6px 20px rgba(0, 0, 0, 0.35);
+--shadow-card: 0 6px 24px rgba(0, 0, 0, 0.4);
+--accent-ink: var(--accent-ink-dark);
+--accent-hover: #f2b2a7;
+--accent-tint: rgba(228, 73, 38, 0.2);
+--accent-band: rgba(228, 73, 38, 0.25);
+}
+}
+[data-bs-theme="dark"] {
+--ink: #ece8de;
+--bg: #111315;
+--surface: #171a1e;
+--surface-strong: #1c2025;
+--muted: #a7aeb8;
+--border: #313844;
+--code-bg: #181d24;
+--shadow-soft: 0 6px 20px rgba(0, 0, 0, 0.35);
+--shadow-card: 0 6px 24px rgba(0, 0, 0, 0.4);
+--accent-ink: var(--accent-ink-dark);
+--accent-hover: #f2b2a7;
+--accent-tint: rgba(228, 73, 38, 0.2);
+--accent-band: rgba(228, 73, 38, 0.25);
+}
+
+body[data-bs-theme="dark"].palette-red,
+[data-bs-theme="dark"] body.palette-red {
+--accent-ink: #FFB8A9;
+--accent-hover: #FFD2C7;
+--accent-tint: rgba(228, 73, 38, 0.24);
+--accent-band: rgba(228, 73, 38, 0.30);
+}
+body[data-bs-theme="dark"].palette-lapis,
+[data-bs-theme="dark"] body.palette-lapis {
+--accent-ink: #AAB9FF;
+--accent-hover: #C6D0FF;
+--accent-tint: rgba(73, 104, 214, 0.24);
+--accent-band: rgba(73, 104, 214, 0.30);
+}
+body[data-bs-theme="dark"].palette-ochre,
+[data-bs-theme="dark"] body.palette-ochre {
+--accent-ink: #FFD46E;
+--accent-hover: #FFE4A7;
+--accent-tint: rgba(180, 137, 0, 0.24);
+--accent-band: rgba(180, 137, 0, 0.31);
+}
+body[data-bs-theme="dark"].palette-teal,
+[data-bs-theme="dark"] body.palette-teal {
+--accent-ink: #9BDCD9;
+--accent-hover: #B8E8E5;
+--accent-tint: rgba(47, 140, 140, 0.24);
+--accent-band: rgba(47, 140, 140, 0.30);
+}
+body[data-bs-theme="dark"].palette-green,
+[data-bs-theme="dark"] body.palette-green {
+--accent-ink: #AFE7B1;
+--accent-hover: #CAF0CB;
+--accent-tint: rgba(102, 187, 106, 0.24);
+--accent-band: rgba(102, 187, 106, 0.30);
+}
+body[data-bs-theme="dark"].palette-violet,
+[data-bs-theme="dark"] body.palette-violet {
+--accent-ink: #DFB3EC;
+--accent-hover: #ECCFF4;
+--accent-tint: rgba(186, 104, 200, 0.24);
+--accent-band: rgba(186, 104, 200, 0.31);
+}
+@media (prefers-color-scheme: dark) {
+body.palette-red {
+--accent-ink: #FFB8A9;
+--accent-hover: #FFD2C7;
+--accent-tint: rgba(228, 73, 38, 0.24);
+--accent-band: rgba(228, 73, 38, 0.30);
+}
+body.palette-lapis {
+--accent-ink: #AAB9FF;
+--accent-hover: #C6D0FF;
+--accent-tint: rgba(73, 104, 214, 0.24);
+--accent-band: rgba(73, 104, 214, 0.30);
+}
+body.palette-ochre {
+--accent-ink: #FFD46E;
+--accent-hover: #FFE4A7;
+--accent-tint: rgba(180, 137, 0, 0.24);
+--accent-band: rgba(180, 137, 0, 0.31);
+}
+body.palette-teal {
+--accent-ink: #9BDCD9;
+--accent-hover: #B8E8E5;
+--accent-tint: rgba(47, 140, 140, 0.24);
+--accent-band: rgba(47, 140, 140, 0.30);
+}
+body.palette-green {
+--accent-ink: #AFE7B1;
+--accent-hover: #CAF0CB;
+--accent-tint: rgba(102, 187, 106, 0.24);
+--accent-band: rgba(102, 187, 106, 0.30);
+}
+body.palette-violet {
+--accent-ink: #DFB3EC;
+--accent-hover: #ECCFF4;
+--accent-tint: rgba(186, 104, 200, 0.24);
+--accent-band: rgba(186, 104, 200, 0.31);
+}
+}
+
+
+:root { scrollbar-gutter: stable both-edges; }
+html,
+body {
+background-color: var(--bg);
+color: var(--ink);
+font-family: var(--font-body);
+font-size: 17.5px;
+line-height: 1.58;
+letter-spacing: 0.01em;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+-moz-osx-font-smoothing: grayscale;
+}
+
+html:has(body.preset-interaction) { --bg: #f1f2f4; }
+html:has(body.preset-study) { --bg: #f7f9fb; }
+html:has(body.preset-structural) { --bg: #e6e9ed; }
+html:has(body.preset-adobe) { --bg: #ece9e7; }
+html:has(body.preset-midnight) { --bg: #0d1117; }
+
+.navbar .nav-link,
+.navbar .navbar-brand,
+.nav-item .nav-link,
+.btn,
+.form-control,
+input[type="search"],
+button.copy-code,
+pre,
+table,
+blockquote,
+.callout,
+.theme-lab__panel,
+.theme-lab__preview,
+.albers-chip,
+#toc > .nav a.nav-link,
+aside,
+.dropdown-menu,
+.popover,
+.page-content,
+.article,
+.reference,
+.template-home,
+.page-header {
+border-radius: 0 !important;
+}
+main,
+.content,
+.page-content,
+.vignette,
+.contents {
+max-width: var(--content);
+margin-inline: auto;
+padding-inline: clamp(16px, 2.4vw, 34px);
+}
+
+body.albers-vignette,
+body:has(> #TOC) {
+box-sizing: border-box;
+max-width: calc(var(--content) + 2 * var(--vig-pad-inline));
+margin-inline: auto;
+padding: var(--vig-pad-block) var(--vig-pad-inline);
+background: var(--surface);
+border: var(--rule-thin) solid var(--border);
+box-shadow: var(--shadow-soft);
+position: relative;
+}
+
+body.albers-vignette::before,
+body:has(> #TOC)::before {
+content: "";
+position: absolute;
+inset-block: 0;
+inset-inline-start: 0;
+width: var(--rule-strong);
+background: var(--A500);
+opacity: var(--ribbon-opacity);
+pointer-events: none;
+}
+body.albers-vignette > h1.title,
+body:has(> #TOC) > h1.title {
+margin-top: 0;
+}
+
+body.albers-vignette > #TOC,
+body:has(> #TOC) > #TOC {
+background: var(--surface-strong);
+border: var(--rule-thin) solid var(--border);
+border-left: var(--rule-strong) solid var(--A500);
+padding: var(--space-4) var(--space-4) var(--space-4) var(--space-5);
+margin-block: var(--space-5) var(--space-6);
+font-size: 0.92em;
+line-height: 1.4;
+}
+body.albers-vignette > #TOC ul,
+body:has(> #TOC) > #TOC ul {
+list-style: none;
+margin: 0;
+padding-left: 0;
+}
+body.albers-vignette > #TOC ul ul,
+body:has(> #TOC) > #TOC ul ul {
+padding-left: 0.95em;
+margin-top: 0.18rem;
+}
+body.albers-vignette > #TOC li,
+body:has(> #TOC) > #TOC li {
+position: relative;
+margin: 0.2rem 0;
+padding-left: 0.95em;
+}
+body.albers-vignette > #TOC li::before,
+body:has(> #TOC) > #TOC li::before {
+content: "–";
+position: absolute;
+left: 0;
+top: 0;
+color: var(--A500);
+opacity: var(--subdash-opacity);
+}
+body.albers-vignette > #TOC a,
+body:has(> #TOC) > #TOC a {
+color: var(--muted) !important;
+text-decoration: none !important;
+border-bottom: none !important;
+}
+body.albers-vignette > #TOC a:hover,
+body.albers-vignette > #TOC a:focus-visible,
+body:has(> #TOC) > #TOC a:hover,
+body:has(> #TOC) > #TOC a:focus-visible {
+color: var(--accent-ink) !important;
+}
+
+@media (min-width: 1080px) {
+body.albers-vignette,
+body:has(> #TOC) {
+max-width: calc(
+var(--content) + var(--vig-toc-width) + var(--vig-gap) +
+2 * var(--vig-pad-inline)
+);
+display: grid;
+grid-template-columns: [toc] var(--vig-toc-width) [main] minmax(0, 1fr);
+column-gap: var(--vig-gap);
+align-items: start;
+}
+body.albers-vignette > *,
+body:has(> #TOC) > * {
+grid-column: main;
+min-width: 0;
+}
+body.albers-vignette > h1.title,
+body:has(> #TOC) > h1.title {
+grid-column: toc / -1;
+}
+body.albers-vignette > #TOC,
+body:has(> #TOC) > #TOC {
+grid-column: toc;
+grid-row: 2 / span 200;
+align-self: start;
+position: sticky;
+top: var(--vig-pad-block);
+max-height: calc(100vh - 2 * var(--vig-pad-block));
+overflow-y: auto;
+margin-block: 0;
+}
+}
+
+@media (max-width: 620px) {
+body.albers-vignette,
+body:has(> #TOC) {
+border: none;
+box-shadow: none;
+padding-inline: 18px;
+}
+body.albers-vignette::before,
+body:has(> #TOC)::before {
+display: none;
+}
+}
+
+.page-content,
+.article,
+.reference,
+.template-home {
+position: relative;
+background: var(--surface);
+border: var(--rule-thin) solid var(--border);
+box-shadow: var(--shadow-soft);
+}
+.page-content::before,
+.article::before,
+.reference::before,
+.template-home::before {
+content: "";
+position: absolute;
+top: calc(-1 * var(--rule-thin));
+bottom: calc(-1 * var(--rule-thin));
+left: calc(-1 * var(--rule-thin));
+width: var(--rule-strong);
+background: var(--A500);
+opacity: var(--ribbon-opacity);
+pointer-events: none;
+}
+.page-header,
+.template-home .page-header {
+background: var(--surface-strong);
+border-top: var(--rule-thin) solid var(--border);
+border-bottom: var(--rule-thin) solid var(--border);
+}
+.navbar {
+background: var(--surface-strong) !important;
+border-top: var(--rule-strong) solid var(--A500);
+border-bottom: var(--rule-thin) solid var(--border);
+backdrop-filter: none;
+box-shadow: none;
+}
+.navbar .navbar-brand,
+.navbar .nav-link {
+color: var(--ink) !important;
+font-weight: 650;
+letter-spacing: 0.045em;
+text-transform: uppercase;
+font-size: 0.85em;
+text-decoration: none !important;
+}
+.navbar .navbar-brand {
+font-weight: 730;
+letter-spacing: 0.055em;
+}
+.navbar .nav-link {
+border-bottom: var(--rule-thin) solid transparent;
+padding-bottom: 0.18rem;
+}
+.navbar .nav-link:hover,
+.navbar .nav-link:focus-visible {
+border-bottom-color: var(--A500);
+}
+.navbar .nav-link.active,
+.navbar .active > a {
+border-bottom-color: var(--A500);
+}
+.navbar .nav-link.active::after,
+.navbar .active > a::after {
+content: " —";
+margin-left: var(--space-1);
+color: var(--A500);
+font-weight: var(--nav-dash-weight);
+}
+.sidebar,
+.toc {
+background: var(--surface);
+border: var(--rule-thin) solid var(--border);
+}
+
+p { margin-block: 0 1.02rem; }
+h1,
+h2,
+h3 {
+font-family: var(--font-display);
+color: var(--ink);
+line-height: 1.18;
+margin-top: var(--space-6);
+margin-bottom: 0.65rem;
+}
+h1 {
+font-size: clamp(2.2rem, 4vw, 3rem);
+letter-spacing: -0.022em;
+text-wrap: balance;
+font-weight: calc(var(--heading-weight) + 40);
+}
+
+h2 {
+font-family: var(--font-ui);
+font-size: 1.04rem;
+letter-spacing: 0.1em;
+text-transform: uppercase;
+font-weight: 700;
+}
+h3 {
+font-family: var(--font-ui);
+font-size: 0.86rem;
+letter-spacing: 0.12em;
+font-weight: 700;
+text-transform: uppercase;
+color: var(--muted);
+}
+h2,
+h3 {
+position: relative;
+display: flex;
+align-items: center;
+gap: 0.7em;
+padding-right: 1.45em;
+scroll-margin-top: var(--anchor-offset);
+}
+
+h2::before,
+h3::before {
+content: "";
+flex: none;
+margin-left: var(--sq-ring);
+width: var(--sq-size);
+height: var(--sq-size);
+background: var(--sq-core);
+box-shadow:
+0 0 0 var(--sq-ring) var(--sq-mid),
+0 0 0 calc(2 * var(--sq-ring)) var(--sq-outer);
+}
+
+a,
+a:visited {
+color: var(--accent-ink) !important;
+text-decoration: underline;
+text-decoration-thickness: 0.09em;
+text-underline-offset: 0.14em;
+text-decoration-skip-ink: auto;
+transition: color 0.15s ease;
+}
+a:hover {
+color: var(--accent-hover) !important;
+}
+a:focus-visible,
+button.copy-code:focus-visible,
+.anchor:focus-visible {
+outline: 2px solid var(--accent-ink);
+outline-offset: 2px;
+box-shadow: 0 0 0 3px var(--accent-tint);
+}
+a:focus { outline: none; }
+
+code,
+pre,
+kbd,
+samp {
+font-family: var(--font-mono);
+font-size: 0.95em;
+line-height: 1.52;
+}
+pre {
+background: var(--code-bg);
+border: var(--rule-thin) solid var(--border);
+border-left: var(--rule-strong) solid var(--A500);
+box-shadow: none;
+padding: var(--space-5) var(--space-4);
+margin-block: 1.35rem;
+overflow: auto;
+position: relative;
+tab-size: 2;
+-moz-tab-size: 2;
+}
+
+pre,
+.sourceCode pre {
+color: var(--code-fg);
+}
+[data-bs-theme="dark"] pre,
+[data-bs-theme="dark"] code {
+background-color: var(--code-bg);
+}
+pre code {
+background: transparent;
+border: none;
+padding: 0;
+word-break: normal;
+overflow-wrap: normal;
+color: var(--code-fg);
+}
+button.copy-code {
+position: absolute;
+top: 8px;
+right: 8px;
+border: var(--rule-thin) solid var(--A500);
+background: var(--surface);
+color: var(--accent-ink);
+padding: 4px 8px;
+font: 650 11px/1 var(--font-display);
+letter-spacing: 0.06em;
+text-transform: uppercase;
+cursor: pointer;
+}
+button.copy-code:hover {
+background: var(--accent-tint);
+}
+button.copy-code:active {
+transform: translateY(1px);
+}
+
+:not(pre) > code {
+background: var(--surface-strong);
+border: var(--rule-thin) solid var(--border);
+color: var(--accent-ink);
+padding: 0.12em 0.36em;
+font-size: 0.86em;
+}
+
+
+.sourceCode .va,
+.sourceCode .op,
+.sourceCode .pp,
+.sourceCode .ot,
+.sourceCode .sc {
+color: var(--code-fg);
+}
+pre code .kw,
+.sourceCode .kw,
+.hljs-keyword {
+color: var(--tok-kw);
+font-weight: 650;
+}
+pre code .fu,
+.sourceCode .fu,
+.hljs-title,
+.hljs-function {
+color: var(--tok-fun);
+}
+pre code .st,
+.sourceCode .st,
+.hljs-string {
+color: var(--tok-str);
+}
+pre code .co,
+.sourceCode .co,
+.hljs-comment {
+color: var(--tok-com);
+font-style: italic;
+}
+pre code .cn,
+.sourceCode .dv,
+.sourceCode .fl,
+.sourceCode .bn,
+.sourceCode .cn,
+.hljs-number,
+.hljs-literal {
+color: var(--tok-num);
+}
+
+pre code a,
+pre code a:visited,
+div.sourceCode a,
+div.sourceCode a:visited {
+color: var(--tok-fun) !important;
+text-decoration: none;
+}
+pre code a:hover,
+div.sourceCode a:hover {
+text-decoration: underline;
+}
+
+table {
+width: 100%;
+border-collapse: collapse;
+font-variant-numeric: tabular-nums;
+border: var(--rule-thin) solid var(--border);
+}
+th,
+td {
+border-bottom: var(--rule-thin) solid var(--border);
+padding: 10px 9px;
+}
+th + th,
+td + td {
+border-left: var(--rule-thin) solid color-mix(in srgb, var(--border) var(--table-divider-alpha), transparent);
+}
+thead th {
+background: var(--surface-strong);
+border-bottom: var(--rule-strong) solid var(--A500);
+font-weight: 700;
+text-transform: uppercase;
+font-size: 0.84em;
+letter-spacing: 0.06em;
+text-align: left;
+}
+tbody tr:nth-child(odd) {
+background: var(--accent-tint);
+}
+tbody tr:hover {
+background: color-mix(in srgb, var(--accent-band) var(--table-hover-alpha), transparent);
+}
+caption {
+caption-side: bottom;
+color: var(--muted);
+padding-top: 0.7rem;
+font-size: 0.94em;
+}
+
+figure {
+margin-block: 1.2rem 1.6rem;
+padding: 0.78rem 0.82rem;
+border: var(--rule-thin) solid var(--border);
+background: var(--surface);
+}
+figure::before {
+content: "";
+display: block;
+height: var(--rule-strong);
+width: clamp(64px, 18%, 160px);
+background: var(--A500);
+opacity: 0.58;
+margin-bottom: 0.68rem;
+}
+figcaption {
+margin-top: 0.58rem;
+font-size: 0.82rem;
+text-transform: uppercase;
+letter-spacing: 0.052em;
+color: var(--muted);
+}
+
+blockquote,
+.callout {
+position: relative;
+border: var(--rule-thin) solid var(--border);
+border-left: 3px solid var(--accent);
+background: var(--surface-strong);
+padding: 16px 22px;
+margin-block: 1.45rem;
+}
+
+blockquote::after,
+.callout::after {
+content: "";
+position: absolute;
+top: 14px;
+right: 14px;
+width: 0.5em;
+height: 0.5em;
+background: var(--sq-mid);
+box-shadow: 0 0 0 0.17em var(--sq-outer);
+}
+blockquote p { margin: 0; }
+.callout-note {
+border-left-color: var(--A500);
+background: var(--accent-band);
+}
+.callout-insight {
+border-left-color: var(--A700);
+background: var(--accent-tint);
+}
+.callout-warning {
+border-left-color: #b48900;
+background: rgba(180, 137, 0, 0.12);
+}
+.callout-experiment {
+border-left-color: color-mix(in srgb, var(--A500) 60%, var(--A900));
+background:
+linear-gradient(90deg, color-mix(in srgb, var(--A300) 22%, transparent) 0 2px, transparent 2px),
+color-mix(in srgb, var(--accent-band) 75%, var(--surface));
+}
+
+h2:hover .anchor,
+h3:hover .anchor,
+h2:focus-within .anchor,
+h3:focus-within .anchor {
+opacity: 1;
+transform: translateY(-50%) translateX(0);
+}
+.anchor {
+opacity: 0;
+position: absolute;
+right: 0;
+top: 50%;
+transform: translateY(-50%) translateX(0.2em);
+text-decoration: none;
+color: var(--A500);
+line-height: 1;
+font-weight: 700;
+letter-spacing: 0.04em;
+transition: opacity 0.15s ease-in-out, transform 0.15s ease-in-out;
+}
+
+.homage-hero {
+aspect-ratio: 8 / 3;
+min-height: clamp(72px, 14vw, 168px);
+margin-block: 1.5rem;
+border: 0;
+border-radius: 0;
+box-shadow: none;
+background:
+linear-gradient(90deg, var(--A900) 0 25%, transparent 25% 100%),
+linear-gradient(90deg, transparent 0 25%, var(--A700) 25% 50%, transparent 50% 100%),
+linear-gradient(90deg, transparent 0 50%, var(--A500) 50% 75%, transparent 75% 100%),
+linear-gradient(90deg, transparent 0 75%, var(--A300) 75% 100%),
+var(--surface);
+}
+.homage-hero--letterbox {
+aspect-ratio: 12 / 1;
+margin-block: 1rem 0.55rem;
+}
+
+.albers-plate {
+position: relative;
+width: min(100%, 560px);
+aspect-ratio: 1 / 1;
+margin: calc(var(--module) * 7) 0 calc(var(--module) * 8);
+border: var(--rule-thin) solid var(--border);
+background: var(--surface);
+overflow: hidden;
+}
+.albers-plate__outer,
+.albers-plate__inner,
+.albers-plate__core {
+position: absolute;
+box-sizing: border-box;
+}
+.albers-plate__outer {
+width: 72%;
+aspect-ratio: 1 / 1;
+left: 50%;
+top: 50%;
+transform: translate(-50%, -50%);
+background: var(--A300);
+}
+.albers-plate__inner {
+width: 50%;
+aspect-ratio: 1 / 1;
+left: 50%;
+top: 50%;
+transform: translate(-50%, -50%);
+background: var(--A700);
+}
+.albers-plate__core {
+width: 28%;
+aspect-ratio: 1 / 1;
+left: 50%;
+top: 50%;
+transform: translate(-50%, -50%);
+background: var(--A900);
+}
+.albers-composition {
+position: relative;
+width: 100%;
+aspect-ratio: 16 / 5;
+min-height: clamp(96px, 18vw, 214px);
+background: var(--surface);
+border: var(--rule-thin) solid var(--border);
+margin-block: 1.2rem 1.5rem;
+overflow: hidden;
+}
+.albers-composition svg {
+width: 100%;
+height: 100%;
+display: block;
+}
+.albers-composition--dense {
+min-height: clamp(120px, 23vw, 270px);
+}
+.hr-notch {
+height: 0;
+border-top: var(--rule-thin) solid var(--border);
+border-bottom: var(--rule-thin) solid var(--A500);
+margin: 1.5rem 0;
+opacity: var(--hr-opacity);
+}
+.overview ul {
+list-style: none;
+margin: 0;
+padding-left: 0;
+}
+.overview li {
+position: relative;
+padding-left: 1.1em;
+margin-bottom: var(--space-2);
+}
+.overview li::before {
+content: "—";
+position: absolute;
+left: 0;
+top: 0.02em;
+color: var(--A500);
+font-weight: var(--overview-dash-weight);
+opacity: var(--overview-dash-opacity);
+}
+
+.theme-lab {
+display: grid;
+gap: var(--space-4);
+}
+.theme-lab__panel {
+border: var(--rule-thin) solid var(--border);
+background: var(--surface-strong);
+padding: var(--space-4);
+}
+.theme-lab__controls {
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+gap: var(--space-3);
+}
+.theme-lab label {
+display: block;
+font-size: 0.78rem;
+text-transform: uppercase;
+letter-spacing: 0.06em;
+color: var(--muted);
+margin-bottom: var(--space-1);
+}
+.theme-lab select,
+.theme-lab input {
+width: 100%;
+border: var(--rule-thin) solid var(--border);
+background: var(--surface);
+color: var(--ink);
+padding: 0.46rem 0.5rem;
+}
+.theme-lab__preview {
+border: var(--rule-thin) solid var(--border);
+background: var(--surface);
+padding: var(--space-4);
+}
+.theme-lab__chips {
+display: flex;
+flex-wrap: wrap;
+gap: 0.4rem;
+}
+.albers-chip {
+border: var(--rule-thin) solid var(--border);
+background: var(--surface-strong);
+color: var(--ink);
+padding: 0.2rem 0.44rem;
+font-size: 0.74rem;
+text-transform: uppercase;
+letter-spacing: 0.05em;
+}
+
+.theme-lab__chips .albers-chip {
+color: #fff;
+border-color: transparent;
+}
+.theme-lab__chips .albers-chip:nth-child(1) { background: var(--A900); }
+.theme-lab__chips .albers-chip:nth-child(2) { background: var(--A700); }
+.theme-lab__chips .albers-chip:nth-child(3) { background: var(--A500); }
+.theme-lab__chips .albers-chip:nth-child(4) {
+background: var(--A300);
+color: var(--ink);
+}
+body.preset-midnight #toc > .nav a.nav-link {
+color: color-mix(in srgb, var(--ink) 84%, var(--A300));
+}
+body.preset-midnight #toc > .nav a.nav-link:hover,
+body.preset-midnight #toc > .nav a.nav-link:focus {
+background-color: color-mix(in srgb, var(--A300) 24%, transparent);
+}
+body.preset-midnight #toc > .nav a.nav-link.active {
+color: var(--accent-ink);
+background-color: color-mix(in srgb, var(--A300) 30%, var(--surface));
+}
+
+body.preset-midnight img.r-plt,
+body.preset-midnight pre .r-plt.img img,
+body.preset-midnight .cell-output-display img,
+body.preset-midnight .html-widget {
+filter: none !important;
+}
+
+@media (max-width: 920px) {
+html,
+body { font-size: 16.8px; }
+:root { --anchor-offset: 64px; }
+h2,
+h3 {
+padding-left: 0.62em;
+padding-right: 1.2em;
+}
+.page-content,
+.article,
+.reference,
+.template-home {
+box-shadow: none;
+border-left: none;
+border-right: none;
+}
+.page-content::before,
+.article::before,
+.reference::before,
+.template-home::before {
+display: none;
+}
+button.copy-code {
+font-size: 10px;
+letter-spacing: 0.05em;
+}
+}
+@media (max-width: 760px) {
+:root {
+--anchor-offset: 58px;
+--content: 74ch;
+}
+main,
+.content,
+.page-content,
+.vignette,
+.contents {
+padding-inline: 14px;
+}
+.navbar .navbar-brand,
+.navbar .nav-link {
+font-size: 0.78em;
+letter-spacing: 0.035em;
+}
+h1 { font-size: clamp(1.72rem, 7.2vw, 2.02rem); }
+h2 {
+font-size: clamp(1.16rem, 5.2vw, 1.35rem);
+letter-spacing: 0.045em;
+}
+h3 { font-size: clamp(1rem, 4.3vw, 1.14rem); }
+pre {
+padding: var(--space-5) var(--space-3);
+font-size: 0.91em;
+}
+button.copy-code {
+min-height: 30px;
+padding: 6px 10px;
+}
+table {
+display: block;
+overflow-x: auto;
+white-space: nowrap;
+-webkit-overflow-scrolling: touch;
+}
+}
+@media (max-width: 520px) {
+:root { --anchor-offset: 54px; }
+main,
+.content,
+.page-content,
+.vignette,
+.contents {
+padding-inline: 12px;
+}
+.navbar { border-top-width: 2px; }
+.navbar .navbar-brand,
+.navbar .nav-link {
+font-size: 0.74em;
+letter-spacing: 0.03em;
+}
+h2,
+h3 {
+padding-right: 1em;
+}
+.anchor { right: -0.08em; }
+pre {
+border-left-width: 2px;
+padding: var(--space-4) var(--space-3);
+}
+button.copy-code {
+top: 6px;
+right: 6px;
+min-height: 28px;
+padding: 5px 8px;
+font-size: 9px;
+}
+}
+@media (prefers-contrast: more) {
+:root {
+--border: #9aa1ad;
+--muted: #4f5661;
+--accent-tint: rgba(228, 73, 38, 0.18);
+--accent-band: rgba(228, 73, 38, 0.24);
+--rule-strong: 3px;
+}
+a { text-decoration-thickness: 0.12em; }
+pre,
+table,
+blockquote,
+.callout {
+border-width: 2px;
+}
+.navbar .nav-link.active::after,
+.navbar .active > a::after { color: var(--A700); }
+}
+@media (prefers-reduced-motion: reduce) {
+*,
+*::before,
+*::after {
+animation-duration: 0.01ms !important;
+animation-iteration-count: 1 !important;
+transition-duration: 0.01ms !important;
+scroll-behavior: auto !important;
+}
+}
+@media print {
+body { background: #fff !important; }
+body.albers-vignette,
+body:has(> #TOC) {
+display: block;
+max-width: none;
+border: none;
+box-shadow: none;
+padding: 0;
+}
+body.albers-vignette::before,
+body:has(> #TOC)::before { display: none; }
+.navbar,
+.sidebar,
+.toc,
+#TOC,
+.page-header,
+.homage-hero,
+.hr-notch,
+button.copy-code,
+.anchor { display: none !important; }
+.page-content,
+.article,
+.reference,
+.template-home {
+border: none;
+box-shadow: none;
+background: #fff;
+}
+.page-content::before,
+.article::before,
+.reference::before,
+.template-home::before {
+display: none;
+}
+pre { page-break-inside: avoid; }
+a {
+color: inherit !important;
+text-decoration: none;
+}
+}
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Spaces and coordinates</h1>
+
+
+<div id="TOC">
+<ul>
+<li><a href="#what-a-neurospace-holds" id="toc-what-a-neurospace-holds">What a NeuroSpace holds</a></li>
+<li><a href="#the-affine-transform" id="toc-the-affine-transform">The
+affine transform</a></li>
+<li><a href="#three-ways-to-address-a-voxel" id="toc-three-ways-to-address-a-voxel">Three ways to address a
+voxel</a></li>
+<li><a href="#orientation-codes" id="toc-orientation-codes">Orientation
+codes</a></li>
+<li><a href="#oblique-affines" id="toc-oblique-affines">Oblique
+affines</a></li>
+<li><a href="#adding-and-dropping-a-time-axis" id="toc-adding-and-dropping-a-time-axis">Adding and dropping a time
+axis</a></li>
+<li><a href="#four-things-that-catch-people-out" id="toc-four-things-that-catch-people-out">Four things that catch people
+out</a></li>
+<li><a href="#quick-reference" id="toc-quick-reference">Quick
+reference</a></li>
+<li><a href="#where-to-go-next" id="toc-where-to-go-next">Where to go
+next</a></li>
+</ul>
+</div>
+
+<script>document.addEventListener("DOMContentLoaded",function(){document.body.classList.remove("palette-red","palette-lapis","palette-ochre","palette-teal","palette-green","palette-violet","preset-homage","preset-interaction","preset-study","preset-structural","preset-adobe","preset-midnight");document.body.classList.add("palette-red","preset-interaction");});</script>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(neuroim2)</span></code></pre></div>
+<p>Every object in neuroim2 — a <code>NeuroVol</code>, a
+<code>NeuroVec</code>, an ROI — carries a <code>NeuroSpace</code> that
+answers one question: <em>where in the scanner does this voxel sit?</em>
+Get that mapping right and anatomical coordinates, atlas overlays and
+multi-subject registration all follow. Get it wrong and your activations
+end up in the other hemisphere.</p>
+<div id="what-a-neurospace-holds" class="section level2">
+<h2>What a NeuroSpace holds</h2>
+<p>Call <code>space()</code> on any object to see it. Here is the space
+of the brain mask that ships with the package:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>mask <span class="ot">&lt;-</span> <span class="fu">demo_mask</span>()</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="fu">space</span>(mask)</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="co">#&gt; &lt;NeuroSpace&gt; [3D] </span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="co">#&gt; ── Geometry ──────────────────────────────────────────────────────────────────── </span></span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="co">#&gt;   Dimensions    : 64 x 64 x 25</span></span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="co">#&gt;   Spacing       : 3.5 x 3.5 x 3.7 mm</span></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a><span class="co">#&gt;   Origin        : 112, -108.5, -46.25</span></span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a><span class="co">#&gt;   Orientation   : LAS</span></span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a><span class="co">#&gt;   Voxels        : 102,400</span></span></code></pre></div>
+<p>Five things are recorded:</p>
+<ul>
+<li><strong>Grid dimensions</strong> — voxel counts along each axis
+(<code>dim</code>)</li>
+<li><strong>Voxel spacing</strong> — physical voxel size in millimetres
+(<code>spacing</code>)</li>
+<li><strong>Origin</strong> — world coordinates of voxel
+<code>(1, 1, 1)</code> (<code>origin</code>)</li>
+<li><strong>Affine transform</strong> — the 4 x 4 matrix mapping voxel
+indices to millimetres (<code>trans</code>)</li>
+<li><strong>Axis orientation</strong> — the anatomical direction each
+axis runs (<code>axes</code>)</li>
+</ul>
+<p>You can also build one directly, which is what the rest of this
+article does so that the numbers stay easy to follow:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>sp <span class="ot">&lt;-</span> <span class="fu">NeuroSpace</span>(</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>  <span class="at">dim     =</span> <span class="fu">c</span>(<span class="dv">64</span><span class="dt">L</span>, <span class="dv">64</span><span class="dt">L</span>, <span class="dv">40</span><span class="dt">L</span>),</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>  <span class="at">spacing =</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">2</span>),</span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>  <span class="at">origin  =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">90</span>, <span class="sc">-</span><span class="dv">126</span>, <span class="sc">-</span><span class="dv">72</span>)</span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>)</span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a><span class="fu">dim</span>(sp)</span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="co">#&gt; [1] 64 64 40</span></span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a><span class="fu">spacing</span>(sp)</span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a><span class="co">#&gt; [1] 2 2 2</span></span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a><span class="fu">origin</span>(sp)</span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a><span class="co">#&gt; [1]  -90 -126  -72</span></span></code></pre></div>
+</div>
+<div id="the-affine-transform" class="section level2">
+<h2>The affine transform</h2>
+<p>The affine is a 4 x 4 homogeneous matrix in <code>trans(sp)</code>.
+It maps a <strong>zero-based</strong> voxel position to millimetres:</p>
+<pre><code>[x_mm]   [        ] [i]
+[y_mm] = [  M   t ] [j]
+[z_mm]   [        ] [k]
+[  1 ]   [ 0    1 ] [1]</code></pre>
+<p><code>M</code> is the 3 x 3 linear block — spacing, rotation and any
+shear — and <code>t</code> is the translation, which is the origin. For
+an axis-aligned image <code>M</code> is diagonal:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="fu">trans</span>(sp)</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="co">#&gt;      [,1] [,2] [,3] [,4]</span></span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="co">#&gt; [1,]    2    0    0  -90</span></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="co">#&gt; [2,]    0    2    0 -126</span></span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="co">#&gt; [3,]    0    0    2  -72</span></span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="co">#&gt; [4,]    0    0    0    1</span></span></code></pre></div>
+<p>Both pieces can be read straight back out:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">trans</span>(sp)[<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, <span class="dv">4</span>]          <span class="co"># translation column = origin</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="co">#&gt; [1]  -90 -126  -72</span></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="fu">diag</span>(<span class="fu">trans</span>(sp)[<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>])  <span class="co"># diagonal of linear block = voxel sizes</span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="co">#&gt; [1] 2 2 2</span></span></code></pre></div>
+<p>The inverse (world to voxel) is cached on the space:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="fu">inverse_trans</span>(sp)</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="co">#&gt;      [,1] [,2] [,3] [,4]</span></span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="co">#&gt; [1,]  0.5  0.0  0.0   45</span></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="co">#&gt; [2,]  0.0  0.5  0.0   63</span></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a><span class="co">#&gt; [3,]  0.0  0.0  0.5   36</span></span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a><span class="co">#&gt; [4,]  0.0  0.0  0.0    1</span></span></code></pre></div>
+<p>You can supply a full affine instead of <code>spacing</code> and
+<code>origin</code>, and neuroim2 derives the rest from it:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>aff <span class="ot">&lt;-</span> <span class="fu">diag</span>(<span class="fu">c</span>(<span class="dv">3</span>, <span class="dv">3</span>, <span class="dv">4</span>, <span class="dv">1</span>))</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>aff[<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, <span class="dv">4</span>] <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">90</span>, <span class="sc">-</span><span class="dv">126</span>, <span class="sc">-</span><span class="dv">72</span>)</span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>sp_aff <span class="ot">&lt;-</span> <span class="fu">NeuroSpace</span>(<span class="at">dim =</span> <span class="fu">c</span>(<span class="dv">60</span><span class="dt">L</span>, <span class="dv">60</span><span class="dt">L</span>, <span class="dv">35</span><span class="dt">L</span>), <span class="at">trans =</span> aff)</span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a><span class="fu">spacing</span>(sp_aff)</span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a><span class="co">#&gt; [1] 3 3 4</span></span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a><span class="fu">origin</span>(sp_aff)</span>
+<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a><span class="co">#&gt; [1]  -90 -126  -72</span></span></code></pre></div>
+</div>
+<div id="three-ways-to-address-a-voxel" class="section level2">
+<h2>Three ways to address a voxel</h2>
+<p>neuroim2 uses <strong>1-based grid indices</strong> throughout,
+matching R’s arrays. There are two voxel addressing schemes and one
+world system:</p>
+<table>
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Address</th>
+<th align="left">Range</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">Linear index</td>
+<td align="left"><code>1 ... prod(dim)</code></td>
+<td align="left">one integer, column-major, as in any R array</td>
+</tr>
+<tr class="even">
+<td align="left">Grid index</td>
+<td align="left"><code>(1...d1, 1...d2, 1...d3)</code></td>
+<td align="left">a 1-based triple</td>
+</tr>
+<tr class="odd">
+<td align="left">World coordinate</td>
+<td align="left">millimetres</td>
+<td align="left">defined by the affine</td>
+</tr>
+</tbody>
+</table>
+<div class="figure">
+<img role="img" aria-label="Diagram showing linear index, grid index and world coordinates connected by conversion functions." src="data:image/png;base64,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" alt="Diagram showing linear index, grid index and world coordinates connected by conversion functions." />
+<p class="caption">
+The three addressing schemes and the functions that convert between
+them.
+</p>
+</div>
+<div id="grid-and-linear-index" class="section level3">
+<h3>Grid and linear index</h3>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="fu">grid_to_index</span>(sp, <span class="fu">matrix</span>(<span class="fu">c</span>(<span class="dv">10</span>, <span class="dv">12</span>, <span class="dv">5</span>), <span class="at">nrow =</span> <span class="dv">1</span>))</span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="co">#&gt; [1] 17098</span></span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a><span class="fu">index_to_grid</span>(sp, <span class="dv">17098</span><span class="dt">L</span>)</span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a><span class="co">#&gt;      [,1] [,2] [,3]</span></span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a><span class="co">#&gt; [1,]   10   12    5</span></span></code></pre></div>
+</div>
+<div id="grid-and-world" class="section level3">
+<h3>Grid and world</h3>
+<p><code>grid_to_coord()</code> subtracts 1 from the 1-based grid before
+applying the affine, so voxel <code>(1, 1, 1)</code> lands exactly on
+the origin:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="fu">grid_to_coord</span>(sp, <span class="fu">matrix</span>(<span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>), <span class="at">nrow =</span> <span class="dv">1</span>))</span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a><span class="co">#&gt;      [,1] [,2] [,3]</span></span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a><span class="co">#&gt; [1,]  -90 -126  -72</span></span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a><span class="fu">origin</span>(sp)</span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a><span class="co">#&gt; [1]  -90 -126  -72</span></span></code></pre></div>
+<p>Pass a matrix with one row per point to convert many at once:</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a>pts <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">c</span>(</span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a>   <span class="dv">1</span>,  <span class="dv">1</span>,  <span class="dv">1</span>,</span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a>  <span class="dv">32</span>, <span class="dv">32</span>, <span class="dv">20</span>,</span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a>  <span class="dv">64</span>, <span class="dv">64</span>, <span class="dv">40</span></span>
+<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a>), <span class="at">ncol =</span> <span class="dv">3</span>, <span class="at">byrow =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a></span>
+<span id="cb11-7"><a href="#cb11-7" tabindex="-1"></a><span class="fu">grid_to_coord</span>(sp, pts)</span>
+<span id="cb11-8"><a href="#cb11-8" tabindex="-1"></a><span class="co">#&gt;      [,1] [,2] [,3]</span></span>
+<span id="cb11-9"><a href="#cb11-9" tabindex="-1"></a><span class="co">#&gt; [1,]  -90 -126  -72</span></span>
+<span id="cb11-10"><a href="#cb11-10" tabindex="-1"></a><span class="co">#&gt; [2,]  -28  -64  -34</span></span>
+<span id="cb11-11"><a href="#cb11-11" tabindex="-1"></a><span class="co">#&gt; [3,]   36    0    6</span></span></code></pre></div>
+</div>
+<div id="world-back-to-grid" class="section level3">
+<h3>World back to grid</h3>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a><span class="fu">coord_to_grid</span>(sp, <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>, <span class="dv">0</span>))</span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a><span class="co">#&gt; [1] 46 64 37</span></span></code></pre></div>
+</div>
+<div id="straight-from-linear-index-to-millimetres" class="section level3">
+<h3>Straight from linear index to millimetres</h3>
+<p><code>index_to_coord()</code> and <code>coord_to_index()</code> skip
+the grid step:</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="fu">index_to_coord</span>(sp, <span class="dv">12345</span><span class="dt">L</span>)</span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a><span class="co">#&gt;      [,1] [,2] [,3]</span></span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a><span class="co">#&gt; [1,]   22 -126  -66</span></span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a><span class="fu">coord_to_index</span>(sp, <span class="fu">matrix</span>(<span class="fu">c</span>(<span class="dv">22</span>, <span class="sc">-</span><span class="dv">126</span>, <span class="sc">-</span><span class="dv">66</span>), <span class="at">nrow =</span> <span class="dv">1</span>))</span>
+<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a><span class="co">#&gt; [1] 12345</span></span></code></pre></div>
+</div>
+<div id="a-round-trip" class="section level3">
+<h3>A round trip</h3>
+<p>Going out to millimetres and back returns the voxel you started from,
+by either route:</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a>idx <span class="ot">&lt;-</span> <span class="dv">12345</span><span class="dt">L</span></span>
+<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a></span>
+<span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a><span class="fu">grid_to_index</span>(sp, <span class="fu">coord_to_grid</span>(sp, <span class="fu">grid_to_coord</span>(sp, <span class="fu">index_to_grid</span>(sp, idx))))</span>
+<span id="cb14-4"><a href="#cb14-4" tabindex="-1"></a><span class="co">#&gt; [1] 12345</span></span>
+<span id="cb14-5"><a href="#cb14-5" tabindex="-1"></a><span class="fu">coord_to_index</span>(sp, <span class="fu">index_to_coord</span>(sp, idx))</span>
+<span id="cb14-6"><a href="#cb14-6" tabindex="-1"></a><span class="co">#&gt; [1] 12345</span></span></code></pre></div>
+</div>
+</div>
+<div id="orientation-codes" class="section level2">
+<h2>Orientation codes</h2>
+<p>Images are stored in many orientations. The orientation code names
+the anatomical direction each axis runs <em>towards</em>:</p>
+<table>
+<thead>
+<tr class="header">
+<th align="center">Letter</th>
+<th align="left">Increasing index moves towards</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="center">R / L</td>
+<td align="left">Right / Left</td>
+</tr>
+<tr class="even">
+<td align="center">A / P</td>
+<td align="left">Anterior / Posterior</td>
+</tr>
+<tr class="odd">
+<td align="center">S / I</td>
+<td align="left">Superior / Inferior</td>
+</tr>
+</tbody>
+</table>
+<p><code>&quot;RAS&quot;</code> means axis 1 runs towards the right, axis 2
+towards the front, axis 3 towards the top — the NIfTI and MNI
+convention. Read it straight from an affine:</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a><span class="fu">affine_to_axcodes</span>(<span class="fu">trans</span>(sp))</span>
+<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a><span class="co">#&gt; [1] &quot;R&quot; &quot;A&quot; &quot;S&quot;</span></span>
+<span id="cb15-3"><a href="#cb15-3" tabindex="-1"></a><span class="fu">affine_to_axcodes</span>(<span class="fu">trans</span>(mask))</span>
+<span id="cb15-4"><a href="#cb15-4" tabindex="-1"></a><span class="co">#&gt; [1] &quot;L&quot; &quot;A&quot; &quot;S&quot;</span></span></code></pre></div>
+<p>The mask is <code>LAS</code>: its first axis runs the other way,
+towards the left. That single difference is the usual reason an overlay
+comes out mirrored, and it is worth checking with
+<code>affine_to_axcodes()</code> before trusting two images to line
+up.</p>
+<p><code>reorient()</code> rewrites a space to a target orientation:</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a>sp_ras <span class="ot">&lt;-</span> <span class="fu">reorient</span>(<span class="fu">space</span>(mask), <span class="fu">c</span>(<span class="st">&quot;R&quot;</span>, <span class="st">&quot;A&quot;</span>, <span class="st">&quot;S&quot;</span>))</span>
+<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a><span class="fu">affine_to_axcodes</span>(<span class="fu">trans</span>(sp_ras))</span>
+<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a><span class="co">#&gt; [1] &quot;R&quot; &quot;A&quot; &quot;S&quot;</span></span></code></pre></div>
+<p>It is relative to where you started, so asking for the orientation an
+image already has changes nothing:</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a><span class="fu">identical</span>(<span class="fu">trans</span>(<span class="fu">reorient</span>(<span class="fu">space</span>(mask), <span class="fu">c</span>(<span class="st">&quot;L&quot;</span>, <span class="st">&quot;A&quot;</span>, <span class="st">&quot;S&quot;</span>))), <span class="fu">trans</span>(<span class="fu">space</span>(mask)))</span>
+<span id="cb17-2"><a href="#cb17-2" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
+<p>This reinterprets the grid; it does not move the voxels. To resample
+the data itself onto a new grid, see
+<code>vignette(&quot;resampling-and-orientation&quot;)</code>.</p>
+</div>
+<div id="oblique-affines" class="section level2">
+<h2>Oblique affines</h2>
+<p>Scanners often acquire at a slight tilt, which puts off-diagonal
+terms in the affine:</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a>aff_obl <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">c</span>(</span>
+<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a>   <span class="fl">2.0</span>,  <span class="fl">0.2</span>,  <span class="fl">0.0</span>,  <span class="sc">-</span><span class="dv">90</span>,</span>
+<span id="cb18-3"><a href="#cb18-3" tabindex="-1"></a>   <span class="fl">0.0</span>,  <span class="fl">2.0</span>,  <span class="fl">0.1</span>, <span class="sc">-</span><span class="dv">126</span>,</span>
+<span id="cb18-4"><a href="#cb18-4" tabindex="-1"></a>   <span class="fl">0.0</span>,  <span class="fl">0.0</span>,  <span class="fl">2.0</span>,  <span class="sc">-</span><span class="dv">72</span>,</span>
+<span id="cb18-5"><a href="#cb18-5" tabindex="-1"></a>   <span class="fl">0.0</span>,  <span class="fl">0.0</span>,  <span class="fl">0.0</span>,    <span class="dv">1</span></span>
+<span id="cb18-6"><a href="#cb18-6" tabindex="-1"></a>), <span class="at">nrow =</span> <span class="dv">4</span>, <span class="at">byrow =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb18-7"><a href="#cb18-7" tabindex="-1"></a></span>
+<span id="cb18-8"><a href="#cb18-8" tabindex="-1"></a>sp_obl <span class="ot">&lt;-</span> <span class="fu">NeuroSpace</span>(<span class="at">dim =</span> <span class="fu">c</span>(<span class="dv">91</span><span class="dt">L</span>, <span class="dv">109</span><span class="dt">L</span>, <span class="dv">91</span><span class="dt">L</span>), <span class="at">trans =</span> aff_obl)</span></code></pre></div>
+<p><code>spacing()</code> returns the <strong>column norms</strong> of
+the linear block — the true physical edge lengths — which is why it
+disagrees with the diagonal here:</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a><span class="fu">spacing</span>(sp_obl)</span>
+<span id="cb19-2"><a href="#cb19-2" tabindex="-1"></a><span class="co">#&gt; [1] 2.00000 2.00998 2.00250</span></span>
+<span id="cb19-3"><a href="#cb19-3" tabindex="-1"></a><span class="fu">diag</span>(aff_obl[<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>])</span>
+<span id="cb19-4"><a href="#cb19-4" tabindex="-1"></a><span class="co">#&gt; [1] 2 2 2</span></span></code></pre></div>
+<p>Always use <code>spacing()</code>, never the diagonal.
+<code>obliquity()</code> quantifies the tilt, and
+<code>voxel_sizes()</code> computes edge lengths from any affine:</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" tabindex="-1"></a><span class="fu">obliquity</span>(aff_obl)</span>
+<span id="cb20-2"><a href="#cb20-2" tabindex="-1"></a><span class="co">#&gt; [1] 0.00000000 0.09966865 0.04995840</span></span>
+<span id="cb20-3"><a href="#cb20-3" tabindex="-1"></a><span class="fu">obliquity</span>(<span class="fu">trans</span>(sp))</span>
+<span id="cb20-4"><a href="#cb20-4" tabindex="-1"></a><span class="co">#&gt; [1] 0 0 0</span></span>
+<span id="cb20-5"><a href="#cb20-5" tabindex="-1"></a><span class="fu">voxel_sizes</span>(aff_obl)</span>
+<span id="cb20-6"><a href="#cb20-6" tabindex="-1"></a><span class="co">#&gt; [1] 2.000000 2.009975 2.002498</span></span></code></pre></div>
+</div>
+<div id="adding-and-dropping-a-time-axis" class="section level2">
+<h2>Adding and dropping a time axis</h2>
+<p><code>add_dim()</code> extends a 3D space to 4D;
+<code>drop_dim()</code> reverses it. Both leave the spatial affine
+untouched, which is what makes it safe to move between a series and a
+summary volume:</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" tabindex="-1"></a>sp_4d <span class="ot">&lt;-</span> <span class="fu">add_dim</span>(sp, <span class="dv">200</span><span class="dt">L</span>)</span>
+<span id="cb21-2"><a href="#cb21-2" tabindex="-1"></a><span class="fu">dim</span>(sp_4d)</span>
+<span id="cb21-3"><a href="#cb21-3" tabindex="-1"></a><span class="co">#&gt; [1]  64  64  40 200</span></span>
+<span id="cb21-4"><a href="#cb21-4" tabindex="-1"></a></span>
+<span id="cb21-5"><a href="#cb21-5" tabindex="-1"></a>sp_back <span class="ot">&lt;-</span> <span class="fu">drop_dim</span>(sp_4d)</span>
+<span id="cb21-6"><a href="#cb21-6" tabindex="-1"></a><span class="fu">identical</span>(<span class="fu">trans</span>(sp_back), <span class="fu">trans</span>(sp))</span>
+<span id="cb21-7"><a href="#cb21-7" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
+</div>
+<div id="four-things-that-catch-people-out" class="section level2">
+<h2>Four things that catch people out</h2>
+<p><strong>Oblique affines.</strong> If
+<code>diag(trans(sp)[1:3, 1:3])</code> disagrees with
+<code>spacing(sp)</code>, the image is tilted. Use
+<code>obliquity()</code> to measure it and <code>deoblique()</code> to
+remove it.</p>
+<p><strong>1-based indices.</strong> <code>grid_to_coord()</code>
+subtracts 1 for you. If you ever do raw affine arithmetic yourself,
+subtract it first or every coordinate is off by one voxel.</p>
+<p><strong>sform versus qform.</strong> NIfTI stores two affines.
+neuroim2 follows the standard priority — use the sform when
+<code>sform_code &gt; 0</code>, otherwise the qform — so
+<code>trans(space(img))</code> reflects whichever won. When a file’s two
+affines disagree, what you get may not be what the pixdim field
+advertises; <code>vignette(&quot;reading-and-writing&quot;)</code> shows how to
+inspect both.</p>
+<p><strong>Float32 precision.</strong> NIfTI stores affine coefficients
+as 32-bit floats, and neuroim2 rounds to 7 significant figures to match.
+Round trips can show floating-point noise around 0.001 mm. Compare
+coordinates with a tolerance.</p>
+</div>
+<div id="quick-reference" class="section level2">
+<h2>Quick reference</h2>
+<table>
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Function</th>
+<th align="left">Maps</th>
+<th align="left">Typical use</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left"><code>grid_to_index(sp, m)</code></td>
+<td align="left">grid to linear</td>
+<td align="left">looking up voxel data</td>
+</tr>
+<tr class="even">
+<td align="left"><code>index_to_grid(sp, i)</code></td>
+<td align="left">linear to grid</td>
+<td align="left">interpreting array subscripts</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>grid_to_coord(sp, m)</code></td>
+<td align="left">grid to mm</td>
+<td align="left">reporting a location</td>
+</tr>
+<tr class="even">
+<td align="left"><code>coord_to_grid(sp, m)</code></td>
+<td align="left">mm to grid</td>
+<td align="left">atlas and seed lookup</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>index_to_coord(sp, i)</code></td>
+<td align="left">linear to mm</td>
+<td align="left">shortcut past the grid</td>
+</tr>
+<tr class="even">
+<td align="left"><code>coord_to_index(sp, m)</code></td>
+<td align="left">mm to linear</td>
+<td align="left">mask extraction</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>affine_to_axcodes(a)</code></td>
+<td align="left">affine to <code>&quot;RAS&quot;</code></td>
+<td align="left">orientation check</td>
+</tr>
+<tr class="even">
+<td align="left"><code>reorient(sp, codes)</code></td>
+<td align="left">space to space</td>
+<td align="left">standardise orientation</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>voxel_sizes(a)</code></td>
+<td align="left">affine to mm</td>
+<td align="left">physical voxel size</td>
+</tr>
+<tr class="even">
+<td align="left"><code>obliquity(a)</code></td>
+<td align="left">affine to radians</td>
+<td align="left">tilt check</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>add_dim(sp, n)</code></td>
+<td align="left">3D to 4D</td>
+<td align="left">attach a time axis</td>
+</tr>
+<tr class="even">
+<td align="left"><code>drop_dim(sp)</code></td>
+<td align="left">4D to 3D</td>
+<td align="left">strip a time axis</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="where-to-go-next" class="section level2">
+<h2>Where to go next</h2>
+<ul>
+<li><code>vignette(&quot;volumes-and-vectors&quot;)</code> — the containers this
+geometry is attached to</li>
+<li><code>vignette(&quot;resampling-and-orientation&quot;)</code> — changing a
+grid rather than just reinterpreting it</li>
+<li><code>?NeuroSpace</code>, <code>?affine_to_axcodes</code>,
+<code>?obliquity</code></li>
+</ul>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

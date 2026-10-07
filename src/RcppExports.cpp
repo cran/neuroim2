@@ -27,8 +27,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // bilateral_filter_cpp
-NumericVector bilateral_filter_cpp(NumericVector arr, IntegerVector mask_idx, int window, double spatial_sigma, double intensity_sigma, NumericVector spacing);
-RcppExport SEXP _neuroim2_bilateral_filter_cpp(SEXP arrSEXP, SEXP mask_idxSEXP, SEXP windowSEXP, SEXP spatial_sigmaSEXP, SEXP intensity_sigmaSEXP, SEXP spacingSEXP) {
+NumericVector bilateral_filter_cpp(NumericVector arr, IntegerVector mask_idx, int window, double spatial_sigma, double intensity_sigma, NumericVector spacing, double range_scale);
+RcppExport SEXP _neuroim2_bilateral_filter_cpp(SEXP arrSEXP, SEXP mask_idxSEXP, SEXP windowSEXP, SEXP spatial_sigmaSEXP, SEXP intensity_sigmaSEXP, SEXP spacingSEXP, SEXP range_scaleSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -38,13 +38,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type spatial_sigma(spatial_sigmaSEXP);
     Rcpp::traits::input_parameter< double >::type intensity_sigma(intensity_sigmaSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type spacing(spacingSEXP);
-    rcpp_result_gen = Rcpp::wrap(bilateral_filter_cpp(arr, mask_idx, window, spatial_sigma, intensity_sigma, spacing));
+    Rcpp::traits::input_parameter< double >::type range_scale(range_scaleSEXP);
+    rcpp_result_gen = Rcpp::wrap(bilateral_filter_cpp(arr, mask_idx, window, spatial_sigma, intensity_sigma, spacing, range_scale));
     return rcpp_result_gen;
 END_RCPP
 }
 // bilateral_filter_4d_cpp_par
-NumericVector bilateral_filter_4d_cpp_par(NumericVector arr, IntegerVector mask_idx, int spatial_window, int temporal_window, double spatial_sigma, double intensity_sigma, double temporal_sigma, NumericVector spacing);
-RcppExport SEXP _neuroim2_bilateral_filter_4d_cpp_par(SEXP arrSEXP, SEXP mask_idxSEXP, SEXP spatial_windowSEXP, SEXP temporal_windowSEXP, SEXP spatial_sigmaSEXP, SEXP intensity_sigmaSEXP, SEXP temporal_sigmaSEXP, SEXP spacingSEXP) {
+NumericVector bilateral_filter_4d_cpp_par(NumericVector arr, IntegerVector mask_idx, int spatial_window, int temporal_window, double spatial_sigma, double intensity_sigma, double temporal_sigma, NumericVector spacing, double range_scale);
+RcppExport SEXP _neuroim2_bilateral_filter_4d_cpp_par(SEXP arrSEXP, SEXP mask_idxSEXP, SEXP spatial_windowSEXP, SEXP temporal_windowSEXP, SEXP spatial_sigmaSEXP, SEXP intensity_sigmaSEXP, SEXP temporal_sigmaSEXP, SEXP spacingSEXP, SEXP range_scaleSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -56,7 +57,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type intensity_sigma(intensity_sigmaSEXP);
     Rcpp::traits::input_parameter< double >::type temporal_sigma(temporal_sigmaSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type spacing(spacingSEXP);
-    rcpp_result_gen = Rcpp::wrap(bilateral_filter_4d_cpp_par(arr, mask_idx, spatial_window, temporal_window, spatial_sigma, intensity_sigma, temporal_sigma, spacing));
+    Rcpp::traits::input_parameter< double >::type range_scale(range_scaleSEXP);
+    rcpp_result_gen = Rcpp::wrap(bilateral_filter_4d_cpp_par(arr, mask_idx, spatial_window, temporal_window, spatial_sigma, intensity_sigma, temporal_sigma, spacing, range_scale));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -123,6 +125,32 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// conn_comp_labels_cpp
+List conn_comp_labels_cpp(LogicalVector mask, IntegerVector dims, int connectivity);
+RcppExport SEXP _neuroim2_conn_comp_labels_cpp(SEXP maskSEXP, SEXP dimsSEXP, SEXP connectivitySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< LogicalVector >::type mask(maskSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dims(dimsSEXP);
+    Rcpp::traits::input_parameter< int >::type connectivity(connectivitySEXP);
+    rcpp_result_gen = Rcpp::wrap(conn_comp_labels_cpp(mask, dims, connectivity));
+    return rcpp_result_gen;
+END_RCPP
+}
+// prune_local_maxima_cpp
+IntegerVector prune_local_maxima_cpp(NumericMatrix coords, NumericVector vals, double mindist);
+RcppExport SEXP _neuroim2_prune_local_maxima_cpp(SEXP coordsSEXP, SEXP valsSEXP, SEXP mindistSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type coords(coordsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type vals(valsSEXP);
+    Rcpp::traits::input_parameter< double >::type mindist(mindistSEXP);
+    rcpp_result_gen = Rcpp::wrap(prune_local_maxima_cpp(coords, vals, mindist));
+    return rcpp_result_gen;
+END_RCPP
+}
 // downsample_3d_cpp
 NumericVector downsample_3d_cpp(NumericVector arr, IntegerVector new_dims, IntegerVector old_dims);
 RcppExport SEXP _neuroim2_downsample_3d_cpp(SEXP arrSEXP, SEXP new_dimsSEXP, SEXP old_dimsSEXP) {
@@ -164,6 +192,40 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< List >::type mapping_params(mapping_paramsSEXP);
     Rcpp::traits::input_parameter< bool >::type use_normalization_free(use_normalization_freeSEXP);
     rcpp_result_gen = Rcpp::wrap(fast_multilayer_laplacian_enhancement_masked(img, mask, k, patch_size, search_radius, h, mapping_params, use_normalization_free));
+    return rcpp_result_gen;
+END_RCPP
+}
+// gaussian_blur_sep_cpp
+NumericVector gaussian_blur_sep_cpp(NumericVector arr, IntegerVector mask_idx, int window, double sigma, NumericVector spacing, bool normalize, bool full_mask);
+RcppExport SEXP _neuroim2_gaussian_blur_sep_cpp(SEXP arrSEXP, SEXP mask_idxSEXP, SEXP windowSEXP, SEXP sigmaSEXP, SEXP spacingSEXP, SEXP normalizeSEXP, SEXP full_maskSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type arr(arrSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type mask_idx(mask_idxSEXP);
+    Rcpp::traits::input_parameter< int >::type window(windowSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma(sigmaSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type spacing(spacingSEXP);
+    Rcpp::traits::input_parameter< bool >::type normalize(normalizeSEXP);
+    Rcpp::traits::input_parameter< bool >::type full_mask(full_maskSEXP);
+    rcpp_result_gen = Rcpp::wrap(gaussian_blur_sep_cpp(arr, mask_idx, window, sigma, spacing, normalize, full_mask));
+    return rcpp_result_gen;
+END_RCPP
+}
+// gaussian_blur_sep_4d_cpp
+NumericVector gaussian_blur_sep_4d_cpp(NumericVector arr, IntegerVector mask_idx, int window, double sigma, NumericVector spacing, bool normalize, bool full_mask);
+RcppExport SEXP _neuroim2_gaussian_blur_sep_4d_cpp(SEXP arrSEXP, SEXP mask_idxSEXP, SEXP windowSEXP, SEXP sigmaSEXP, SEXP spacingSEXP, SEXP normalizeSEXP, SEXP full_maskSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type arr(arrSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type mask_idx(mask_idxSEXP);
+    Rcpp::traits::input_parameter< int >::type window(windowSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma(sigmaSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type spacing(spacingSEXP);
+    Rcpp::traits::input_parameter< bool >::type normalize(normalizeSEXP);
+    Rcpp::traits::input_parameter< bool >::type full_mask(full_maskSEXP);
+    rcpp_result_gen = Rcpp::wrap(gaussian_blur_sep_4d_cpp(arr, mask_idx, window, sigma, spacing, normalize, full_mask));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -250,8 +312,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // gaussian_blur_cpp
-NumericVector gaussian_blur_cpp(NumericVector arr, IntegerVector mask_idx, int window, double sigma, NumericVector spacing);
-RcppExport SEXP _neuroim2_gaussian_blur_cpp(SEXP arrSEXP, SEXP mask_idxSEXP, SEXP windowSEXP, SEXP sigmaSEXP, SEXP spacingSEXP) {
+NumericVector gaussian_blur_cpp(NumericVector arr, IntegerVector mask_idx, int window, double sigma, NumericVector spacing, bool normalize);
+RcppExport SEXP _neuroim2_gaussian_blur_cpp(SEXP arrSEXP, SEXP mask_idxSEXP, SEXP windowSEXP, SEXP sigmaSEXP, SEXP spacingSEXP, SEXP normalizeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -260,7 +322,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type window(windowSEXP);
     Rcpp::traits::input_parameter< double >::type sigma(sigmaSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type spacing(spacingSEXP);
-    rcpp_result_gen = Rcpp::wrap(gaussian_blur_cpp(arr, mask_idx, window, sigma, spacing));
+    Rcpp::traits::input_parameter< bool >::type normalize(normalizeSEXP);
+    rcpp_result_gen = Rcpp::wrap(gaussian_blur_cpp(arr, mask_idx, window, sigma, spacing, normalize));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -293,117 +356,216 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// local_spheres
-List local_spheres(NumericMatrix centers, double radius, NumericVector spacing, IntegerVector dim);
-RcppExport SEXP _neuroim2_local_spheres(SEXP centersSEXP, SEXP radiusSEXP, SEXP spacingSEXP, SEXP dimSEXP) {
+// nifti_read_data_cpp
+NumericVector nifti_read_data_cpp(std::string path, double offset, double n, int dtype_code, bool swap, bool gzipped);
+RcppExport SEXP _neuroim2_nifti_read_data_cpp(SEXP pathSEXP, SEXP offsetSEXP, SEXP nSEXP, SEXP dtype_codeSEXP, SEXP swapSEXP, SEXP gzippedSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericMatrix >::type centers(centersSEXP);
+    Rcpp::traits::input_parameter< std::string >::type path(pathSEXP);
+    Rcpp::traits::input_parameter< double >::type offset(offsetSEXP);
+    Rcpp::traits::input_parameter< double >::type n(nSEXP);
+    Rcpp::traits::input_parameter< int >::type dtype_code(dtype_codeSEXP);
+    Rcpp::traits::input_parameter< bool >::type swap(swapSEXP);
+    Rcpp::traits::input_parameter< bool >::type gzipped(gzippedSEXP);
+    rcpp_result_gen = Rcpp::wrap(nifti_read_data_cpp(path, offset, n, dtype_code, swap, gzipped));
+    return rcpp_result_gen;
+END_RCPP
+}
+// nifti_write_data_cpp
+double nifti_write_data_cpp(std::string path, RawVector header, NumericVector data, int dtype_code, double slope, double inter, bool swap, bool gzipped);
+RcppExport SEXP _neuroim2_nifti_write_data_cpp(SEXP pathSEXP, SEXP headerSEXP, SEXP dataSEXP, SEXP dtype_codeSEXP, SEXP slopeSEXP, SEXP interSEXP, SEXP swapSEXP, SEXP gzippedSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type path(pathSEXP);
+    Rcpp::traits::input_parameter< RawVector >::type header(headerSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type data(dataSEXP);
+    Rcpp::traits::input_parameter< int >::type dtype_code(dtype_codeSEXP);
+    Rcpp::traits::input_parameter< double >::type slope(slopeSEXP);
+    Rcpp::traits::input_parameter< double >::type inter(interSEXP);
+    Rcpp::traits::input_parameter< bool >::type swap(swapSEXP);
+    Rcpp::traits::input_parameter< bool >::type gzipped(gzippedSEXP);
+    rcpp_result_gen = Rcpp::wrap(nifti_write_data_cpp(path, header, data, dtype_code, slope, inter, swap, gzipped));
+    return rcpp_result_gen;
+END_RCPP
+}
+// nifti_read_volumes_cpp
+NumericMatrix nifti_read_volumes_cpp(std::string path, double offset, double nels, NumericVector vols, int dtype_code, bool swap, bool gzipped);
+RcppExport SEXP _neuroim2_nifti_read_volumes_cpp(SEXP pathSEXP, SEXP offsetSEXP, SEXP nelsSEXP, SEXP volsSEXP, SEXP dtype_codeSEXP, SEXP swapSEXP, SEXP gzippedSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type path(pathSEXP);
+    Rcpp::traits::input_parameter< double >::type offset(offsetSEXP);
+    Rcpp::traits::input_parameter< double >::type nels(nelsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type vols(volsSEXP);
+    Rcpp::traits::input_parameter< int >::type dtype_code(dtype_codeSEXP);
+    Rcpp::traits::input_parameter< bool >::type swap(swapSEXP);
+    Rcpp::traits::input_parameter< bool >::type gzipped(gzippedSEXP);
+    rcpp_result_gen = Rcpp::wrap(nifti_read_volumes_cpp(path, offset, nels, vols, dtype_code, swap, gzipped));
+    return rcpp_result_gen;
+END_RCPP
+}
+// representative_volume_cpp
+NumericVector representative_volume_cpp(NumericMatrix mat, std::string representative);
+RcppExport SEXP _neuroim2_representative_volume_cpp(SEXP matSEXP, SEXP representativeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type mat(matSEXP);
+    Rcpp::traits::input_parameter< std::string >::type representative(representativeSEXP);
+    rcpp_result_gen = Rcpp::wrap(representative_volume_cpp(mat, representative));
+    return rcpp_result_gen;
+END_RCPP
+}
+// sphere_coords_cpp
+IntegerMatrix sphere_coords_cpp(IntegerMatrix off, IntegerVector centre, IntegerVector dim, NumericVector vals, bool use_mask);
+RcppExport SEXP _neuroim2_sphere_coords_cpp(SEXP offSEXP, SEXP centreSEXP, SEXP dimSEXP, SEXP valsSEXP, SEXP use_maskSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerMatrix >::type off(offSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type centre(centreSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dim(dimSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type vals(valsSEXP);
+    Rcpp::traits::input_parameter< bool >::type use_mask(use_maskSEXP);
+    rcpp_result_gen = Rcpp::wrap(sphere_coords_cpp(off, centre, dim, vals, use_mask));
+    return rcpp_result_gen;
+END_RCPP
+}
+// sphere_coords_batch_cpp
+List sphere_coords_batch_cpp(IntegerMatrix off, IntegerMatrix centres, IntegerVector dim, NumericVector vals, bool use_mask);
+RcppExport SEXP _neuroim2_sphere_coords_batch_cpp(SEXP offSEXP, SEXP centresSEXP, SEXP dimSEXP, SEXP valsSEXP, SEXP use_maskSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerMatrix >::type off(offSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type centres(centresSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dim(dimSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type vals(valsSEXP);
+    Rcpp::traits::input_parameter< bool >::type use_mask(use_maskSEXP);
+    rcpp_result_gen = Rcpp::wrap(sphere_coords_batch_cpp(off, centres, dim, vals, use_mask));
+    return rcpp_result_gen;
+END_RCPP
+}
+// sphere_indices_batch_cpp
+List sphere_indices_batch_cpp(IntegerMatrix off, IntegerMatrix centres, IntegerVector dim, NumericVector vals, bool use_mask);
+RcppExport SEXP _neuroim2_sphere_indices_batch_cpp(SEXP offSEXP, SEXP centresSEXP, SEXP dimSEXP, SEXP valsSEXP, SEXP use_maskSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerMatrix >::type off(offSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type centres(centresSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dim(dimSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type vals(valsSEXP);
+    Rcpp::traits::input_parameter< bool >::type use_mask(use_maskSEXP);
+    rcpp_result_gen = Rcpp::wrap(sphere_indices_batch_cpp(off, centres, dim, vals, use_mask));
+    return rcpp_result_gen;
+END_RCPP
+}
+// sphere_roi_at_cpp
+List sphere_roi_at_cpp(IntegerMatrix off, IntegerVector centre, IntegerVector dim, NumericVector vals, bool use_mask);
+RcppExport SEXP _neuroim2_sphere_roi_at_cpp(SEXP offSEXP, SEXP centreSEXP, SEXP dimSEXP, SEXP valsSEXP, SEXP use_maskSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerMatrix >::type off(offSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type centre(centreSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dim(dimSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type vals(valsSEXP);
+    Rcpp::traits::input_parameter< bool >::type use_mask(use_maskSEXP);
+    rcpp_result_gen = Rcpp::wrap(sphere_roi_at_cpp(off, centre, dim, vals, use_mask));
+    return rcpp_result_gen;
+END_RCPP
+}
+// series_gather_dense
+NumericMatrix series_gather_dense(SEXP data, IntegerVector dim, IntegerMatrix coords);
+RcppExport SEXP _neuroim2_series_gather_dense(SEXP dataSEXP, SEXP dimSEXP, SEXP coordsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type data(dataSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type dim(dimSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type coords(coordsSEXP);
+    rcpp_result_gen = Rcpp::wrap(series_gather_dense(data, dim, coords));
+    return rcpp_result_gen;
+END_RCPP
+}
+// series_gather_sparse
+NumericMatrix series_gather_sparse(SEXP data, IntegerVector mapped);
+RcppExport SEXP _neuroim2_series_gather_sparse(SEXP dataSEXP, SEXP mappedSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type data(dataSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type mapped(mappedSEXP);
+    rcpp_result_gen = Rcpp::wrap(series_gather_sparse(data, mapped));
+    return rcpp_result_gen;
+END_RCPP
+}
+// sphere_offsets_cpp
+IntegerMatrix sphere_offsets_cpp(double radius, NumericVector spacing);
+RcppExport SEXP _neuroim2_sphere_offsets_cpp(SEXP radiusSEXP, SEXP spacingSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< double >::type radius(radiusSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type spacing(spacingSEXP);
+    rcpp_result_gen = Rcpp::wrap(sphere_offsets_cpp(radius, spacing));
+    return rcpp_result_gen;
+END_RCPP
+}
+// sphere_at_cpp
+IntegerMatrix sphere_at_cpp(IntegerMatrix off, IntegerVector centre, IntegerVector dim, bool base0);
+RcppExport SEXP _neuroim2_sphere_at_cpp(SEXP offSEXP, SEXP centreSEXP, SEXP dimSEXP, SEXP base0SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerMatrix >::type off(offSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type centre(centreSEXP);
     Rcpp::traits::input_parameter< IntegerVector >::type dim(dimSEXP);
-    rcpp_result_gen = Rcpp::wrap(local_spheres(centers, radius, spacing, dim));
-    return rcpp_result_gen;
-END_RCPP
-}
-// kernel_filt_3d_cpp
-NumericMatrix kernel_filt_3d_cpp(NumericMatrix data, NumericMatrix kernel);
-RcppExport SEXP _neuroim2_kernel_filt_3d_cpp(SEXP dataSEXP, SEXP kernelSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericMatrix >::type data(dataSEXP);
-    Rcpp::traits::input_parameter< NumericMatrix >::type kernel(kernelSEXP);
-    rcpp_result_gen = Rcpp::wrap(kernel_filt_3d_cpp(data, kernel));
-    return rcpp_result_gen;
-END_RCPP
-}
-// radius_search_3d_nonisotropic
-Rcpp::List radius_search_3d_nonisotropic(Rcpp::IntegerMatrix cds_vox, Rcpp::NumericMatrix cds_mm, Rcpp::NumericMatrix queries_mm, double radius_mm, double sx, double sy, double sz, double ox_mm, double oy_mm, double oz_mm);
-RcppExport SEXP _neuroim2_radius_search_3d_nonisotropic(SEXP cds_voxSEXP, SEXP cds_mmSEXP, SEXP queries_mmSEXP, SEXP radius_mmSEXP, SEXP sxSEXP, SEXP sySEXP, SEXP szSEXP, SEXP ox_mmSEXP, SEXP oy_mmSEXP, SEXP oz_mmSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type cds_vox(cds_voxSEXP);
-    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type cds_mm(cds_mmSEXP);
-    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type queries_mm(queries_mmSEXP);
-    Rcpp::traits::input_parameter< double >::type radius_mm(radius_mmSEXP);
-    Rcpp::traits::input_parameter< double >::type sx(sxSEXP);
-    Rcpp::traits::input_parameter< double >::type sy(sySEXP);
-    Rcpp::traits::input_parameter< double >::type sz(szSEXP);
-    Rcpp::traits::input_parameter< double >::type ox_mm(ox_mmSEXP);
-    Rcpp::traits::input_parameter< double >::type oy_mm(oy_mmSEXP);
-    Rcpp::traits::input_parameter< double >::type oz_mm(oz_mmSEXP);
-    rcpp_result_gen = Rcpp::wrap(radius_search_3d_nonisotropic(cds_vox, cds_mm, queries_mm, radius_mm, sx, sy, sz, ox_mm, oy_mm, oz_mm));
-    return rcpp_result_gen;
-END_RCPP
-}
-// radius_search_3d_direct
-Rcpp::List radius_search_3d_direct(Rcpp::IntegerMatrix cds_vox, Rcpp::NumericMatrix cds_mm, Rcpp::NumericMatrix queries_mm, double radius_mm, double sx, double sy, double sz, double ox_mm, double oy_mm, double oz_mm);
-RcppExport SEXP _neuroim2_radius_search_3d_direct(SEXP cds_voxSEXP, SEXP cds_mmSEXP, SEXP queries_mmSEXP, SEXP radius_mmSEXP, SEXP sxSEXP, SEXP sySEXP, SEXP szSEXP, SEXP ox_mmSEXP, SEXP oy_mmSEXP, SEXP oz_mmSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type cds_vox(cds_voxSEXP);
-    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type cds_mm(cds_mmSEXP);
-    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type queries_mm(queries_mmSEXP);
-    Rcpp::traits::input_parameter< double >::type radius_mm(radius_mmSEXP);
-    Rcpp::traits::input_parameter< double >::type sx(sxSEXP);
-    Rcpp::traits::input_parameter< double >::type sy(sySEXP);
-    Rcpp::traits::input_parameter< double >::type sz(szSEXP);
-    Rcpp::traits::input_parameter< double >::type ox_mm(ox_mmSEXP);
-    Rcpp::traits::input_parameter< double >::type oy_mm(oy_mmSEXP);
-    Rcpp::traits::input_parameter< double >::type oz_mm(oz_mmSEXP);
-    rcpp_result_gen = Rcpp::wrap(radius_search_3d_direct(cds_vox, cds_mm, queries_mm, radius_mm, sx, sy, sz, ox_mm, oy_mm, oz_mm));
-    return rcpp_result_gen;
-END_RCPP
-}
-// radius_search_3d_precomputed
-Rcpp::List radius_search_3d_precomputed(Rcpp::IntegerMatrix cds_vox, Rcpp::NumericMatrix cds_mm, Rcpp::NumericMatrix queries_mm, double radius_mm, double sx, double sy, double sz, double ox_mm, double oy_mm, double oz_mm);
-RcppExport SEXP _neuroim2_radius_search_3d_precomputed(SEXP cds_voxSEXP, SEXP cds_mmSEXP, SEXP queries_mmSEXP, SEXP radius_mmSEXP, SEXP sxSEXP, SEXP sySEXP, SEXP szSEXP, SEXP ox_mmSEXP, SEXP oy_mmSEXP, SEXP oz_mmSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type cds_vox(cds_voxSEXP);
-    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type cds_mm(cds_mmSEXP);
-    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type queries_mm(queries_mmSEXP);
-    Rcpp::traits::input_parameter< double >::type radius_mm(radius_mmSEXP);
-    Rcpp::traits::input_parameter< double >::type sx(sxSEXP);
-    Rcpp::traits::input_parameter< double >::type sy(sySEXP);
-    Rcpp::traits::input_parameter< double >::type sz(szSEXP);
-    Rcpp::traits::input_parameter< double >::type ox_mm(ox_mmSEXP);
-    Rcpp::traits::input_parameter< double >::type oy_mm(oy_mmSEXP);
-    Rcpp::traits::input_parameter< double >::type oz_mm(oz_mmSEXP);
-    rcpp_result_gen = Rcpp::wrap(radius_search_3d_precomputed(cds_vox, cds_mm, queries_mm, radius_mm, sx, sy, sz, ox_mm, oy_mm, oz_mm));
+    Rcpp::traits::input_parameter< bool >::type base0(base0SEXP);
+    rcpp_result_gen = Rcpp::wrap(sphere_at_cpp(off, centre, dim, base0));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
     {"_neuroim2_bilateral_weights", (DL_FUNC) &_neuroim2_bilateral_weights, 5},
-    {"_neuroim2_bilateral_filter_cpp", (DL_FUNC) &_neuroim2_bilateral_filter_cpp, 6},
-    {"_neuroim2_bilateral_filter_4d_cpp_par", (DL_FUNC) &_neuroim2_bilateral_filter_4d_cpp_par, 8},
+    {"_neuroim2_bilateral_filter_cpp", (DL_FUNC) &_neuroim2_bilateral_filter_cpp, 7},
+    {"_neuroim2_bilateral_filter_4d_cpp_par", (DL_FUNC) &_neuroim2_bilateral_filter_4d_cpp_par, 9},
     {"_neuroim2_build_cgb_graph_cpp", (DL_FUNC) &_neuroim2_build_cgb_graph_cpp, 12},
     {"_neuroim2_build_cgb_graph_nuis_cpp", (DL_FUNC) &_neuroim2_build_cgb_graph_nuis_cpp, 14},
     {"_neuroim2_apply_cgb_graph_cpp", (DL_FUNC) &_neuroim2_apply_cgb_graph_cpp, 7},
+    {"_neuroim2_conn_comp_labels_cpp", (DL_FUNC) &_neuroim2_conn_comp_labels_cpp, 3},
+    {"_neuroim2_prune_local_maxima_cpp", (DL_FUNC) &_neuroim2_prune_local_maxima_cpp, 3},
     {"_neuroim2_downsample_3d_cpp", (DL_FUNC) &_neuroim2_downsample_3d_cpp, 3},
     {"_neuroim2_downsample_4d_cpp", (DL_FUNC) &_neuroim2_downsample_4d_cpp, 3},
     {"_neuroim2_fast_multilayer_laplacian_enhancement_masked", (DL_FUNC) &_neuroim2_fast_multilayer_laplacian_enhancement_masked, 8},
+    {"_neuroim2_gaussian_blur_sep_cpp", (DL_FUNC) &_neuroim2_gaussian_blur_sep_cpp, 7},
+    {"_neuroim2_gaussian_blur_sep_4d_cpp", (DL_FUNC) &_neuroim2_gaussian_blur_sep_4d_cpp, 7},
     {"_neuroim2_indexToGridCpp", (DL_FUNC) &_neuroim2_indexToGridCpp, 2},
     {"_neuroim2_gridToIndex3DCpp", (DL_FUNC) &_neuroim2_gridToIndex3DCpp, 2},
     {"_neuroim2_gridToIndexCpp", (DL_FUNC) &_neuroim2_gridToIndexCpp, 2},
     {"_neuroim2_exgridToIndex4DCpp", (DL_FUNC) &_neuroim2_exgridToIndex4DCpp, 5},
     {"_neuroim2_box_nbhd", (DL_FUNC) &_neuroim2_box_nbhd, 8},
     {"_neuroim2_gaussian_weights", (DL_FUNC) &_neuroim2_gaussian_weights, 3},
-    {"_neuroim2_gaussian_blur_cpp", (DL_FUNC) &_neuroim2_gaussian_blur_cpp, 5},
+    {"_neuroim2_gaussian_blur_cpp", (DL_FUNC) &_neuroim2_gaussian_blur_cpp, 6},
     {"_neuroim2_box_blur", (DL_FUNC) &_neuroim2_box_blur, 3},
     {"_neuroim2_local_sphere", (DL_FUNC) &_neuroim2_local_sphere, 6},
-    {"_neuroim2_local_spheres", (DL_FUNC) &_neuroim2_local_spheres, 4},
-    {"_neuroim2_kernel_filt_3d_cpp", (DL_FUNC) &_neuroim2_kernel_filt_3d_cpp, 2},
-    {"_neuroim2_radius_search_3d_nonisotropic", (DL_FUNC) &_neuroim2_radius_search_3d_nonisotropic, 10},
-    {"_neuroim2_radius_search_3d_direct", (DL_FUNC) &_neuroim2_radius_search_3d_direct, 10},
-    {"_neuroim2_radius_search_3d_precomputed", (DL_FUNC) &_neuroim2_radius_search_3d_precomputed, 10},
+    {"_neuroim2_nifti_read_data_cpp", (DL_FUNC) &_neuroim2_nifti_read_data_cpp, 6},
+    {"_neuroim2_nifti_write_data_cpp", (DL_FUNC) &_neuroim2_nifti_write_data_cpp, 8},
+    {"_neuroim2_nifti_read_volumes_cpp", (DL_FUNC) &_neuroim2_nifti_read_volumes_cpp, 7},
+    {"_neuroim2_representative_volume_cpp", (DL_FUNC) &_neuroim2_representative_volume_cpp, 2},
+    {"_neuroim2_sphere_coords_cpp", (DL_FUNC) &_neuroim2_sphere_coords_cpp, 5},
+    {"_neuroim2_sphere_coords_batch_cpp", (DL_FUNC) &_neuroim2_sphere_coords_batch_cpp, 5},
+    {"_neuroim2_sphere_indices_batch_cpp", (DL_FUNC) &_neuroim2_sphere_indices_batch_cpp, 5},
+    {"_neuroim2_sphere_roi_at_cpp", (DL_FUNC) &_neuroim2_sphere_roi_at_cpp, 5},
+    {"_neuroim2_series_gather_dense", (DL_FUNC) &_neuroim2_series_gather_dense, 3},
+    {"_neuroim2_series_gather_sparse", (DL_FUNC) &_neuroim2_series_gather_sparse, 2},
+    {"_neuroim2_sphere_offsets_cpp", (DL_FUNC) &_neuroim2_sphere_offsets_cpp, 2},
+    {"_neuroim2_sphere_at_cpp", (DL_FUNC) &_neuroim2_sphere_at_cpp, 4},
     {NULL, NULL, 0}
 };
 

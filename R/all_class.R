@@ -659,12 +659,19 @@ setClass("NeuroSpace",
 #' This class provides a foundation for more specific neuroimaging data structures.
 #'
 #' @slot space An object of class \code{\linkS4class{NeuroSpace}} representing the geometry of the image object.
+#' @slot header A \code{list} holding the raw header of the file the object was
+#'   read from, empty for objects built in memory. \code{NeuroSpace} records the
+#'   geometry; this records everything else the file said -- repetition time,
+#'   units, intent, description, slice timing, the qform/sform codes -- so that
+#'   writing the object back does not have to invent it. Use
+#'   \code{\link{header}} to read it rather than touching the slot.
 #'
 #' @seealso \code{\link{NeuroSpace-class}}, \code{\link{NeuroSlice-class}}, \code{\link{NeuroVol-class}}
 #'
 #' @export
 #' @rdname NeuroObj-class
-setClass("NeuroObj", representation(space="NeuroSpace"))
+setClass("NeuroObj", representation(space="NeuroSpace", header="list"),
+         prototype(header=list()))
 
 #' NeuroSlice Class
 #'
@@ -1089,8 +1096,10 @@ setValidity("DenseNeuroVec", function(object) {
 #'
 #' @slot filemap An object of class \code{mmap} representing the memory-mapped file
 #'   containing the brain image data.
-#' @slot offset An integer representing the byte offset within the memory-mapped file
+#' @slot offset An integer representing the element offset within the memory-mapped file
 #'   where the brain image data starts.
+#' @slot slope Normalized decoding slopes, either scalar or one per volume.
+#' @slot intercept Normalized decoding intercepts, either scalar or one per volume.
 #'
 #' @details
 #' MappedNeuroVec objects use memory-mapped files to store and access large 4D brain
@@ -1123,9 +1132,11 @@ setValidity("DenseNeuroVec", function(object) {
 setClass("MappedNeuroVec",
          slots = c(
            filemap = "mmap",
-           offset = "integer"
+           offset = "integer",
+           slope = "numeric",
+           intercept = "numeric"
          ),
-         prototype = list(label = ""),
+         prototype = list(label = "", slope = 1, intercept = 0),
          contains = c("NeuroVec", "ArrayLike4D"))
 
 #' AbstractSparseNeuroVec Class
@@ -1547,6 +1558,11 @@ setClass("ROIVol",
 #'
 #' @name ROIVolWindow-class
 #' @export
+# NOTE: these invariants are also asserted directly in .new_roi_vol_window()
+# (R/roi.R), which is how every ROI in the package is actually built -- it sets
+# the slots as attributes and flips the S4 bit, so this validity function does
+# not run. Any change here must be mirrored there;
+# tests/testthat/test-roi-series-fastpaths.R asserts the two agree.
 setClass("ROIVolWindow",
          representation=representation(parent_index="integer", center_index="integer"),
          contains=c("ROIVol"),

@@ -5,12 +5,12 @@ bilateral_weights <- function(window, spatial_sigma, intensity_sigma, spacing, i
     .Call(`_neuroim2_bilateral_weights`, window, spatial_sigma, intensity_sigma, spacing, intensity_sd)
 }
 
-bilateral_filter_cpp <- function(arr, mask_idx, window, spatial_sigma, intensity_sigma, spacing) {
-    .Call(`_neuroim2_bilateral_filter_cpp`, arr, mask_idx, window, spatial_sigma, intensity_sigma, spacing)
+bilateral_filter_cpp <- function(arr, mask_idx, window, spatial_sigma, intensity_sigma, spacing, range_scale) {
+    .Call(`_neuroim2_bilateral_filter_cpp`, arr, mask_idx, window, spatial_sigma, intensity_sigma, spacing, range_scale)
 }
 
-bilateral_filter_4d_cpp_par <- function(arr, mask_idx, spatial_window, temporal_window, spatial_sigma, intensity_sigma, temporal_sigma, spacing) {
-    .Call(`_neuroim2_bilateral_filter_4d_cpp_par`, arr, mask_idx, spatial_window, temporal_window, spatial_sigma, intensity_sigma, temporal_sigma, spacing)
+bilateral_filter_4d_cpp_par <- function(arr, mask_idx, spatial_window, temporal_window, spatial_sigma, intensity_sigma, temporal_sigma, spacing, range_scale) {
+    .Call(`_neuroim2_bilateral_filter_4d_cpp_par`, arr, mask_idx, spatial_window, temporal_window, spatial_sigma, intensity_sigma, temporal_sigma, spacing, range_scale)
 }
 
 build_cgb_graph_cpp <- function(arr, mask_idx, run_ends, window, spatial_sigma, spacing, corr_mode, corr_param, topk, leave_out_run, run_weights, add_self) {
@@ -25,6 +25,24 @@ apply_cgb_graph_cpp <- function(arr, row_ptr, col_ind, val, mask_idx, passes = 1
     .Call(`_neuroim2_apply_cgb_graph_cpp`, arr, row_ptr, col_ind, val, mask_idx, passes, lambda)
 }
 
+#' Label the connected components of a 3-D logical mask
+#'
+#' @param mask logical vector holding the mask in column-major order
+#' @param dims integer vector of length 3
+#' @param connectivity 6, 18 or 26
+#' @return a list with \code{index} (components numbered by decreasing size)
+#'   and \code{size} (the size of the component each voxel belongs to), both
+#'   integer vectors of \code{prod(dims)}, and \code{n} the component count
+#' @keywords internal
+#' @noRd
+conn_comp_labels_cpp <- function(mask, dims, connectivity) {
+    .Call(`_neuroim2_conn_comp_labels_cpp`, mask, dims, connectivity)
+}
+
+prune_local_maxima_cpp <- function(coords, vals, mindist) {
+    .Call(`_neuroim2_prune_local_maxima_cpp`, coords, vals, mindist)
+}
+
 downsample_3d_cpp <- function(arr, new_dims, old_dims) {
     .Call(`_neuroim2_downsample_3d_cpp`, arr, new_dims, old_dims)
 }
@@ -35,6 +53,14 @@ downsample_4d_cpp <- function(arr, new_dims, old_dims) {
 
 fast_multilayer_laplacian_enhancement_masked <- function(img, mask, k = 2L, patch_size = 3L, search_radius = 2L, h = 0.7, mapping_params = NULL, use_normalization_free = TRUE) {
     .Call(`_neuroim2_fast_multilayer_laplacian_enhancement_masked`, img, mask, k, patch_size, search_radius, h, mapping_params, use_normalization_free)
+}
+
+gaussian_blur_sep_cpp <- function(arr, mask_idx, window, sigma, spacing, normalize = TRUE, full_mask = FALSE) {
+    .Call(`_neuroim2_gaussian_blur_sep_cpp`, arr, mask_idx, window, sigma, spacing, normalize, full_mask)
+}
+
+gaussian_blur_sep_4d_cpp <- function(arr, mask_idx, window, sigma, spacing, normalize = TRUE, full_mask = FALSE) {
+    .Call(`_neuroim2_gaussian_blur_sep_4d_cpp`, arr, mask_idx, window, sigma, spacing, normalize, full_mask)
 }
 
 indexToGridCpp <- function(idx, array_dim) {
@@ -61,8 +87,8 @@ gaussian_weights <- function(window, sigma, spacing) {
     .Call(`_neuroim2_gaussian_weights`, window, sigma, spacing)
 }
 
-gaussian_blur_cpp <- function(arr, mask_idx, window, sigma, spacing) {
-    .Call(`_neuroim2_gaussian_blur_cpp`, arr, mask_idx, window, sigma, spacing)
+gaussian_blur_cpp <- function(arr, mask_idx, window, sigma, spacing, normalize = TRUE) {
+    .Call(`_neuroim2_gaussian_blur_cpp`, arr, mask_idx, window, sigma, spacing, normalize)
 }
 
 box_blur <- function(arr, mask_idx, window) {
@@ -73,23 +99,91 @@ local_sphere <- function(vx, vy, vz, radius, spacing, dim) {
     .Call(`_neuroim2_local_sphere`, vx, vy, vz, radius, spacing, dim)
 }
 
-local_spheres <- function(centers, radius, spacing, dim) {
-    .Call(`_neuroim2_local_spheres`, centers, radius, spacing, dim)
+#' Read a raw block of image data into a double vector
+#'
+#' @param path file to read from
+#' @param offset byte offset of the first element
+#' @param n number of elements to read
+#' @param dtype_code NIfTI datatype code of the stored elements
+#' @param swap TRUE when the file's byte order differs from the platform's
+#' @param gzipped TRUE when the file is a gzip stream
+#' @return a numeric vector of length \code{n}
+#' @keywords internal
+#' @noRd
+nifti_read_data_cpp <- function(path, offset, n, dtype_code, swap, gzipped) {
+    .Call(`_neuroim2_nifti_read_data_cpp`, path, offset, n, dtype_code, swap, gzipped)
 }
 
-kernel_filt_3d_cpp <- function(data, kernel) {
-    .Call(`_neuroim2_kernel_filt_3d_cpp`, data, kernel)
+#' Write a header block followed by image data
+#'
+#' @param path file to create
+#' @param header raw vector written verbatim before the data
+#' @param data numeric values to encode
+#' @param dtype_code NIfTI datatype code to encode as
+#' @param slope,inter scaling to invert before encoding, i.e. the stored value
+#'   is \code{(x - inter) / slope}
+#' @param swap TRUE to write in the opposite byte order from the platform's
+#' @param gzipped TRUE to gzip the output
+#' @return the number of data elements written, invisibly
+#' @keywords internal
+#' @noRd
+nifti_write_data_cpp <- function(path, header, data, dtype_code, slope, inter, swap, gzipped) {
+    .Call(`_neuroim2_nifti_write_data_cpp`, path, header, data, dtype_code, slope, inter, swap, gzipped)
 }
 
-radius_search_3d_nonisotropic <- function(cds_vox, cds_mm, queries_mm, radius_mm, sx, sy, sz, ox_mm, oy_mm, oz_mm) {
-    .Call(`_neuroim2_radius_search_3d_nonisotropic`, cds_vox, cds_mm, queries_mm, radius_mm, sx, sy, sz, ox_mm, oy_mm, oz_mm)
+#' Gather a set of volumes from a 4-D image file
+#'
+#' Reads whole volumes rather than an arbitrary index set, so a contiguous
+#' request costs one sequential pass. Returns a
+#' \code{prod(dim[1:3]) x length(vols)} matrix, which is the layout
+#' \code{DenseNeuroVec} wants, so no transpose is needed on either side.
+#'
+#' @param path file to read from
+#' @param offset byte offset of the first element of the first volume
+#' @param nels voxels per volume
+#' @param vols 1-based volume indices, in the order they should appear
+#' @param dtype_code NIfTI datatype code of the stored elements
+#' @param swap TRUE when the file's byte order differs from the platform's
+#' @param gzipped TRUE when the file is a gzip stream
+#' @keywords internal
+#' @noRd
+nifti_read_volumes_cpp <- function(path, offset, nels, vols, dtype_code, swap, gzipped) {
+    .Call(`_neuroim2_nifti_read_volumes_cpp`, path, offset, nels, vols, dtype_code, swap, gzipped)
 }
 
-radius_search_3d_direct <- function(cds_vox, cds_mm, queries_mm, radius_mm, sx, sy, sz, ox_mm, oy_mm, oz_mm) {
-    .Call(`_neuroim2_radius_search_3d_direct`, cds_vox, cds_mm, queries_mm, radius_mm, sx, sy, sz, ox_mm, oy_mm, oz_mm)
+representative_volume_cpp <- function(mat, representative) {
+    .Call(`_neuroim2_representative_volume_cpp`, mat, representative)
 }
 
-radius_search_3d_precomputed <- function(cds_vox, cds_mm, queries_mm, radius_mm, sx, sy, sz, ox_mm, oy_mm, oz_mm) {
-    .Call(`_neuroim2_radius_search_3d_precomputed`, cds_vox, cds_mm, queries_mm, radius_mm, sx, sy, sz, ox_mm, oy_mm, oz_mm)
+sphere_coords_cpp <- function(off, centre, dim, vals, use_mask) {
+    .Call(`_neuroim2_sphere_coords_cpp`, off, centre, dim, vals, use_mask)
+}
+
+sphere_coords_batch_cpp <- function(off, centres, dim, vals, use_mask) {
+    .Call(`_neuroim2_sphere_coords_batch_cpp`, off, centres, dim, vals, use_mask)
+}
+
+sphere_indices_batch_cpp <- function(off, centres, dim, vals, use_mask) {
+    .Call(`_neuroim2_sphere_indices_batch_cpp`, off, centres, dim, vals, use_mask)
+}
+
+sphere_roi_at_cpp <- function(off, centre, dim, vals, use_mask) {
+    .Call(`_neuroim2_sphere_roi_at_cpp`, off, centre, dim, vals, use_mask)
+}
+
+series_gather_dense <- function(data, dim, coords) {
+    .Call(`_neuroim2_series_gather_dense`, data, dim, coords)
+}
+
+series_gather_sparse <- function(data, mapped) {
+    .Call(`_neuroim2_series_gather_sparse`, data, mapped)
+}
+
+sphere_offsets_cpp <- function(radius, spacing) {
+    .Call(`_neuroim2_sphere_offsets_cpp`, radius, spacing)
+}
+
+sphere_at_cpp <- function(off, centre, dim, base0 = TRUE) {
+    .Call(`_neuroim2_sphere_at_cpp`, off, centre, dim, base0)
 }
 

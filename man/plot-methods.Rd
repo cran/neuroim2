@@ -19,7 +19,8 @@
   x,
   y,
   cmap = "grays",
-  zlevels = unique(round(seq(1, dim(x)[3], length.out = 9))),
+  zlevels = NULL,
+  along = 3L,
   irange = range(x, na.rm = TRUE),
   thresh = c(0, 0),
   alpha = 1,
@@ -30,8 +31,9 @@
   x,
   y,
   cmap = "grays",
-  zlevels = unique(round(seq(1, dim(x)[3], length.out = 9))),
-  ov_cmap = "inferno",
+  zlevels = NULL,
+  along = 3L,
+  ov_cmap = NULL,
   ov_alpha = 0.5,
   ov_thresh = 0
 )
@@ -52,12 +54,17 @@ When supplied, the plot is rendered as a background + overlay composite.}
 \item{zlevels}{integer slice indices to display.
 Default: 9 evenly-spaced slices (3 \eqn{\times}{x} 3 grid).}
 
+\item{along}{native voxel-grid axis along which to slice. For canonically
+ordered images, 1 = sagittal, 2 = coronal, and 3 = axial (the default).
+Display orientation is inferred from the image affine.}
+
 \item{thresh}{a 2-element vector indicating the lower and upper
 transparency thresholds.}
 
 \item{alpha}{opacity for the background layer (0--1).}
 
-\item{ov_cmap}{overlay palette name (default \code{"inferno"}).}
+\item{ov_cmap}{overlay palette; \code{NULL} (default) chooses a two-sided
+palette for signed maps and a sequential one otherwise.}
 
 \item{ov_alpha}{overlay opacity (default 0.5).}
 
@@ -68,11 +75,12 @@ transparency thresholds.}
 a ggplot2 object
 }
 \description{
-Display axial slices of a \code{\linkS4class{NeuroVol}} as a faceted
-montage.
+Display slices of a \code{\linkS4class{NeuroVol}} as a faceted montage.
 }
 \details{
-The plot method uses \code{ggplot2} to create a raster visualization of the slice data.
+The plot method uses \code{ggplot2} to create a raster visualization of the
+slice data. The slice's anatomical axis metadata determines permutation and
+flips, so right/anterior/superior point toward increasing screen coordinates.
 The intensity values are mapped to colors using the specified colormap and range.
 
 when `x` is a NeuroSlice object, the plot method returns a \code{ggplot2} object containing the raster visualization of the slice data.
@@ -98,4 +106,9 @@ slice <- NeuroSlice(dat, NeuroSpace(c(100,100)))
 \donttest{
 plot(slice)
 }
+}
+\seealso{
+\code{\link{as.raster}}
+
+\code{\link{as.raster}}
 }

@@ -12,7 +12,8 @@ bilateral_filter_4d(
   temporal_sigma = 1,
   spatial_window = 1,
   temporal_window = 1,
-  temporal_spacing = 1
+  temporal_spacing = 1,
+  range_scale = NULL
 )
 }
 \arguments{
@@ -36,6 +37,11 @@ e.g., 1 => 3 timepoints (t-1, t, t+1).}
 
 \item{temporal_spacing}{Numeric; spacing of the temporal dimension (e.g., TR in seconds).
 Default is 1. This sets the temporal scale used for the temporal kernel.}
+
+\item{range_scale}{Optional positive numeric range scale used by the intensity kernel.
+If \code{NULL}, the scale is estimated from all finite input values inside
+\code{mask} across time. Supply a fixed value to use the same range bandwidth
+across observed and null data.}
 }
 \value{
 A \code{\linkS4class{NeuroVec}} with filtered data.
@@ -45,8 +51,18 @@ This function applies a full 4D bilateral filter to a \code{NeuroVec},
 smoothing jointly across space (x, y, z) and time (t). The filter uses
 spatial, temporal, and intensity kernels to preserve edges while reducing
 noise, leveraging a parallel C++ backend for performance.
+Only in-mask, in-bounds spatial neighbors contribute to each local weighted average.
 }
 \details{
+With \code{range_scale = NULL}, one intensity scale is estimated from all
+finite in-mask values across time in this 4-D input. It is not estimated
+separately for each time point, but separate calls on different subjects or
+contrasts can still use different bandwidths. For batch/group comparisons,
+reuse a positive finite \code{range_scale} and the same \code{intensity_sigma}
+across inputs in comparable intensity units. In contrast,
+\code{bilateral_filter_vec()} estimates a separate scale for each volume
+when \code{range_scale = NULL}.
+
 Parameter guidance and units:
 - spatial_sigma: Measured in physical units (millimeters). Distances are
   computed using \code{spacing(vec)[1:3]}, so choose \code{spatial_sigma}

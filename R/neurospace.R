@@ -326,10 +326,11 @@ setMethod(f="index_to_grid", signature=signature(x="NeuroSpace", idx="numeric"),
 setMethod(f="index_to_coord", signature=signature(x="NeuroSpace", idx="numeric"),
           def=function(x, idx) {
             d <- min(3, ndim(x))
-            grid <- index_to_grid(x, idx) - .5
+            # Grid indices are 1-based; the affine expects 0-based positions,
+            # so subtract 1 -- matching grid_to_coord(). Subtracting 0.5 here
+            # would place every result half a voxel off that path.
+            grid <- index_to_grid(x, idx) - 1
             res <- trans(x) %*% t(cbind(grid[,1:d], rep(1,nrow(grid))))
-
-
             t(res[1:d,])
           })
 
@@ -337,7 +338,7 @@ setMethod(f="index_to_coord", signature=signature(x="NeuroSpace", idx="numeric")
 #' @rdname index_to_coord-methods
 setMethod(f="index_to_coord", signature=signature(x="NeuroSpace", idx="integer"),
           def=function(x, idx) {
-            grid <- index_to_grid(x, idx) - .5
+            grid <- index_to_grid(x, idx) - 1
             res <- trans(x) %*% t(cbind(grid, rep(1,nrow(grid))))
             t(res[1:ndim(x),])
           })
@@ -362,8 +363,18 @@ setMethod(f="index_to_coord", signature=signature(x="NeuroVec", idx="integer"),
 #' @rdname coord_to_index-methods
 setMethod(f="coord_to_index", signature=signature(x="NeuroSpace", coords="matrix"),
           def=function(x, coords) {
+            # The inverse affine yields 0-based positions; add 1 to get the
+            # 1-based grid, matching coord_to_grid(). Adding 0.5 instead shifts
+            # the result into a neighbouring voxel.
+            #
+            # Round before handing over: grid_to_index() truncates, and the
+            # affine is stored to 7 significant figures, so an exact voxel
+            # centre can come back as 2.9999998 and truncate to the voxel
+            # below. A world coordinate names the nearest voxel centre, so
+            # round-to-nearest is also the right semantics for points that do
+            # not land on a centre at all.
             grid = t(inverse_trans(x) %*% t(cbind(coords, rep(1, nrow(coords)))))
-            grid_to_index(x, grid[,1:3] + .5)
+            grid_to_index(x, round(grid[,1:3, drop=FALSE] + 1))
           })
 
 #' @export
@@ -605,19 +616,54 @@ setMethod(f="reorient", signature=signature(x = "NeuroSpace", orient="character"
           def=function(x, orient) {
 
             stopifnot(length(orient) == 3)
-            anat <- findAnatomy3D(orient[1], orient[2], orient[3])
-            pmat_new <- perm_mat(anat)
+            codes <- toupper(as.character(orient))
 
+            # `orient` names the direction each axis increases *towards*, the
+            # NIfTI convention that affine_to_axcodes() reports. findAnatomy3D()
+            # names an axis by where it starts ("R" means Right-to-Left), so the
+            # codes are inverted before the lookup.
+            opposite <- c(R = "L", L = "R", A = "P", P = "A", S = "I", I = "S")
+            if (!all(codes %in% names(opposite))) {
+              cli::cli_abort(c(
+                "{.arg orient} must be three axis codes drawn from R, L, A, P, S, I.",
+                "x" = "Got {.val {codes}}."
+              ))
+            }
+            anat <- findAnatomy3D(opposite[[codes[1]]],
+                                  opposite[[codes[2]]],
+                                  opposite[[codes[3]]])
 
-            tx <- t(pmat_new) %*% trans(x)[1:ndim(x),]
-            tx <- rbind(tx,c(rep(0, ndim(x)),1))
-            #itx <- zapsmall(MASS::ginv(tx))
+            # Reorienting to a target that permutes the axes permutes the grid
+            # too: an image whose axes run A, I, R becomes, in R, A, S, a grid
+            # of the *permuted* extents. Rotating the affine while keeping the
+            # source dimensions -- which this used to do -- describes a box that
+            # no longer contains the data, and as_canonical() then resampled
+            # into it and silently discarded about a quarter of the image.
+            ornt <- orientation_transform(affine_to_orientation(trans(x)),
+                                          axcodes_to_orientation(codes))
+            perm <- order(ornt[, 1])
+            tx <- trans(x) %*% orientation_inverse_affine(ornt, dim(x)[1:3])
 
-            NeuroSpace(dim(x), spacing=spacing(x), axes=anat, trans=tx,
-                          origin=tx[1:(ndim(x)) ,ndim(x)+1])
+            new_dim <- dim(x)
+            new_dim[1:3] <- new_dim[perm]
+            new_spacing <- spacing(x)
+            new_spacing[1:3] <- new_spacing[perm]
+
+            NeuroSpace(new_dim, spacing = new_spacing, axes = anat, trans = tx,
+                       origin = tx[1:3, 4])
 
         }
 )
+
+#' The axis permutation and flips that take `x` to the orientation `codes`
+#'
+#' @return an orientation matrix suitable for \code{\link{apply_orientation}}
+#' @keywords internal
+#' @noRd
+.reorient_transform <- function(x, codes) {
+  orientation_transform(affine_to_orientation(trans(x)),
+                        axcodes_to_orientation(toupper(as.character(codes))))
+}
 
 #' @export
 #' @rdname origin-methods

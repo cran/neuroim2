@@ -1,7 +1,7 @@
 Package: neuroim2
 Type: Package
 Title: Data Structures for Brain Imaging Data
-Version: 0.13.0
+Version: 0.19.1
 LinkingTo: Rcpp, RcppArmadillo, RcppParallel
 Author: Bradley R Buchsbaum [aut, cre, cph]
 Authors@R: c(
@@ -21,32 +21,34 @@ VignetteBuilder: knitr, rmarkdown
 Depends: R (>= 4.3.0), Matrix
 Collate: 'RcppExports.R' 'all_generic.R' 'all_class.R'
         'SparseNeuroVec-validity.R' 'affine_utils.R' 'afni_io.R'
-        'array_like.R' 'axis.R' 'big_neurovec.R' 'binary_io.R' 'cgb.R'
-        'cgb_nuisance.R' 'clustered_neurovec.R' 'clustervol.R'
-        'common.R' 'conncomp.R' 'deoblique.R' 'downsample.R'
-        'file_format.R' 'filebacked_neurovec.R' 'globals.R'
-        'header_api.R' 'index_vol.R' 'mapped_neurovec.R' 'meta_info.R'
-        'meta_info_api.R' 'neuro_obj.R' 'neurohypervec.R' 'neuroim.R'
-        'neuroslice.R' 'neurospace.R' 'neurovec.R' 'neurovecseq.R'
-        'neurovol.R' 'nifti_extensions.R' 'nifti_io.R' 'niml_io.R'
-        'ops.R' 'orientation.R' 'palettes.R' 'plot-helpers.R'
-        'plot-montage.R' 'plot-ortho.R' 'plot-overlay.R' 'read_image.R'
-        'resample.R' 'resample_to.R' 'roi.R' 'searchlight.R'
-        'show_helpers.R' 'simulate.R' 'space_utils.R'
-        'sparse_neurovec.R' 'spat_filter.R' 'summary_methods.R'
-        'theme.R' 'zzz.R'
+        'array_like.R' 'as_raster.R' 'axis.R' 'big_neurovec.R'
+        'binary_io.R' 'cgb.R' 'cgb_nuisance.R' 'clustered_neurovec.R'
+        'clustervol.R' 'common.R' 'conncomp.R' 'deoblique.R'
+        'downsample.R' 'file_format.R' 'filebacked_neurovec.R'
+        'globals.R' 'header_api.R' 'index_vol.R' 'mapped_neurovec.R'
+        'meta_info.R' 'meta_info_api.R' 'neuro_obj.R' 'neurohypervec.R'
+        'neuroim.R' 'neuroslice.R' 'neurospace.R' 'neurovec.R'
+        'neurovecseq.R' 'neurovol.R' 'nifti_extensions.R' 'nifti_io.R'
+        'niml_io.R' 'ops.R' 'orientation.R' 'palettes.R'
+        'plot-checkerboard.R' 'plot-edge-overlay.R' 'plot-engine.R'
+        'plot-helpers.R' 'plot-montage.R' 'plot-ortho.R'
+        'plot-overlay.R' 'read_image.R' 'resample.R' 'resample_to.R'
+        'roi.R' 'searchlight.R' 'show_helpers.R' 'simulate.R'
+        'space_utils.R' 'sparse_neurovec.R' 'spat_filter.R'
+        'summary_methods.R' 'theme.R' 'zzz.R'
 RoxygenNote: 7.3.3
 Imports: purrr, mmap, Rcpp, RcppParallel, RNifti, dbscan, stringr,
         methods, bigstatsr, RNiftyReg, future, future.apply, deflist,
-        cli, ggplot2, magrittr, grid
-Suggests: testthat, covr, knitr, pkgdown, roxygen2, rmarkdown,
-        albersdown, Gmedian, R.utils, spelling, vdiffr, xml2
+        cli, ggplot2, magrittr, grid, patchwork
+Suggests: testthat, covr, knitr, pkgdown, ragg, roxygen2, rmarkdown,
+        albersdown, Gmedian, R.utils, spelling, systemfonts, vdiffr,
+        xml2
 URL: https://github.com/bbuchsbaum/neuroim2,
         https://bbuchsbaum.github.io/neuroim2/
 BugReports: https://github.com/bbuchsbaum/neuroim2/issues
 Language: en-US
-Config/Needs/website: bbuchsbaum/albersdown, albersdown
+Config/Needs/website: bbuchsbaum/albersdown
 NeedsCompilation: yes
-Packaged: 2026-04-16 15:55:54 UTC; bbuchsbaum
+Packaged: 2026-10-06 22:03:41 UTC; bbuchsbaum
 Repository: CRAN
-Date/Publication: 2026-04-16 17:00:02 UTC
+Date/Publication: 2026-10-07 00:10:02 UTC

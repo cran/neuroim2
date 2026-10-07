@@ -43,7 +43,7 @@ SparseNeuroVecSource <- function(meta_info, indices=NULL, mask) {
 }
 
 #' @noRd
-prep_sparsenvec <- function(data, space, mask) {
+prep_sparsenvec <- function(data, space, mask, orientation = "auto") {
   if (!inherits(mask, "LogicalNeuroVol")) {
     mspace <- NeuroSpace(dim(space)[1:3],
                          spacing(space),
@@ -57,7 +57,26 @@ prep_sparsenvec <- function(data, space, mask) {
 
   if (is.matrix(data)) {
     Nind <- sum(mask == TRUE)
-    if (nrow(data) == Nind) {
+    if (orientation != "auto") {
+      # Normalize to the internal [time x voxels] store.
+      if (orientation == "voxels_x_time") {
+        data <- t(data)
+      }
+      if (ncol(data) != Nind) {
+        cli::cli_abort(c(
+          "Explicit matrix {.arg orientation} does not match mask cardinality.",
+          "x" = "After applying {.val {orientation}}, expected {Nind} voxel columns, got {ncol(data)}."
+        ))
+      }
+    } else if (nrow(data) == Nind && ncol(data) == Nind) {
+      # Square matrices are ambiguous under auto; keep the historic
+      # voxels-by-time convention and surface the choice.
+      cli::cli_warn(c(
+        "Matrix is square ({Nind} x {Nind}); assuming {.val voxels_x_time}.",
+        "i" = "Pass {.code orientation = \"time_x_voxels\"} for a square {.fn series} result, or {.code orientation = \"voxels_x_time\"} to silence this warning."
+      ))
+      data <- t(data)
+    } else if (nrow(data) == Nind) {
       data <- t(data)
       if (ncol(data) != cardinality) {
         cli::cli_abort("Data matrix columns ({ncol(data)}) must match cardinality of {.arg mask} ({cardinality}).")
@@ -98,12 +117,24 @@ prep_sparsenvec <- function(data, space, mask) {
 #' Constructs a SparseNeuroVec object for efficient representation and manipulation
 #' of sparse neuroimaging data with many zero or missing values.
 #'
-#' @param data A matrix or a 4-D array containing the neuroimaging data. The dimensions of the data should be consistent with the dimensions of the provided NeuroSpace object and mask.
+#' @param data A matrix or a 4-D array containing the neuroimaging data.
+#'   For matrix input, rows/columns must match either voxels-by-time or
+#'   time-by-voxels relative to \code{mask}; when unambiguous,
+#'   \code{orientation = "auto"} infers the layout from mask cardinality.
+#'   When the matrix is square (\code{n_voxels == n_timepoints}), auto mode
+#'   assumes voxels-by-time and warns -- pass \code{orientation} explicitly
+#'   if the matrix is time-by-voxels (as from \code{\link{series}}).
+#'   For 4-D arrays, axes are always \eqn{x, y, z, time}.
 #' @param space A \link{NeuroSpace} object representing the dimensions and voxel spacing of the neuroimaging data.
 #' @param mask A 3D array, 1D vector of type logical, or an instance of type \link{LogicalNeuroVol}, which specifies the locations of the non-zero values in the data.
 #' @param label Optional character string providing a label for the vector
 #' @param volume_labels Optional character vector of length \code{dim(space)[4]}
 #'   giving per-volume labels.
+#' @param orientation Matrix orientation: \code{"auto"} (default) infers it
+#'   from mask cardinality; a square matrix is interpreted as voxels by time.
+#'   Use \code{"time_x_voxels"} for output from \code{\link{series}}, or
+#'   \code{"voxels_x_time"} to declare rows as voxels explicitly. Ignored for
+#'   4-D arrays.
 #' @return A SparseNeuroVec object, containing the sparse neuroimaging data, mask, and associated NeuroSpace information.
 #' @export
 #'
@@ -114,7 +145,9 @@ prep_sparsenvec <- function(data, space, mask) {
 #' svec <- SparseNeuroVec(mat, bspace, mask)
 #' length(indices(svec)) == sum(mask)
 #' @rdname SparseNeuroVec-class
-SparseNeuroVec <- function(data, space, mask, label = "", volume_labels = character()) {
+SparseNeuroVec <- function(data, space, mask, label = "", volume_labels = character(),
+                           orientation = c("auto", "voxels_x_time", "time_x_voxels")) {
+  orientation <- match.arg(orientation)
 	stopifnot(inherits(space, "NeuroSpace"))
 
   # Ensure space has 4 dimensions
@@ -122,7 +155,7 @@ SparseNeuroVec <- function(data, space, mask, label = "", volume_labels = charac
     stop("The 'space' argument must have exactly 4 dimensions")
   }
 
-  p <- prep_sparsenvec(data, space, mask)
+  p <- prep_sparsenvec(data, space, mask, orientation = orientation)
   volume_labels <- .normalize_volume_labels(volume_labels, dim(p$space)[4])
 
 	new("SparseNeuroVec", space=p$space, mask=p$mask,
@@ -185,6 +218,7 @@ setMethod(f="load_data", signature=c("SparseNeuroVecSource"),
           bspace,
           x@mask,
           label = meta@data_file,
+          orientation = "voxels_x_time",
           volume_labels = nifti_volume_labels(
             meta@header,
             expected_length = length(ind),
@@ -243,6 +277,43 @@ setMethod("series", signature(x="AbstractSparseNeuroVec", i="numeric"),
             }
           })
 
+#' Compiled column gather for the sparse [time x voxel] store
+#'
+#' Reads \code{x@data} directly, so it is only valid for classes whose
+#' \code{matricized_access()} method is plain column indexing into that slot.
+#' That is exactly \code{SparseNeuroVec} -- \code{BigNeuroVec} keeps its data in
+#' an FBM, and user-defined lazy subclasses may hold a placeholder in
+#' \code{@data} while serving real values from an overridden
+#' \code{matricized_access()}. The test is deliberately on the concrete class,
+#' not \code{is()}: any subclass may override the accessor, and honouring that
+#' hook matters more than the speed-up.
+#'
+#' Returns \code{NULL} when the fast path does not apply, so callers fall back
+#' to the accessor-based implementation.
+#'
+#' @keywords internal
+#' @noRd
+.sparse_series_fast <- function(x, mapped_idx) {
+  # class(x) on an S4 object carries a "package" attribute; class(x)[1L] would
+  # drop it, so a same-named class from elsewhere -- or a rewritten class
+  # attribute -- could take this path and bypass the accessor hook.
+  if (!identical(class(x), getClass("SparseNeuroVec")@className)) {
+    return(NULL)
+  }
+  dat <- x@data
+  if (!is.matrix(dat) || !is.double(dat)) {
+    return(NULL)
+  }
+  # The zero-fill-and-scatter implementation this replaces produced a
+  # dim(x)[4]-row result; refuse rather than silently return a different shape
+  # if the store and the space disagree.
+  if (nrow(dat) != dim(x)[4L]) {
+    return(NULL)
+  }
+  series_gather_sparse(dat, as.integer(mapped_idx))
+}
+
+
 #' @rdname series-methods
 #' @export
 setMethod(
@@ -253,16 +324,17 @@ setMethod(
     if (missing(j) && missing(k)) {
       # Map linear indices -> actual row in sparse matrix or 0 if none
       mapped_idx <- lookup(x, i)  # vector of the same length as i
-      # Prepare output: #rows = time, #cols = length(i)
-      out <- matrix(0, nrow = dim(x)[4], ncol = length(i))
 
-      # Identify which of those voxel indices are actually non-zero
-      nz <- which(mapped_idx > 0)
-      if (length(nz) > 0) {
-        # Access the non-zero columns from x@data
-        # Because x@data is (time x voxels)
-        # We want to fill the columns out[, nz] from x@data[, mapped_idx[nz]]
-        out[, nz] <- matricized_access(x, mapped_idx[nz])
+      # One compiled pass writes the mapped columns and leaves the rest zero,
+      # instead of allocating a zero matrix and scattering into it.
+      out <- .sparse_series_fast(x, mapped_idx)
+      if (is.null(out)) {
+        out <- matrix(0, nrow = dim(x)[4], ncol = length(i))
+        nz <- which(mapped_idx > 0)
+        if (length(nz) > 0) {
+          # x@data is (time x voxels): fill out[, nz] from x@data[, mapped_idx[nz]]
+          out[, nz] <- matricized_access(x, mapped_idx[nz])
+        }
       }
 
       # If user says drop=TRUE and asked for a single voxel, drop down to vector
@@ -296,10 +368,13 @@ setMethod(
         coords_mat <- cbind(i, j, k)
         lin_idx <- .gridToIndex3D(dim(x)[1:3], coords_mat)
         mapped_idx <- lookup(x, lin_idx)
-        out <- matrix(0, nrow = dim(x)[4], ncol = nrow(coords_mat))
-        nz <- which(mapped_idx > 0)
-        if (length(nz) > 0) {
-          out[, nz] <- matricized_access(x, mapped_idx[nz])
+        out <- .sparse_series_fast(x, mapped_idx)
+        if (is.null(out)) {
+          out <- matrix(0, nrow = dim(x)[4], ncol = nrow(coords_mat))
+          nz <- which(mapped_idx > 0)
+          if (length(nz) > 0) {
+            out[, nz] <- matricized_access(x, mapped_idx[nz])
+          }
         }
         # If user requested drop=TRUE and exactly one voxel, drop dimension
         if (drop && nrow(coords_mat) == 1) {
@@ -380,6 +455,7 @@ setMethod(f="concat", signature=signature(x="SparseNeuroVec", y="SparseNeuroVec"
                 ndat,
                 nspace,
                 mask = x@mask,
+                orientation = "time_x_voxels",
                 volume_labels = .combine_volume_labels(c(list(x, y), rest))
               )
             } else {
@@ -389,6 +465,7 @@ setMethod(f="concat", signature=signature(x="SparseNeuroVec", y="SparseNeuroVec"
                 ndat,
                 nspace,
                 mask = x@mask,
+                orientation = "time_x_voxels",
                 volume_labels = .combine_volume_labels(list(x, y))
               )
             }
@@ -506,88 +583,57 @@ setMethod(
   f = "linear_access",
   signature = signature(x = "AbstractSparseNeuroVec", i = "numeric"),
   def = function(x, i) {
-    # -------------------------------
-    # Input Validation
-    # -------------------------------
     if (!is.numeric(i)) {
       stop("'i' must be a numeric vector.")
     }
-
-    if (any(is.na(i))) {
+    if (anyNA(i)) {
       stop("'i' contains NA values, which are not allowed.")
     }
 
-    if (any(i <= 0)) {
-      stop("All indices in 'i' must be positive integers.")
-    }
-
-    if (any(i != floor(i))) {
-      stop("All indices in 'i' must be integers.")
-    }
-
-    # -------------------------------
-    # Dimension Retrieval and Validation
-    # -------------------------------
     dims <- dim(x)
     if (is.null(dims) || length(dims) < 4) {
       stop("The object 'x' must have at least 4 dimensions.")
     }
 
-    spatial_nels <- prod(dims[1:3])  # Number of elements in the first three dimensions
-    num_timepoints <- dims[4]        # Fourth dimension (e.g., time)
-
-    # Total number of elements in 'x'
+    spatial_nels <- prod(dims[1:3])
+    num_timepoints <- dims[4]
     total_elements <- spatial_nels * num_timepoints
-    if (any(i > total_elements)) {
+
+    # Single-pass bounds check avoids allocating logical vectors for large i.
+    rng <- range(i)
+    if (rng[1L] <= 0) {
+      stop("All indices in 'i' must be positive integers.")
+    }
+    if (rng[2L] > total_elements) {
       stop(sprintf("Indices in 'i' exceed the total number of elements (%d).", total_elements))
     }
-
-    # -------------------------------
-    # Mapping Linear Indices to 4D Coordinates
-    # -------------------------------
-    # Calculate timepoints and spatial_offsets using integer division and modulo
-    timepoints <- ((i - 1) %/% spatial_nels) + 1
-    spatial_offsets <- ((i - 1) %% spatial_nels) + 1
-
-    # -------------------------------
-    # Sparse Lookup
-    # -------------------------------
-    # Perform lookup to get mapping indices; assumes 'lookup' returns 0 for zeros
-    lookup_values <- lookup(x, spatial_offsets)
-
-    # Identify non-zero lookups
-    non_zero_indices <- which(lookup_values > 0)
-
-    # Early exit if all lookups are zero
-    if (length(non_zero_indices) == 0) {
-      return(rep(0, length(i)))  # All requested values are zero
+    if (!is.integer(i) && any(i != floor(i))) {
+      stop("All indices in 'i' must be integers.")
     }
 
-    # -------------------------------
-    # Prepare Indices for Data Retrieval
-    # -------------------------------
-    # Extract corresponding timepoints and spatial indices for non-zero lookups
-    data_indices <- lookup_values[non_zero_indices]  # Indices in the sparse data matrix
+    # Map linear indices to (timepoint, spatial offset).
+    i0 <- i - 1
+    timepoints <- (i0 %/% spatial_nels) + 1
+    spatial_offsets <- (i0 %% spatial_nels) + 1
 
-    # Create a two-column matrix for 'matricized_access'
-    idx_matrix <- cbind(data_indices, timepoints[non_zero_indices])
+    # Direct reverse-map lookup: spatial_offsets are guaranteed in [1, spatial_nels],
+    # so we can skip the re-validation that lookup()/IndexLookupVol would perform.
+    lookup_values <- x@map@map[spatial_offsets]
 
-    # -------------------------------
-    # Retrieve Non-Zero Values
-    # -------------------------------
-    # Retrieve the non-zero values from the data matrix
+    non_zero_indices <- which(lookup_values > 0L)
+    if (length(non_zero_indices) == 0L) {
+      return(numeric(length(i)))
+    }
+
+    data_indices <- lookup_values[non_zero_indices]
+
+    # x@data is stored as [time x voxel]; matrix index is (row = timepoint, col = voxel).
+    idx_matrix <- cbind(timepoints[non_zero_indices], data_indices)
     non_zero_values <- matricized_access(x, idx_matrix)
 
-    # -------------------------------
-    # Assemble Output Vector
-    # -------------------------------
-    # Initialize the output vector with zeros
     output_values <- numeric(length(i))
-
-    # Assign the retrieved non-zero values to their respective positions
     output_values[non_zero_indices] <- non_zero_values
-
-    return(output_values)
+    output_values
   }
 )
 
